@@ -23,7 +23,7 @@ function BankTransferContent() {
   };
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,12 +32,19 @@ function BankTransferContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const accountNumber = '123-4-56789-0';
+  // ข้อมูลบัญชี ALPHA BANK
+  const bankDetails = {
+    bankName: 'ALPHA BANK 1 (Rental - Sublets)',
+    accountName: 'REALSOL CYPRUS LTD',
+    accountNo: '651-101-012445-8',
+    iban: 'CY61009006510006511010124458',
+    bic: 'ABKLCY2N',
+  };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(accountNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,27 +201,75 @@ function BankTransferContent() {
       </h2>
 
       <form onSubmit={handleConfirm} className="w-full space-y-6">
-        {/* Bank Account Info */}
+        {/* Bank Account Info Card */}
         <div>
           <h3 className="text-xs font-bold text-gray-700 mb-2">
             Bank Account Info
           </h3>
-          <div className="bg-gray-100/80 rounded-xl p-4 text-center text-xs text-gray-800 font-medium leading-relaxed relative border border-gray-100">
-            <div className="flex items-center justify-center gap-2">
-              <span>KBank: {accountNumber}</span>
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-xs space-y-3">
+            {/* Bank Name */}
+            <div className="font-bold text-emerald-700 border-b border-slate-200 pb-2 text-xs">
+              {bankDetails.bankName}
+            </div>
+
+            {/* Account Name */}
+            <div>
+              <span className="text-gray-400 text-[10px] block uppercase font-medium">Account Name</span>
+              <span className="font-bold text-slate-800">{bankDetails.accountName}</span>
+            </div>
+
+            {/* Account No */}
+            <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+              <div>
+                <span className="text-gray-400 text-[10px] block uppercase font-medium">Account No.</span>
+                <span className="font-mono font-semibold text-slate-800">{bankDetails.accountNo}</span>
+              </div>
               <button
                 type="button"
-                onClick={handleCopy}
-                className="text-[10px] bg-white hover:bg-gray-50 px-2 py-0.5 rounded border border-gray-300 text-gray-700 font-bold transition active:scale-95 shadow-sm cursor-pointer"
+                onClick={() => handleCopy(bankDetails.accountNo, 'acc')}
+                className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold transition active:scale-95 cursor-pointer"
               >
-                {copied ? 'Copied!' : '[Copy]'}
+                {copiedField === 'acc' ? 'Copied!' : '[Copy]'}
               </button>
             </div>
-            <p className="mt-1">Account Name: Company Co., Ltd.</p>
+
+            {/* IBAN */}
+            <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+              <div className="pr-2 min-w-0">
+                <span className="text-gray-400 text-[10px] block uppercase font-medium">IBAN</span>
+                <span className="font-mono font-semibold text-slate-800 break-all text-[11px]">{bankDetails.iban}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(bankDetails.iban, 'iban')}
+                className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold transition active:scale-95 shrink-0 cursor-pointer"
+              >
+                {copiedField === 'iban' ? 'Copied!' : '[Copy]'}
+              </button>
+            </div>
+
+            {/* BIC */}
+            <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+              <div>
+                <span className="text-gray-400 text-[10px] block uppercase font-medium">BIC</span>
+                <span className="font-mono font-semibold text-slate-800">{bankDetails.bic}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(bankDetails.bic, 'bic')}
+                className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold transition active:scale-95 cursor-pointer"
+              >
+                {copiedField === 'bic' ? 'Copied!' : '[Copy]'}
+              </button>
+            </div>
+
+            {/* Amount to pay */}
             {price && (
-              <p className="mt-2 font-bold text-emerald-700">
-                Amount to pay: {price}
-              </p>
+              <div className="text-center pt-2 border-t border-slate-200">
+                <span className="text-emerald-700 font-bold text-sm">
+                  Amount to pay: {price}
+                </span>
+              </div>
             )}
           </div>
         </div>

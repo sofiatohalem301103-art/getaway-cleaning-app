@@ -24,7 +24,7 @@ function CardPaymentContent() {
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
+  const [cardName, setCardName] = useState(''); // ปล่อยว่างไว้ให้ผู้ใช้กรอกเอง
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,11 +66,11 @@ function CardPaymentContent() {
       const bookingCode = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
 
       if (supabase) {
-        // บันทึกลงตาราง bookings (หักเงินอัตโนมัติ ไม่ต้องใส่ slip_url)
+        // บันทึกลงตาราง bookings
         const { error: dbError } = await supabase.from('bookings').insert([
           {
             booking_code: bookingCode,
-            customer_name: user.name,
+            customer_name: cardName, // ใช้ชื่อบัตรที่ผู้ใช้กรอกเอง
             customer_email: user.email,
             room_type: room,
             address: room,
@@ -79,9 +79,10 @@ function CardPaymentContent() {
             program: program,
             price: cleanPrice,
             amount: cleanPrice,
-            payment_method: 'Credit/Debit Card (Automatic)',
+            payment_method: 'Credit/Debit Card',
             payment_status: 'Paid',
-            status: 'Pending',
+            status: 'Confirmed',
+            payment_slip: 'Credit Card Payment (Auto Charged)',
             card_last_digits: cardNumber.replace(/\s/g, '').slice(-4),
             created_at: new Date().toISOString(),
           },
@@ -97,7 +98,7 @@ function CardPaymentContent() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              customerName: user.name,
+              customerName: cardName,
               email: user.email,
               room: room,
               date: rawDate,
@@ -113,6 +114,7 @@ function CardPaymentContent() {
 
       // ไปยังหน้า Confirmation
       const query = new URLSearchParams({
+        ref: bookingCode,
         room,
         date: rawDate,
         time,
@@ -122,8 +124,9 @@ function CardPaymentContent() {
       }).toString();
 
       router.push(`/customer/confirmation?${query}`);
-    } catch (err: any) {
-      alert('Payment processing failed: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during payment processing.';
+      alert('Payment processing failed: ' + errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -153,7 +156,7 @@ function CardPaymentContent() {
             <button
               type="button"
               onClick={() => router.push('/login')}
-              className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-1.5 rounded-md transition"
+              className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-1.5 rounded-md transition cursor-pointer"
             >
               Log out
             </button>
@@ -198,11 +201,11 @@ function CardPaymentContent() {
           <label className="block text-xs text-gray-600 font-medium mb-1">Cardholder Name</label>
           <input
             type="text"
-            placeholder="SOFIA ROSS"
+            placeholder="Name on card"
             value={cardName}
             onChange={(e) => setCardName(e.target.value.toUpperCase())}
             disabled={isSubmitting}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-black"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-black uppercase"
             required
           />
         </div>
