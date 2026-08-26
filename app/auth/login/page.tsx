@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -10,74 +11,96 @@ export default function LoginPage() {
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
-    if (contact) {
-      localStorage.setItem('temp_phone', contact); // บันทึกข้อมูลเพื่อนำไปใช้ต่อในหน้า OTP
-      router.push('/auth/verify-otp'); // เติม / ข้างหน้า
+    
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    const cleanContact = contact.trim();
+    
+    if (cleanContact) {
+      localStorage.setItem('temp_phone', cleanContact);
+      
+      setTimeout(() => {
+        router.push('/auth/verify-otp');
+      }, 100);
     }
   };
 
-  const handleSignUp = () => {
-    router.push('/auth/register'); // เติม / ข้างหน้า
-  };
-
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-sm">
+    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+      
+      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between sm:justify-center items-center">
         
-        {/* Company Logo */}
-        <div className="flex justify-center mb-6">
-          <Image 
-            src="/logo.jpeg" 
-            alt="Company Logo" 
-            width={120} 
-            height={120} 
-            className="object-contain w-auto h-auto"
-            priority
-          />
-        </div>
-
-        <h2 className="text-xl font-bold text-gray-800 text-center mb-1">
-          Sign In
-        </h2>
-        <p className="text-xs text-gray-400 text-center mb-6">
-          Enter your email or phone number to continue
-        </p>
-
-        <form onSubmit={handleNext} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Email or Phone Number
-            </label>
-            <input 
-              type="text" 
-              required
-              placeholder="Your Email or Phone Number"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+        {/* Header & Logo */}
+        <div className="w-full flex flex-col items-center pt-8 sm:pt-0">
+          <div className="mb-6">
+            <Image 
+              src="/logo.jpeg" 
+              alt="Company Logo" 
+              width={140} 
+              height={140} 
+              className="object-contain"
+              style={{ width: 'auto', height: 'auto' }}
+              priority
             />
           </div>
 
-          <button 
-            type="submit" 
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 rounded-xl text-sm transition shadow-sm cursor-pointer"
-          >
-            Next
-          </button>
-        </form>
-
-        {/* Divider & Sign Up Button */}
-        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-500 mb-3">
-            Don't have an account?
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+            Sign In
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 text-center">
+            Enter your email or phone number to continue
           </p>
-          <button
-            type="button"
-            onClick={handleSignUp}
-            className="w-full bg-white hover:bg-gray-50 text-emerald-600 font-semibold py-2.5 border border-emerald-600 rounded-xl text-sm transition cursor-pointer"
-          >
-            Create New Account
-          </button>
+        </div>
+
+        {/* Form Input & Action Buttons */}
+        <div className="w-full my-auto sm:my-6">
+          <form onSubmit={handleNext} className="space-y-4">
+            <div className="text-left">
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Email or Phone Number
+              </label>
+              {/* เปลี่ยนจาก text-sm เป็น text-base เพื่อป้องกัน iOS Auto-Zoom */}
+              <input 
+                type="text" 
+                required
+                placeholder="Your Email or Phone Number"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
+              />
+            </div>
+
+            {/* ปุ่ม Next */}
+            <button 
+              type="submit" 
+              className="w-full min-h-[50px] bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white font-semibold py-3 rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+            >
+              Next
+            </button>
+          </form>
+
+          {/* Divider & Sign Up Link */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400 mb-3">
+              Don't have an account?
+            </p>
+            <Link
+              href="/auth/register"
+              prefetch={false}
+              className="w-full min-h-[48px] bg-white hover:bg-emerald-50/50 active:bg-emerald-100/50 active:scale-[0.98] text-emerald-600 font-semibold py-2.5 border border-emerald-600/30 rounded-2xl text-sm transition duration-150 touch-manipulation cursor-pointer flex items-center justify-center"
+            >
+              Create New Account
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="w-full pb-4 sm:pb-0 text-center">
+          <p className="text-[11px] text-slate-400">
+            © Getaway Cleaning Service
+          </p>
         </div>
 
       </div>

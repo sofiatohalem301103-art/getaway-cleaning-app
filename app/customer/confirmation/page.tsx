@@ -15,8 +15,8 @@ function ConfirmationContent() {
   const program = searchParams.get('program') || 'General cleaning';
   const price = searchParams.get('price') || '90€';
 
-  // ป้องกัน Hydration Mismatch ด้วยการสร้าง Ref ID เมื่อ Component Mount
   const [bookingRef, setBookingRef] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     setBookingRef(`REF-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`);
@@ -33,48 +33,63 @@ function ConfirmationContent() {
     }
   };
 
+  // ฟังก์ชันช่วยดาวน์โหลด Blob รองรับมือถือ 100%
+  const triggerMobileDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+  };
+
   const generateCanvas = async () => {
     if (!receiptRef.current) return null;
     const html2canvasModule = await import('html2canvas');
     const html2canvas = html2canvasModule.default || html2canvasModule;
 
     return await html2canvas(receiptRef.current, {
-      scale: 2,
+      scale: 3, // เพิ่มความคมชัด
       useCORS: true,
+      allowTaint: true,
       backgroundColor: '#ffffff',
-      onclone: (clonedDoc) => {
-        const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
-        styles.forEach((style) => {
-          if (style.textContent?.includes('lab(') || style.textContent?.includes('oklch(')) {
-            style.remove();
-          }
-        });
-      },
     });
   };
 
-  // บันทึกรูปภาพ (.png)
+  // 1. บันทึกเป็นรูปภาพ (.png)
   const handleDownloadImage = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
     try {
       const canvas = await generateCanvas();
       if (!canvas) return;
-      const image = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = `Booking_Receipt_${bookingRef}.png`;
-      link.click();
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          triggerMobileDownload(blob, `Booking_Receipt_${bookingRef}.png`);
+        }
+      }, 'image/png');
     } catch (error) {
       console.error('Error saving image:', error);
       alert('Could not save image.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
-  // บันทึกไฟล์ PDF (.pdf) แบบหน้าเดียว
+  // 2. บันทึกเป็นไฟล์ PDF (.pdf)
   const handleDownloadPDF = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
     try {
       const canvas = await generateCanvas();
       if (!canvas) return;
-      
+
       const jsPDFModule = await import('jspdf');
       const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
 
@@ -85,23 +100,28 @@ function ConfirmationContent() {
         format: 'a4',
       });
 
-      const imgWidth = 140; // ความกว้างใบเสร็จใน A4 (มม.)
+      const imgWidth = 140;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const xPos = (210 - imgWidth) / 2; // จัดกึ่งกลางแนวนอน
+      const xPos = (210 - imgWidth) / 2;
       const yPos = 20;
 
       pdf.addImage(imgData, 'PNG', xPos, yPos, imgWidth, imgHeight);
-      pdf.save(`Booking_Receipt_${bookingRef}.pdf`);
+
+      // แปลง PDF เป็น Blob เพื่อส่งโหลดตรงบนมือถือ
+      const pdfBlob = pdf.output('blob');
+      triggerMobileDownload(pdfBlob, `Booking_Receipt_${bookingRef}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Could not generate PDF file.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
   return (
     <div className="w-full max-w-md mx-auto relative flex flex-col items-center">
       
-      {/* ส่วนตัวใบเสร็จ */}
+      {/* ส่วนตัวใบเสร็จ (ที่จะถูก Export) */}
       <div 
         ref={receiptRef} 
         style={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6' }}
@@ -174,31 +194,34 @@ function ConfirmationContent() {
         </div>
       </div>
 
-      {/* ปุ่มกดดาวน์โหลด */}
+      {/* ปุ่มกดดาวน์โหลด 2 ปุ่ม ( Save Image / Save PDF ) */}
       <div className="w-full grid grid-cols-2 gap-3 mt-6">
         <button
           onClick={handleDownloadImage}
-          className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-2"
+          disabled={isDownloading}
+          className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Save Image
+          {isDownloading ? 'Downloading...' : 'Save Image'}
         </button>
         <button
           onClick={handleDownloadPDF}
-          className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-2"
+          disabled={isDownloading}
+          className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
-          Save PDF
+          {isDownloading ? 'Downloading...' : 'Save PDF'}
         </button>
       </div>
 
+      {/* ปุ่ม กลับหน้าหลัก */}
       <button
         onClick={() => router.push('/')}
-        className="w-full py-3 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg text-xs transition mt-3"
+        className="w-full py-3 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-semibold rounded-xl text-xs transition mt-3 cursor-pointer"
       >
         Back to Home
       </button>

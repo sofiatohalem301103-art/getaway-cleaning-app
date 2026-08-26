@@ -24,7 +24,6 @@ export default function StaffDashboardPage() {
         router.push('/staff/login');
       }
     } else {
-      // ถ้าไม่มีการล็อกอิน ให้เด้งกลับไปหน้า Login
       router.push('/staff/login');
     }
   }, [router]);
@@ -84,7 +83,7 @@ export default function StaffDashboardPage() {
     }
   };
 
-  // ดึงงานที่มอบหมายเฉพาะ Staff ID ของคนที่ล็อกอินอยู่ (GW-S1 - GW-S5)
+  // ดึงงานที่มอบหมายเฉพาะ Staff ID ของคนที่ล็อกอินอยู่
   const loadStaffTasks = useCallback(async () => {
     if (!currentStaff?.id) return;
 
@@ -104,7 +103,6 @@ export default function StaffDashboardPage() {
 
     loadStaffTasks();
 
-    // Listen to Realtime updates เฉพาะงานของ Staff คนนี้
     const channel = supabase
       .channel(`staff-feed-${currentStaff.id}`)
       .on(
@@ -149,9 +147,9 @@ export default function StaffDashboardPage() {
     router.push('/staff/login');
   };
 
-  // อัปเดตสถานะงาน
+  // 🔄 อัปเดตสถานะงาน (In Progress -> Completed)
   const handleUpdateStatus = async (
-    taskId: any,
+    task: any,
     newStatus: string,
     confirmMsg?: string
   ) => {
@@ -168,15 +166,15 @@ export default function StaffDashboardPage() {
     const { error } = await supabase
       .from('bookings')
       .update(updatePayload)
-      .eq('id', taskId);
+      .eq('id', task.id);
 
     if (error) {
       alert('Error: ' + error.message);
     } else {
-      if (newStatus === 'Completed') {
-        alert('Job marked as Completed! Admin has been notified.');
-      } else if (newStatus === 'In Progress') {
-        alert('Job accepted! Status updated to In Progress.');
+      if (newStatus === 'In Progress') {
+        alert('รับงานเรียบร้อย! กำลังเริ่มดำเนินการ');
+      } else if (newStatus === 'Completed') {
+        alert('ปิดงานสำเร็จ! ระบบบันทึกเวลาทำงานเรียบร้อยครับ');
       }
       loadStaffTasks();
     }
@@ -254,7 +252,7 @@ export default function StaffDashboardPage() {
               {isAudioEnabled ? '🔔 Sound On' : '🔇 Enable Sound'}
             </button>
 
-            {/* แสดงชื่อและรหัสพนักงานที่ล็อกอินอยู่ (ไม่มี Select) */}
+            {/* แสดงชื่อและรหัสพนักงานที่ล็อกอินอยู่ */}
             <div className="bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 font-bold text-slate-700">
               <span>👷‍♂️</span>
               <span>{currentStaff.id}</span>
@@ -377,7 +375,7 @@ export default function StaffDashboardPage() {
                         task.status === 'Confirmed' ||
                         task.status === 'Pending') && (
                         <button
-                          onClick={() => handleUpdateStatus(task.id, 'In Progress')}
+                          onClick={() => handleUpdateStatus(task, 'In Progress')}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-lg text-xs transition cursor-pointer shadow-sm flex items-center gap-1"
                         >
                           🚀 Accept & Start
@@ -388,7 +386,7 @@ export default function StaffDashboardPage() {
                         <button
                           onClick={() =>
                             handleUpdateStatus(
-                              task.id,
+                              task,
                               'Completed',
                               'Are you sure you have completed this cleaning task?'
                             )

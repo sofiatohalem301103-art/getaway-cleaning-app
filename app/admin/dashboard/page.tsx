@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-// รายชื่อพนักงาน GW-S1 ถึง GW-S5
+// ----------------------------------------------------------------------
+// 1. กำหนดรายชื่อพนักงาน
+// ----------------------------------------------------------------------
 const STAFF_LIST = [
   { id: 'GW-S1', name: 'Staff 01' },
   { id: 'GW-S2', name: 'Staff 02' },
@@ -12,6 +14,9 @@ const STAFF_LIST = [
   { id: 'GW-S5', name: 'Staff 05' },
 ];
 
+// ----------------------------------------------------------------------
+// 2. ฟังก์ชันจัดการ Path ของรูปภาพสลิป
+// ----------------------------------------------------------------------
 const getValidSlipUrl = (task: any): string | null => {
   if (!task) return null;
   let rawUrl = task.slip_url || task.slipUrl || task.payment_slip || task.slip;
@@ -22,17 +27,30 @@ const getValidSlipUrl = (task: any): string | null => {
   return rawUrl;
 };
 
+// ฟังก์ชันแปลงวันเป็น Format YYYY-MM-DD ตาม Local Timezone
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
   const [adminUser] = useState('zaza');
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
 
+  // ----------------------------------------------------------------------
+  // 3. ระบบเสียงแจ้งเตือน (Web Audio API)
+  // ----------------------------------------------------------------------
   const toggleAudio = () => {
     try {
       if (!isAudioEnabled) {
@@ -99,6 +117,9 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // ----------------------------------------------------------------------
+  // 4. ดึงข้อมูลรายการจาก Supabase + Realtime Subscription
+  // ----------------------------------------------------------------------
   const loadBookings = useCallback(async () => {
     const { data, error } = await supabase
       .from('bookings')
@@ -167,48 +188,116 @@ export default function AdminDashboardPage() {
     }));
   };
 
-  const handleDispatchTask = async (taskId: any, staffName: string) => {
-    if (!staffName) {
-      alert('Please select a staff member first!');
-      return;
-    }
+  // ----------------------------------------------------------------------
+  // 5. ฟังก์ชันการทำงานต่างๆ
+  // ----------------------------------------------------------------------
 
-    const { error } = await supabase
-      .from('bookings')
-      .update({
-        assigned_staff: staffName,
-        assigned_by: adminUser,
-        status: 'Assigned',
-      })
-      .eq('id', taskId);
+  // 💳 1. ฟังก์ชันยืนยันการชำระเงิน + ส่งอีเมลแนบ PDF หาลูกค้า
+  const handleConfirmPayment = async (task: any) => {
+    if (!window.confirm(`Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`)) return;
 
-    if (error) {
-      alert('Error assigning task: ' + error.message);
-    } else {
-      alert(`Task successfully assigned to ${staffName}!`);
-      setSelectedStaffMap((prev) => {
-        const updated = { ...prev };
-        delete updated[taskId];
-        return updated;
-      });
+    setLoadingId(task.id);
+    try {
+      // 1. อัปเดตสถานะใน Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({ payment_status: 'Paid / Verified' })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      // 2. เรียก API ส่ง Email
+      if (task.customer_email) {
+        const emailRes = await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: task.customer_email,
+            customerName: task.customer_name || 'Valued Customer',
+            room: task.room_type || task.program || 'Cleaning Service',
+            date: task.booking_date,
+            time: task.booking_time,
+            amount: String(task.price || task.amount || '0').replace(/€/g, '').trim(),
+            refNumber: task.booking_code || `REF-${task.id}`,
+            // ⚠️ จุดแก้ไขสำคัญ: ส่ง paymentMethod นี้เพื่อให้ API เข้าบล็อกสร้าง Voucher PDF
+            paymentMethod: 'Admin Confirmation Voucher',
+          }),
+        });
+
+        const emailResultData = await emailRes.json();
+
+        if (!emailRes.ok) {
+          alert('⚠️ Payment verified in database, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
+          loadBookings();
+          return;
+        }
+      } else {
+        alert('⚠️ Payment verified, but no email address was found for this customer.');
+        loadBookings();
+        return;
+      }
+
+      alert('✅ Payment verified and Confirmation Voucher Email sent successfully!');
       loadBookings();
+    } catch (err: any) {
+      alert('❌ Error: ' + err.message);
+    } finally {
+      setLoadingId(null);
     }
   };
 
+  // 📤 2. ฟังก์ชันจ่ายงานให้พนักงาน
+  const handleDispatchTask = async (task: any, staffName: string) => {
+    if (!staffName) {
+      alert('⚠️ Please select a staff member first!');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to assign this task to ${staffName}?`)) return;
+
+    setLoadingId(task.id);
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          assigned_staff: staffName,
+          assigned_by: adminUser,
+          status: 'Assigned',
+        })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      alert(`✅ Task successfully assigned to ${staffName}!`);
+      setSelectedStaffMap((prev) => {
+        const updated = { ...prev };
+        delete updated[task.id];
+        return updated;
+      });
+      loadBookings();
+    } catch (err: any) {
+      alert('❌ Error assigning task: ' + err.message);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  // 🗑️ 3. ฟังก์ชันลบงานเดี่ยว
   const handleDeleteTask = async (taskId: any) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    if (!window.confirm('⚠️ Are you sure you want to delete this task?')) return;
 
     const { error } = await supabase.from('bookings').delete().eq('id', taskId);
 
     if (error) {
-      alert('Error deleting task: ' + error.message);
+      alert('❌ Error deleting task: ' + error.message);
     } else {
       loadBookings();
     }
   };
 
+  // 🧹 4. ฟังก์ชันลบงานทั้งหมดใน Tab ปัจจุบัน
   const handleClearAll = async () => {
-    if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
+    if (!window.confirm(`⚠️ Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
 
     const idsToDelete = currentTasks.map((t) => t.id);
     if (idsToDelete.length === 0) return;
@@ -216,13 +305,15 @@ export default function AdminDashboardPage() {
     const { error } = await supabase.from('bookings').delete().in('id', idsToDelete);
 
     if (error) {
-      alert('Error clearing tasks: ' + error.message);
+      alert('❌ Error clearing tasks: ' + error.message);
     } else {
       loadBookings();
     }
   };
 
-  // เช็กสถานะ Realtime ของพนักงาน
+  // ----------------------------------------------------------------------
+  // 6. คำนวณ สถานะพนักงาน และ การกรองข้อมูล Tab
+  // ----------------------------------------------------------------------
   const getStaffStatus = (staffId: string) => {
     const activeTask = tasks.find(
       (b) => b.assigned_staff === staffId && b.status === 'In Progress'
@@ -283,11 +374,14 @@ export default function AdminDashboardPage() {
 
   const groupedTasks = groupByDate(currentTasks);
 
+  // ----------------------------------------------------------------------
+  // 7. ส่วนแสดงผลหลัก (UI)
+  // ----------------------------------------------------------------------
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-6 text-black">
       <div className="max-w-5xl mx-auto space-y-4">
         
-        {/* Header */}
+        {/* Header ส่วนบนสุด */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center flex-wrap gap-2">
           <div>
             <h1 className="text-lg font-bold text-slate-800">
@@ -323,7 +417,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* 👷‍♂️ Staff Realtime Status Bar */}
+        {/* 👷‍♂️ Staff Monitor ติดตามสถานะพนักงาน */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
           <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
             👷‍♂️ Staff Monitor (Realtime)
@@ -351,7 +445,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs ปุ่มเปลี่ยนหน้า */}
         <div className="bg-gray-200/60 p-1 rounded-xl flex gap-1 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('history')}
@@ -385,7 +479,7 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* Task List */}
+        {/* Task List รายการการ์ดงาน */}
         {Object.keys(groupedTasks).length === 0 ? (
           <div className="bg-white p-12 rounded-2xl text-center border border-dashed border-gray-200 text-gray-400 text-xs">
             No tasks found for this view.
@@ -407,7 +501,9 @@ export default function AdminDashboardPage() {
                     key={task.id}
                     task={task}
                     selectedStaff={selectedStaffMap[task.id] || ''}
+                    isLoading={loadingId === task.id}
                     handleSelectStaffLocal={handleSelectStaffLocal}
+                    handleConfirmPayment={handleConfirmPayment}
                     handleDispatchTask={handleDispatchTask}
                     handleDeleteTask={handleDeleteTask}
                   />
@@ -421,30 +517,36 @@ export default function AdminDashboardPage() {
   );
 }
 
+// ----------------------------------------------------------------------
+// 8. คอมโพเนนต์แสดงผลการ์ดงานเดี่ยว (TaskCard Component)
+// ----------------------------------------------------------------------
 function TaskCard({
   task,
   selectedStaff,
+  isLoading,
   handleSelectStaffLocal,
+  handleConfirmPayment,
   handleDispatchTask,
   handleDeleteTask,
 }: {
   task: any;
   selectedStaff: string;
+  isLoading: boolean;
   handleSelectStaffLocal: (id: any, staff: string) => void;
-  handleDispatchTask: (id: any, staff: string) => void;
+  handleConfirmPayment: (task: any) => void;
+  handleDispatchTask: (task: any, staff: string) => void;
   handleDeleteTask: (id: any) => void;
 }) {
   const slipImage = getValidSlipUrl(task);
-
   const currentAssigned = task.assigned_staff || '';
   const activeStaffChoice = selectedStaff || currentAssigned;
 
-  const isAlreadyAssigned =
-    task.status === 'Assigned' &&
-    (!selectedStaff || selectedStaff === currentAssigned);
+  const isPaid = task.payment_status === 'Paid / Verified';
+  const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs relative group">
+      {/* Card Header (รหัสงาน + วันเวลา + ปุ่มลบ) */}
       <div className="flex justify-between items-center border-b pb-2 border-gray-50">
         <span className="font-bold text-emerald-600 text-sm">
           {task.booking_code || `REF-${task.id}`}
@@ -464,6 +566,7 @@ function TaskCard({
         </div>
       </div>
 
+      {/* Card Body (รายละเอียดงาน + สลิป + ปุ่ม Confirm Payment อยู่ใต้รูปสลิป) */}
       <div className="flex justify-between items-start gap-4">
         <div className="space-y-1 flex-1">
           <p className="font-bold text-slate-800 text-sm">
@@ -472,6 +575,11 @@ function TaskCard({
           <p className="text-gray-600">
             👤 Customer: <span className="font-semibold text-gray-800">{task.customer_name}</span>
           </p>
+          {task.customer_email && (
+            <p className="text-gray-400 text-[11px]">
+              ✉️ Email: {task.customer_email}
+            </p>
+          )}
           <p className="text-gray-500">
             📍 Address / Room: {task.address || task.room_type || '-'}
           </p>
@@ -483,38 +591,53 @@ function TaskCard({
           )}
         </div>
 
-        {/* แสดงภาพ Payment Slip */}
-        <div className="text-right">
-          <span className="text-[10px] text-gray-400 block mb-1">Payment Slip:</span>
+        {/* 💳 ฝั่งขวาบน: รูปสลิปการชำระเงิน + ปุ่ม Confirm Payment */}
+        <div className="flex flex-col items-end space-y-1.5">
+          <span className="text-[10px] text-gray-400">Payment Slip:</span>
           {slipImage ? (
             <a href={slipImage} target="_blank" rel="noreferrer" title="Click to view full image">
               <img
                 src={slipImage}
                 alt="Payment Slip"
-                className="w-[50px] h-[70px] rounded-lg border object-cover shadow-sm hover:scale-105 transition cursor-pointer"
+                className="w-[60px] h-[75px] rounded-lg border object-cover shadow-sm hover:scale-105 transition cursor-pointer"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
             </a>
           ) : (
-            <div className="w-12 h-16 bg-gray-100 border border-dashed rounded-lg flex items-center justify-center text-[10px] text-gray-400">
+            <div className="w-14 h-16 bg-gray-100 border border-dashed rounded-lg flex items-center justify-center text-[10px] text-gray-400">
               No Slip
             </div>
+          )}
+
+          {/* ปุ่ม Confirm Payment (อยู่ใต้รูปสลิป) */}
+          {isPaid ? (
+            <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2 py-1 rounded-lg block text-center">
+              ✓ Paid Verified
+            </span>
+          ) : (
+            <button
+              onClick={() => handleConfirmPayment(task)}
+              disabled={isLoading}
+              className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
+            >
+              {isLoading ? 'Sending Email...' : '💳 Confirm Payment'}
+            </button>
           )}
         </div>
       </div>
 
+      {/* Card Footer (ส่วนล่าง: ช่องเลือกพนักงาน + ปุ่ม Assign Task ต่อท้าย) */}
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-gray-400 font-medium">Assigned To:</span>
+          <span className="text-gray-500 font-medium">Assigned To:</span>
 
-          {/* อัปเดตตัวเลือกพนักงานเป็น GW-S1 ถึง GW-S5 */}
           <select
             value={activeStaffChoice}
             onChange={(e) => handleSelectStaffLocal(task.id, e.target.value)}
-            disabled={task.status === 'Completed'}
-            className={`border font-bold px-2.5 py-1 rounded-lg text-xs focus:outline-none focus:ring-2 transition ${
+            disabled={task.status === 'Completed' || isLoading}
+            className={`border font-bold px-2.5 py-1.5 rounded-xl text-xs focus:outline-none focus:ring-2 transition ${
               task.status === 'Completed'
                 ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
                 : activeStaffChoice
@@ -530,14 +653,7 @@ function TaskCard({
             ))}
           </select>
 
-          {task.assigned_by && (
-            <span className="text-[10px] text-gray-400 hidden sm:inline">
-              (by 🧑‍💼 {task.assigned_by})
-            </span>
-          )}
-        </div>
-
-        <div>
+          {/* 📤 ปุ่ม Assign Task วางต่อท้าย Dropdown ทันที */}
           {task.status === 'Completed' ? (
             <span className="bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1">
               ✅ Completed
@@ -555,11 +671,13 @@ function TaskCard({
             </button>
           ) : (
             <button
-              onClick={() => handleDispatchTask(task.id, activeStaffChoice)}
-              disabled={!activeStaffChoice}
+              onClick={() => handleDispatchTask(task, activeStaffChoice)}
+              disabled={!activeStaffChoice || isLoading}
               className={`font-bold px-3 py-1.5 rounded-xl text-[11px] border shadow-sm transition active:scale-95 flex items-center gap-1 ${
-                activeStaffChoice
-                  ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 cursor-pointer'
+                isLoading
+                  ? 'bg-gray-300 border-gray-300 text-gray-600 cursor-wait'
+                  : activeStaffChoice
+                  ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 cursor-pointer'
                   : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
@@ -567,6 +685,12 @@ function TaskCard({
             </button>
           )}
         </div>
+
+        {task.assigned_by && (
+          <span className="text-[10px] text-gray-400">
+            (by 🧑‍💼 {task.assigned_by})
+          </span>
+        )}
       </div>
     </div>
   );
