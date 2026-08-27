@@ -41,7 +41,7 @@ function BookingForm() {
 
   const loadUserData = async () => {
     try {
-      // 1. ดึงข้อมูลจาก URL Query Parameters ก่อนเป็นอันดับแรก
+      // 1. ดึงข้อมูลจาก URL Query Parameters
       const nameParam = searchParams.get('customerName') || searchParams.get('name');
       const emailParam = searchParams.get('email');
       const idParam = searchParams.get('userId');
@@ -55,7 +55,7 @@ function BookingForm() {
         return;
       }
 
-      // 2. ดึงข้อมูลจาก Supabase Auth โดยตรง
+      // 2. ดึงข้อมูลจาก Supabase Auth
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user && user.email) {
@@ -81,7 +81,7 @@ function BookingForm() {
         return;
       }
 
-      // 3. ดึงข้อมูลจาก LocalStorage / SessionStorage สำรอง
+      // 3. ดึงข้อมูลจาก LocalStorage / SessionStorage
       const savedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email');
       const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
 
@@ -230,10 +230,27 @@ function BookingForm() {
   CustomDateInput.displayName = 'CustomDateInput';
 
   return (
-    <div className="w-full sm:max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between items-center my-auto">
+    <div className="w-full min-h-dvh sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-8 rounded-none sm:rounded-3xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative">
       
+      {/* User Profile Badge (มุมซ้ายบน) */}
+      <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-full py-1 px-3 shadow-2xs z-10">
+        <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+          {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+        </div>
+        <div className="flex flex-col text-left pr-1">
+          <span className="text-[11px] font-semibold text-slate-700 leading-tight truncate max-w-[90px] sm:max-w-[100px]">
+            {currentUser?.name || 'User'}
+          </span>
+          {currentUser?.email && (
+            <span className="text-[9px] text-slate-400 leading-tight truncate max-w-[90px] sm:max-w-[100px]">
+              {currentUser.email}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Logo Section */}
-      <div className="w-full flex flex-col items-center pb-2">
+      <div className="w-full flex flex-col items-center pt-8 sm:pt-4 pb-2">
         <Image
           src="/logo.jpeg"
           alt="Company Logo"
@@ -246,7 +263,7 @@ function BookingForm() {
       </div>
 
       {/* Form Body */}
-      <div className="w-full py-4 space-y-5">
+      <div className="w-full py-2 space-y-5 my-auto">
         <form onSubmit={handleNext} className="space-y-5">
           
           {/* Section 1: Select Room & Date */}
@@ -358,7 +375,7 @@ function BookingForm() {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="w-full sm:w-auto px-8 py-3 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-8 py-3.5 sm:py-3 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
             >
               Next
             </button>
@@ -367,7 +384,7 @@ function BookingForm() {
       </div>
 
       {/* Footer */}
-      <div className="w-full pt-2 text-center">
+      <div className="w-full pt-4 pb-2 text-center">
         <p className="text-[11px] text-slate-400">
           © Getaway Cleaning Service
         </p>
@@ -379,7 +396,7 @@ function BookingForm() {
 
 export default function BookingPage() {
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
+    <main className="min-h-dvh bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
       
       {/* CSS Override สำหรับดีไซน์ Datepicker */}
       <style jsx global>{`
@@ -439,7 +456,7 @@ export default function BookingPage() {
         }
       `}</style>
 
-      <Suspense fallback={<div className="text-slate-500 text-sm">Loading...</div>}>
+      <Suspense fallback={<div className="text-slate-500 text-sm p-4">Loading...</div>}>
         <BookingForm />
       </Suspense>
     </main>
