@@ -134,7 +134,7 @@ export default function VerifyOtpPage() {
   return (
     <main className="h-screen h-[100dvh] w-full bg-white sm:bg-slate-50 flex flex-col items-center justify-center font-sans text-slate-800">
       
-      {/* Full Screen Layout Container สำหรับมือถือ */}
+      {/* Container หลัก: ขยายเต็มจอมือถือ ไร้ขอบลอย / บนจอใหญ่เป็น Card */}
       <div className="w-full h-full sm:h-auto sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-slate-100 flex flex-col justify-between items-center">
         
         {/* Header Section */}
@@ -148,6 +148,10 @@ export default function VerifyOtpPage() {
           <p className="text-xs sm:text-sm text-slate-400 mt-2 text-center leading-relaxed">
             Enter the 6-digit verification code sent to <br />
             <span className="font-semibold text-slate-700 break-all">{email || 'your email'}</span>
+          </p>
+          {/* แจ้งเตือนเรื่อง Spam/Junk แบบเนียนๆ รวมใต้ Header */}
+          <p className="text-[11px] text-slate-400/80 mt-1.5 text-center">
+            (Please check your spam or junk folder if not found)
           </p>
         </div>
 
@@ -179,13 +183,6 @@ export default function VerifyOtpPage() {
               Verify & Continue
             </button>
           </form>
-
-          {/* ข้อความแจ้งเตือนเช็ก Spam / Junk Mail */}
-          <div className="text-center pt-1">
-            <p className="text-[11px] text-slate-400">
-              *If you can't find the email, please check your <span className="font-medium text-amber-600">Spam</span> or <span className="font-medium text-amber-600">Junk</span> folder.
-            </p>
-          </div>
 
           {/* Resend OTP Section */}
           <div className="pt-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center px-1">
