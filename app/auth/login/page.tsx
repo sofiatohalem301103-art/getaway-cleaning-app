@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 
 export default function LoginPage() {
-  const [contact, setContact] = useState('');
+  const [email, setEmail] = useState('');
   const router = useRouter();
 
   const handleNext = (e: React.FormEvent) => {
@@ -16,10 +15,10 @@ export default function LoginPage() {
       document.activeElement.blur();
     }
 
-    const cleanContact = contact.trim();
+    const cleanEmail = email.trim();
     
-    if (cleanContact) {
-      localStorage.setItem('temp_phone', cleanContact);
+    if (cleanEmail) {
+      localStorage.setItem('temp_email', cleanEmail);
       
       setTimeout(() => {
         router.push('/auth/verify-otp');
@@ -50,7 +49,7 @@ export default function LoginPage() {
             Sign In
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 text-center">
-            Enter your email or phone number to continue
+            Enter your email address to continue
           </p>
         </div>
 
@@ -59,15 +58,14 @@ export default function LoginPage() {
           <form onSubmit={handleNext} className="space-y-4">
             <div className="text-left">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                Email or Phone Number
+                Email Address
               </label>
-              {/* เปลี่ยนจาก text-sm เป็น text-base เพื่อป้องกัน iOS Auto-Zoom */}
               <input 
-                type="text" 
+                type="email" 
                 required
-                placeholder="Your Email or Phone Number"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
+                placeholder="your.email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
               />
             </div>
@@ -80,20 +78,6 @@ export default function LoginPage() {
               Next
             </button>
           </form>
-
-          {/* Divider & Sign Up Link */}
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-400 mb-3">
-              Don't have an account?
-            </p>
-            <Link
-              href="/auth/register"
-              prefetch={false}
-              className="w-full min-h-[48px] bg-white hover:bg-emerald-50/50 active:bg-emerald-100/50 active:scale-[0.98] text-emerald-600 font-semibold py-2.5 border border-emerald-600/30 rounded-2xl text-sm transition duration-150 touch-manipulation cursor-pointer flex items-center justify-center"
-            >
-              Create New Account
-            </Link>
-          </div>
         </div>
 
         {/* Footer */}

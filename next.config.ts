@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // ปิดปุ่ม Dev Indicator (ตัว N)
+  devIndicators: false,
+
   allowedDevOrigins: [
     'cleaning-service-booking.local',
     'cleaning-service-booking.local:3000',
