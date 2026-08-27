@@ -46,72 +46,62 @@ function BookingForm() {
       const emailParam = searchParams.get('email');
       const idParam = searchParams.get('userId');
 
-      if (emailParam || nameParam) {
+      if (emailParam) {
         setCurrentUser({
           id: idParam || '',
-          name: nameParam || (emailParam ? emailParam.split('@')[0] : 'User'),
-          email: emailParam || '',
+          name: nameParam || emailParam.split('@')[0],
+          email: emailParam,
         });
         return;
       }
 
-      // 2. ดึงข้อมูลจาก Supabase Auth Session
-      const { data: { session } } = await supabase.auth.getSession();
-      let user: any = session?.user;
+      // 2. ดึงข้อมูลจาก Supabase Auth โดยตรง
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        const { data: userData } = await supabase.auth.getUser();
-        user = userData?.user;
-      }
-
-      if (user) {
-        // ดึงอีเมลและชื่อเพิ่มเติมจาก Table 'profiles'
+      if (user && user.email) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, name, email')
           .eq('id', user.id)
           .maybeSingle();
 
-        const userEmail = profile?.email || user.email || '';
-        const userName =
+        const finalEmail = profile?.email || user.email;
+        const finalName =
           profile?.full_name ||
           profile?.name ||
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
-          user.user_metadata?.user_name ||
-          (userEmail ? userEmail.split('@')[0] : 'User');
+          finalEmail.split('@')[0];
 
         setCurrentUser({
           id: user.id,
-          name: userName,
-          email: userEmail,
+          name: finalName,
+          email: finalEmail,
         });
         return;
       }
 
-      // 3. ดึงข้อมูลจาก localStorage / sessionStorage สำรอง
+      // 3. ดึงข้อมูลจาก LocalStorage / SessionStorage สำรอง
+      const savedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email');
       const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
-      const savedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
 
-      if (localUser) {
-        const parsed = JSON.parse(localUser);
-        const email = parsed.email || savedEmail || '';
-        setCurrentUser({
-          id: parsed.id || '',
-          name: parsed.name || parsed.full_name || (email ? email.split('@')[0] : 'User'),
-          email: email,
-        });
-        return;
-      } else if (savedEmail) {
+      if (savedEmail) {
         setCurrentUser({
           id: '',
           name: savedEmail.split('@')[0],
           email: savedEmail,
         });
-        return;
+      } else if (localUser) {
+        const parsed = JSON.parse(localUser);
+        const email = parsed.email || '';
+        setCurrentUser({
+          id: parsed.id || '',
+          name: parsed.name || (email ? email.split('@')[0] : 'User'),
+          email: email,
+        });
+      } else {
+        setCurrentUser(null);
       }
-
-      setCurrentUser(null);
     } catch (err) {
       console.error('Failed to load user:', err);
       setCurrentUser(null);
@@ -199,7 +189,7 @@ function BookingForm() {
 
     const finalRoom = selectedRoom === 'Other' ? customRoomName : selectedRoom;
 
-    // ส่ง Query Params รวมทั้ง Email ต่อไปยังหน้า /customer/program
+    // ส่ง Query Params รวม Email ต่อไปยังหน้า /customer/program
     const query = new URLSearchParams({
       userId: currentUser?.id || '',
       customerName: currentUser?.name || '',
