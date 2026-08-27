@@ -132,29 +132,29 @@ export default function VerifyOtpPage() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
+    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
       
-      {/* Container หลัก: จัดกึ่งกลางพอดียกการ์ด */}
-      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center my-auto">
+      {/* Container หลัก: ขยายเต็มจอมือถือ ไร้ขอบลอย / บนจอใหญ่ยังเป็น Card สวยงาม */}
+      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between items-center">
         
         {/* Header Icon & Text */}
-        <div className="w-full flex flex-col items-center mb-6">
-          <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-xs border border-emerald-100">
+        <div className="w-full flex flex-col items-center pt-8 sm:pt-2">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mb-4 border border-emerald-100">
             ✉️
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
             Verify Email OTP
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1.5 text-center leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-400 mt-2 text-center leading-relaxed">
             Enter the 6-digit verification code sent to <br />
             <span className="font-semibold text-slate-700 break-all">{email || 'your email'}</span>
           </p>
         </div>
 
-        {/* Form Inputs & Main Button */}
-        <div className="w-full space-y-5">
+        {/* Form Inputs & Action */}
+        <div className="w-full my-auto sm:my-6 space-y-4">
           <form onSubmit={handleVerify} className="space-y-5">
-            <div className="flex justify-between items-center gap-1.5 sm:gap-2" onPaste={handlePaste}>
+            <div className="flex justify-between items-center gap-1.5 sm:gap-2 px-1" onPaste={handlePaste}>
               {otp.map((digit, idx) => (
                 <input
                   key={idx}
@@ -167,7 +167,7 @@ export default function VerifyOtpPage() {
                   value={digit}
                   onChange={(e) => handleChange(idx, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(idx, e)}
-                  className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold border-2 border-slate-200 focus:border-emerald-500 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/50 text-slate-800 transition duration-150"
+                  className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold border border-slate-200 focus:border-emerald-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 bg-slate-50/50 text-slate-800 transition duration-150"
                 />
               ))}
             </div>
@@ -180,8 +180,15 @@ export default function VerifyOtpPage() {
             </button>
           </form>
 
+          {/* ข้อความแจ้งเตือนเช็ก Spam/Junk Mail */}
+          <div className="text-center pt-1">
+            <p className="text-[11px] text-slate-400">
+              *If you can't find the email, please check your <span className="font-medium text-amber-600/80">Spam</span> or <span className="font-medium text-amber-600/80">Junk</span> folder.
+            </p>
+          </div>
+
           {/* Resend OTP Section */}
-          <div className="pt-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
+          <div className="pt-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center px-1">
             <span>Didn't receive code?</span>
             <button
               type="button"
@@ -199,7 +206,7 @@ export default function VerifyOtpPage() {
         </div>
 
         {/* Footer */}
-        <div className="w-full pt-6 text-center">
+        <div className="w-full pb-4 sm:pb-0 text-center">
           <p className="text-[11px] text-slate-400">
             © Getaway Cleaning Service
           </p>
