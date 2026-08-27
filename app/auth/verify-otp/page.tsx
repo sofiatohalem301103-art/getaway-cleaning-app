@@ -134,7 +134,7 @@ export default function VerifyOtpPage() {
   return (
     <main className="h-screen h-[100dvh] w-full bg-white sm:bg-slate-50 flex flex-col items-center justify-center font-sans text-slate-800">
       
-      {/* Container หลัก: ขยายเต็มจอมือถือ ไร้ขอบลอย / บนจอใหญ่เป็น Card */}
+      {/* Full Screen Layout Container สำหรับมือถือ */}
       <div className="w-full h-full sm:h-auto sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-slate-100 flex flex-col justify-between items-center">
         
         {/* Header Section */}
@@ -149,15 +149,11 @@ export default function VerifyOtpPage() {
             Enter the 6-digit verification code sent to <br />
             <span className="font-semibold text-slate-700 break-all">{email || 'your email'}</span>
           </p>
-          {/* แจ้งเตือนเรื่อง Spam/Junk แบบเนียนๆ รวมใต้ Header */}
-          <p className="text-[11px] text-slate-400/80 mt-1.5 text-center">
-            (Please check your spam or junk folder if not found)
-          </p>
         </div>
 
         {/* Form Inputs & Main Action Section */}
-        <div className="w-full space-y-4 my-auto py-4">
-          <form onSubmit={handleVerify} className="space-y-5">
+        <div className="w-full space-y-6 my-auto py-4">
+          <form onSubmit={handleVerify} className="space-y-6">
             <div className="flex justify-between items-center gap-1.5 sm:gap-2 px-1" onPaste={handlePaste}>
               {otp.map((digit, idx) => (
                 <input
@@ -185,7 +181,7 @@ export default function VerifyOtpPage() {
           </form>
 
           {/* Resend OTP Section */}
-          <div className="pt-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center px-1">
+          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center px-1">
             <span>Didn't receive code?</span>
             <button
               type="button"
