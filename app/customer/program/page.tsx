@@ -25,7 +25,7 @@ function SelectProgramContent() {
 
   const [selectedProgram, setSelectedProgram] = useState<string>('general');
 
-  // ดึงข้อมูล User (Supabase > URL Query > LocalStorage)
+  // ดึงข้อมูล User (URL Query > Supabase Auth > LocalStorage)
   const loadUserData = async () => {
     try {
       setIsLoadingUser(true);
@@ -34,15 +34,17 @@ function SelectProgramContent() {
       const emailParam = searchParams.get('email');
       const idParam = searchParams.get('userId');
 
-      if (nameParam) {
+      // 1. ดึงจาก URL Query Parameters
+      if (nameParam || emailParam) {
         setCurrentUser({
-          id: idParam || 'usr_sofia',
-          name: nameParam,
-          email: emailParam || 'sofia.ross@example.com',
+          id: idParam || '',
+          name: nameParam || emailParam?.split('@')[0] || 'User',
+          email: emailParam || '',
         });
         return;
       }
 
+      // 2. ดึงจาก Supabase Auth Session
       const { data: { session } } = await supabase.auth.getSession();
       let user: any = session?.user;
 
@@ -65,38 +67,32 @@ function SelectProgramContent() {
           user.user_metadata?.name ||
           user.user_metadata?.user_name ||
           user.email?.split('@')[0] ||
-          'Sofia Ross';
+          '';
 
-        const email = profile?.email || user.email || 'sofia.ross@example.com';
+        const email = profile?.email || user.email || '';
 
         setCurrentUser({ id: user.id, name, email });
         return;
       }
 
+      // 3. ดึงจาก localStorage
       const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
       if (localUser) {
         const parsed = JSON.parse(localUser);
         setCurrentUser({
-          id: parsed.id || 'usr_sofia',
-          name: parsed.name || parsed.full_name || 'Sofia Ross',
-          email: parsed.email || 'sofia.ross@example.com',
+          id: parsed.id || '',
+          name: parsed.name || parsed.full_name || (parsed.email ? parsed.email.split('@')[0] : ''),
+          email: parsed.email || localStorage.getItem('user_email') || '',
         });
         return;
       }
 
-      setCurrentUser({
-        id: 'usr_sofia',
-        name: 'Sofia Ross',
-        email: 'sofia.ross@example.com',
-      });
+      // 4. กรณีไม่พบข้อมูลผู้ใช้ในทุกช่องทาง
+      setCurrentUser(null);
 
     } catch (err) {
       console.error('Failed to load user:', err);
-      setCurrentUser({
-        id: 'usr_sofia',
-        name: 'Sofia Ross',
-        email: 'sofia.ross@example.com',
-      });
+      setCurrentUser(null);
     } finally {
       setIsLoadingUser(false);
     }
@@ -122,8 +118,8 @@ function SelectProgramContent() {
 
     const query = new URLSearchParams({
       userId: currentUser?.id || '',
-      customerName: currentUser?.name || 'Sofia Ross',
-      email: currentUser?.email || 'sofia.ross@example.com',
+      customerName: currentUser?.name || '',
+      email: currentUser?.email || '',
       room,
       date,
       time,
@@ -137,9 +133,12 @@ function SelectProgramContent() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('user');
+    localStorage.removeItem('sb-user');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('temp_email');
     setCurrentUser(null);
     setShowProfileMenu(false);
-    router.push('/customer/booking');
+    router.push('/login');
   };
 
   return (
@@ -157,7 +156,7 @@ function SelectProgramContent() {
               ? '...'
               : currentUser?.name
               ? currentUser.name.charAt(0).toUpperCase()
-              : 'S'}
+              : 'U'}
           </div>
           <span>Profile</span>
         </button>
@@ -167,10 +166,10 @@ function SelectProgramContent() {
           <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-left z-30">
             <div className="border-b border-slate-100 pb-2 mb-2">
               <p className="text-xs font-bold text-slate-800">
-                {isLoadingUser ? 'Loading...' : currentUser?.name || 'Sofia Ross'}
+                {isLoadingUser ? 'Loading...' : currentUser?.name || 'Guest User'}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                {isLoadingUser ? 'Checking...' : currentUser?.email || 'sofia.ross@example.com'}
+                {isLoadingUser ? 'Checking...' : currentUser?.email || 'No email associated'}
               </p>
             </div>
 
@@ -183,9 +182,13 @@ function SelectProgramContent() {
                 Log out
               </button>
             ) : (
-              <p className="text-[10px] text-slate-400 text-center py-1">
-                Not logged in
-              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/login')}
+                className="w-full text-left text-xs font-medium text-emerald-600 hover:bg-emerald-50 p-2 rounded-xl transition cursor-pointer"
+              >
+                Log in
+              </button>
             )}
           </div>
         )}

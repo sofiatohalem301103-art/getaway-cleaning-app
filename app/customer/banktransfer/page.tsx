@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
@@ -16,11 +16,44 @@ function BankTransferContent() {
   const program = searchParams.get('program') || '';
   const price = searchParams.get('price') || '';
 
-  // Mock User Data
-  const user = {
-    name: 'Sofia Ross',
-    email: 'sofia.ross@example.com',
-  };
+  // ----------------------------------------------------------------------
+  // 1. Dynamic User State (ดึงจาก Supabase Session / LocalStorage)
+  // ----------------------------------------------------------------------
+  const [user, setUser] = useState({
+    name: '',
+    email: '',
+  });
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      // ดึงจาก Supabase Auth ก่อน
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (authUser?.email) {
+        setUser({
+          name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+          email: authUser.email,
+        });
+      } else {
+        // Fallback: ดึงจาก localStorage
+        const localEmail =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('user_email') || localStorage.getItem('temp_email') || ''
+            : '';
+        const localName =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('user_name') || (localEmail ? localEmail.split('@')[0] : 'User Profile')
+            : 'User Profile';
+
+        setUser({
+          name: localName,
+          email: localEmail,
+        });
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -139,7 +172,7 @@ function BankTransferContent() {
             className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition active:scale-95 cursor-pointer border border-emerald-200/80 shadow-sm"
           >
             <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-bold">
-              {user.name.charAt(0)}
+              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </div>
             <span>Profile</span>
           </button>
@@ -147,12 +180,16 @@ function BankTransferContent() {
           {showProfileMenu && (
             <div className="absolute top-9 left-0 w-52 bg-white border border-gray-200 rounded-xl shadow-lg p-2.5 text-left z-30">
               <div className="border-b border-gray-100 pb-1.5 mb-1.5">
-                <p className="text-xs font-bold text-gray-800">{user.name}</p>
-                <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+                <p className="text-xs font-bold text-gray-800">{user.name || 'User Profile'}</p>
+                <p className="text-[10px] text-gray-500 truncate">{user.email || 'N/A'}</p>
               </div>
               <button
                 type="button"
-                onClick={() => router.push('/login')}
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  localStorage.clear();
+                  router.push('/login');
+                }}
                 className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-1 rounded-md transition cursor-pointer"
               >
                 Log out

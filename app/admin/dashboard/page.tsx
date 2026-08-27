@@ -39,7 +39,7 @@ const getLocalDateString = () => {
 export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
-  const [adminUser] = useState('Zaza'); // เปลี่ยน zaza -> Zaza
+  const [adminUser] = useState('Zaza');
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -194,6 +194,8 @@ export default function AdminDashboardPage() {
 
   // 1. ฟังก์ชันยืนยันการชำระเงิน + ส่งอีเมลแนบ PDF หาลูกค้า
   const handleConfirmPayment = async (task: any) => {
+    const targetEmail = task.customer_email || task.email || (typeof window !== 'undefined' ? localStorage.getItem('user_email') || localStorage.getItem('temp_email') : '');
+
     if (!window.confirm(`Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`)) return;
 
     setLoadingId(task.id);
@@ -205,12 +207,12 @@ export default function AdminDashboardPage() {
 
       if (error) throw error;
 
-      if (task.customer_email) {
+      if (targetEmail) {
         const emailRes = await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: task.customer_email,
+            to: targetEmail,
             customerName: task.customer_name || 'Valued Customer',
             room: task.room_type || task.program || 'Cleaning Service',
             date: task.booking_date,
@@ -530,6 +532,15 @@ function TaskCard({
   const isPaid = task.payment_status === 'Paid / Verified';
   const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
+  // ดึงค่า Email จากข้อมูลใน Task หรือจาก LocalStorage 
+  const displayEmail =
+    task.customer_email ||
+    task.email ||
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('user_email') || localStorage.getItem('temp_email')
+      : '') ||
+    '';
+
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs relative group">
       {/* Card Header */}
@@ -559,13 +570,14 @@ function TaskCard({
             {task.room_type || task.program || 'Cleaning Service'}
           </p>
           <p className="text-gray-600">
-            Customer: <span className="font-semibold text-gray-800">{task.customer_name}</span>
+            Customer: <span className="font-semibold text-gray-800">{task.customer_name || 'N/A'}</span>
           </p>
-          {task.customer_email && (
-            <p className="text-gray-400 text-[11px]">
-              Email: {task.customer_email}
-            </p>
-          )}
+
+          {/* แสดง Email ของผู้ใช้งานเสมอ */}
+          <p className="text-gray-500 text-[11px]">
+            Email: <span className="font-medium text-slate-700">{displayEmail || 'N/A'}</span>
+          </p>
+
           <p className="text-gray-500">
             Address / Room: {task.address || task.room_type || '-'}
           </p>
