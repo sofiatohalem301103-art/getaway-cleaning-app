@@ -27,13 +27,14 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
       
-      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between sm:justify-center items-center">
+      {/* Container หลัก: รวมคอนเทนต์ให้อยู่กึ่งกลางอย่างพอดี */}
+      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center my-auto">
         
         {/* Header & Logo */}
-        <div className="w-full flex flex-col items-center pt-8 sm:pt-0">
-          <div className="mb-6">
+        <div className="w-full flex flex-col items-center mb-6">
+          <div className="mb-3">
             <Image 
               src="/logo.jpeg" 
               alt="Company Logo" 
@@ -54,7 +55,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form Input & Action Buttons */}
-        <div className="w-full my-auto sm:my-6">
+        <div className="w-full">
           <form onSubmit={handleNext} className="space-y-4">
             <div className="text-left">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">
@@ -73,7 +74,7 @@ export default function LoginPage() {
             {/* ปุ่ม Next */}
             <button 
               type="submit" 
-              className="w-full min-h-[50px] bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white font-semibold py-3 rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
             >
               Next
             </button>
@@ -81,7 +82,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="w-full pb-4 sm:pb-0 text-center">
+        <div className="w-full pt-6 text-center">
           <p className="text-[11px] text-slate-400">
             © Getaway Cleaning Service
           </p>
