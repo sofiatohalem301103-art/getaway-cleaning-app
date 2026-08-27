@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// ดึงค่า Secret Key จากไฟล์ .env.local
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+// บังคับให้เป็น Dynamic Route เพื่อไม่ให้ Next.js พยายามทำ Prerender/Static Data ตอนสั่ง Build
+export const dynamic = 'force-dynamic';
+
+// ใส่ค่า dummy หลอกไว้สำหรับช่วง Build ในกรณีที่ยังไม่มีค่าใน process.env
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy_key_for_build', {
   apiVersion: '2023-10-16' as any,
 });
 
