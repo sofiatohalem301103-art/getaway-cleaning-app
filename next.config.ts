@@ -21,13 +21,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-
-  // ใช้ Type Casting (as any) เฉพาะจุด เพื่อข้ามการตรวจ Type ของ eslint option
-  ...({
-    eslint: {
-      ignoreDuringBuilds: true,
-    },
-  } as any),
 };
 
 export default nextConfig;
