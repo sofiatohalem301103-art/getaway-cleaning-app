@@ -1,22 +1,21 @@
 'use client';
 
-import { useState, useEffect, forwardRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, forwardRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function BookingPage() {
+function BookingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
     email: string;
   } | null>(null);
-
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   // คำนวณวันพรุ่งนี้
   const getTomorrowDateObj = () => {
@@ -25,12 +24,11 @@ export default function BookingPage() {
     return tomorrow;
   };
 
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(
     'Beautiful Apartment in Harbour Paphos | Central'
   );
   const [customRoomName, setCustomRoomName] = useState('');
-  
+
   // เก็บค่าเป็น Date Object สำหรับ react-datepicker
   const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(getTomorrowDateObj());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -43,24 +41,21 @@ export default function BookingPage() {
 
   const loadUserData = async () => {
     try {
-      setIsLoadingUser(true);
-
-      const searchParams = new URLSearchParams(window.location.search);
+      // 1. ดึงข้อมูลจาก URL Query Parameters ก่อนเป็นอันดับแรก
       const nameParam = searchParams.get('customerName') || searchParams.get('name');
       const emailParam = searchParams.get('email');
       const idParam = searchParams.get('userId');
 
-      // 1. ดึงจาก URL Query Parameters
-      if (nameParam || emailParam) {
+      if (emailParam || nameParam) {
         setCurrentUser({
           id: idParam || '',
-          name: nameParam || emailParam?.split('@')[0] || 'User',
+          name: nameParam || (emailParam ? emailParam.split('@')[0] : 'User'),
           email: emailParam || '',
         });
         return;
       }
 
-      // 2. ดึงจาก Supabase Auth Session
+      // 2. ดึงข้อมูลจาก Supabase Auth Session
       const { data: { session } } = await supabase.auth.getSession();
       let user: any = session?.user;
 
@@ -70,47 +65,56 @@ export default function BookingPage() {
       }
 
       if (user) {
+        // ดึงอีเมลและชื่อเพิ่มเติมจาก Table 'profiles'
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, name, email')
           .eq('id', user.id)
           .maybeSingle();
 
-        const name =
+        const userEmail = profile?.email || user.email || '';
+        const userName =
           profile?.full_name ||
           profile?.name ||
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           user.user_metadata?.user_name ||
-          user.email?.split('@')[0] ||
-          '';
+          (userEmail ? userEmail.split('@')[0] : 'User');
 
-        const email = profile?.email || user.email || '';
-
-        setCurrentUser({ id: user.id, name, email });
-        return;
-      }
-
-      // 3. ดึงจาก localStorage
-      const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
-      if (localUser) {
-        const parsed = JSON.parse(localUser);
         setCurrentUser({
-          id: parsed.id || '',
-          name: parsed.name || parsed.full_name || (parsed.email ? parsed.email.split('@')[0] : ''),
-          email: parsed.email || localStorage.getItem('user_email') || '',
+          id: user.id,
+          name: userName,
+          email: userEmail,
         });
         return;
       }
 
-      // 4. กรณีไม่พบข้อมูลผู้ใช้ในทุกช่องทาง
-      setCurrentUser(null);
+      // 3. ดึงข้อมูลจาก localStorage / sessionStorage สำรอง
+      const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
+      const savedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
 
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        const email = parsed.email || savedEmail || '';
+        setCurrentUser({
+          id: parsed.id || '',
+          name: parsed.name || parsed.full_name || (email ? email.split('@')[0] : 'User'),
+          email: email,
+        });
+        return;
+      } else if (savedEmail) {
+        setCurrentUser({
+          id: '',
+          name: savedEmail.split('@')[0],
+          email: savedEmail,
+        });
+        return;
+      }
+
+      setCurrentUser(null);
     } catch (err) {
       console.error('Failed to load user:', err);
       setCurrentUser(null);
-    } finally {
-      setIsLoadingUser(false);
     }
   };
 
@@ -124,8 +128,9 @@ export default function BookingPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [searchParams]);
 
+  // ดึงช่วงเวลาที่ถูกจองแล้วจาก Supabase
   useEffect(() => {
     const fetchBookedSlots = async () => {
       if (!formattedDateString) return;
@@ -175,17 +180,6 @@ export default function BookingPage() {
     available: !bookedSlots.includes(time),
   }));
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('user');
-    localStorage.removeItem('sb-user');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('temp_email');
-    setCurrentUser(null);
-    setShowProfileMenu(false);
-    router.push('/login');
-  };
-
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -205,6 +199,7 @@ export default function BookingPage() {
 
     const finalRoom = selectedRoom === 'Other' ? customRoomName : selectedRoom;
 
+    // ส่ง Query Params รวมทั้ง Email ต่อไปยังหน้า /customer/program
     const query = new URLSearchParams({
       userId: currentUser?.id || '',
       customerName: currentUser?.name || '',
@@ -217,7 +212,7 @@ export default function BookingPage() {
     router.push(`/customer/program?${query}`);
   };
 
-  // Custom Input เพื่อแสดงปุ่มไอคอนปฏิทิน และล็อกไม่ให้พิมพ์คีย์บอร์ด
+  // Custom Input สำหรับ React-DatePicker
   const CustomDateInput = forwardRef<HTMLButtonElement, any>(({ value, onClick }, ref) => (
     <button
       type="button"
@@ -245,9 +240,158 @@ export default function BookingPage() {
   CustomDateInput.displayName = 'CustomDateInput';
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <div className="w-full sm:max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between items-center my-auto">
       
-      {/* CSS Override สำหรับดีไซน์ปุ่มเลือกวัน และกล่องปฏิทิน */}
+      {/* Logo Section */}
+      <div className="w-full flex flex-col items-center pb-2">
+        <Image
+          src="/logo.jpeg"
+          alt="Company Logo"
+          width={120}
+          height={120}
+          className="object-contain"
+          style={{ width: 'auto', height: 'auto' }}
+          priority
+        />
+      </div>
+
+      {/* Form Body */}
+      <div className="w-full py-4 space-y-5">
+        <form onSubmit={handleNext} className="space-y-5">
+          
+          {/* Section 1: Select Room & Date */}
+          <div className="space-y-3">
+            <h2 className="text-base font-bold text-slate-800">
+              Select Room & Date
+            </h2>
+
+            {/* Room Dropdown */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Room
+              </label>
+              <select
+                value={selectedRoom}
+                onChange={(e) => setSelectedRoom(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 truncate cursor-pointer"
+              >
+                {roomList.map((room, idx) => (
+                  <option key={idx} value={room}>
+                    {room}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Custom Room Input */}
+            {selectedRoom === 'Other' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Property Name / Details
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter your property name or address"
+                  value={customRoomName}
+                  onChange={(e) => setCustomRoomName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
+                />
+              </div>
+            )}
+
+            {/* Custom DatePicker Component */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Date (Advance booking only)
+              </label>
+              <DatePicker
+                selected={selectedDateObj}
+                onChange={(date: Date | null) => {
+                  setSelectedDateObj(date);
+                  setSelectedSlot(null);
+                }}
+                minDate={getTomorrowDateObj()}
+                dateFormat="yyyy-MM-dd"
+                customInput={<CustomDateInput />}
+              />
+            </div>
+          </div>
+
+          {/* Section 2: Select Time Slot */}
+          <div className="space-y-3">
+            <h2 className="text-base font-bold text-slate-800">
+              Select Time Slot
+            </h2>
+
+            {/* Status Legend */}
+            <div className="flex gap-4 text-xs font-medium text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 bg-emerald-500 rounded-md"></span>
+                <span>Available</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 bg-slate-400 rounded-md"></span>
+                <span>Unavailable</span>
+              </div>
+            </div>
+
+            {/* Time Slots Grid */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {timeSlots.map((slot) => {
+                const isSelected = selectedSlot === slot.time;
+                return (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    disabled={!slot.available}
+                    onClick={() => setSelectedSlot(slot.time)}
+                    className={`p-2.5 rounded-2xl text-xs font-semibold transition-all flex flex-col items-center justify-center border touch-manipulation cursor-pointer ${
+                      !slot.available
+                        ? 'bg-slate-400 text-white border-slate-400 cursor-not-allowed opacity-60'
+                        : isSelected
+                        ? 'bg-emerald-700 text-white border-emerald-800 ring-2 ring-emerald-400 shadow-md'
+                        : 'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white border-emerald-600'
+                    }`}
+                  >
+                    <span className="tracking-tight">{slot.time}</span>
+                    <span className="text-[10px] font-normal opacity-90 mt-0.5">
+                      ({slot.available ? 'Available' : 'Unavailable'})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Next Button */}
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              className="w-full sm:w-auto px-8 py-3 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+            >
+              Next
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Footer */}
+      <div className="w-full pt-2 text-center">
+        <p className="text-[11px] text-slate-400">
+          © Getaway Cleaning Service
+        </p>
+      </div>
+
+    </div>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
+      
+      {/* CSS Override สำหรับดีไซน์ Datepicker */}
       <style jsx global>{`
         .react-datepicker-wrapper {
           width: 100%;
@@ -305,201 +449,9 @@ export default function BookingPage() {
         }
       `}</style>
 
-      {/* Main Container */}
-      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between items-center relative">
-        
-        {/* Profile Menu (Top Left) */}
-        <div className="absolute top-5 left-5 z-20">
-          <button
-            type="button"
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition active:scale-95 cursor-pointer touch-manipulation"
-          >
-            <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
-              {isLoadingUser
-                ? '...'
-                : currentUser?.name
-                ? currentUser.name.charAt(0).toUpperCase()
-                : 'U'}
-            </div>
-            <span>Profile</span>
-          </button>
-
-          {/* Profile Popup */}
-          {showProfileMenu && (
-            <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-left z-30">
-              <div className="border-b border-slate-100 pb-2 mb-2">
-                <p className="text-xs font-bold text-slate-800">
-                  {isLoadingUser ? 'Loading...' : currentUser?.name || 'Guest User'}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {isLoadingUser ? 'Checking...' : currentUser?.email || 'No email associated'}
-                </p>
-              </div>
-
-              {currentUser ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-2 rounded-xl transition cursor-pointer"
-                >
-                  Log out
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => router.push('/login')}
-                  className="w-full text-left text-xs font-medium text-emerald-600 hover:bg-emerald-50 p-2 rounded-xl transition cursor-pointer"
-                >
-                  Log in
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Logo Section */}
-        <div className="w-full flex flex-col items-center pt-4 sm:pt-0">
-          <Image
-            src="/logo.jpeg"
-            alt="Company Logo"
-            width={130}
-            height={130}
-            className="object-contain"
-            style={{ width: 'auto', height: 'auto' }}
-            priority
-          />
-        </div>
-
-        {/* Form Body */}
-        <div className="w-full my-auto py-4 space-y-5">
-          <form onSubmit={handleNext} className="space-y-5">
-            
-            {/* Section 1: Select Room & Date */}
-            <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-800">
-                Select Room & Date
-              </h2>
-
-              {/* Room Dropdown */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Room
-                </label>
-                <select
-                  value={selectedRoom}
-                  onChange={(e) => setSelectedRoom(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 truncate cursor-pointer"
-                >
-                  {roomList.map((room, idx) => (
-                    <option key={idx} value={room}>
-                      {room}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Custom Room Input */}
-              {selectedRoom === 'Other' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Property Name / Details
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your property name or address"
-                    value={customRoomName}
-                    onChange={(e) => setCustomRoomName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
-                  />
-                </div>
-              )}
-
-              {/* Custom DatePicker Component */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Date (Advance booking only)
-                </label>
-                <DatePicker
-                  selected={selectedDateObj}
-                  onChange={(date: Date | null) => {
-                    setSelectedDateObj(date);
-                    setSelectedSlot(null);
-                  }}
-                  minDate={getTomorrowDateObj()}
-                  dateFormat="yyyy-MM-dd"
-                  customInput={<CustomDateInput />}
-                />
-              </div>
-            </div>
-
-            {/* Section 2: Select Time Slot */}
-            <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-800">
-                Select Time Slot
-              </h2>
-
-              {/* Status Legend */}
-              <div className="flex gap-4 text-xs font-medium text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3.5 h-3.5 bg-emerald-500 rounded-md"></span>
-                  <span>Available</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3.5 h-3.5 bg-slate-400 rounded-md"></span>
-                  <span>Unavailable</span>
-                </div>
-              </div>
-
-              {/* Time Slots Grid */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {timeSlots.map((slot) => {
-                  const isSelected = selectedSlot === slot.time;
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      disabled={!slot.available}
-                      onClick={() => setSelectedSlot(slot.time)}
-                      className={`p-2.5 rounded-2xl text-xs font-semibold transition-all flex flex-col items-center justify-center border touch-manipulation cursor-pointer ${
-                        !slot.available
-                          ? 'bg-slate-400 text-white border-slate-400 cursor-not-allowed opacity-60'
-                          : isSelected
-                          ? 'bg-emerald-700 text-white border-emerald-800 ring-2 ring-emerald-400 shadow-md'
-                          : 'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white border-emerald-600'
-                      }`}
-                    >
-                      <span className="tracking-tight">{slot.time}</span>
-                      <span className="text-[10px] font-normal opacity-90 mt-0.5">
-                        ({slot.available ? 'Available' : 'Unavailable'})
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Next Button */}
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="w-full sm:w-auto px-8 py-3 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
-              >
-                Next
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="w-full pb-4 sm:pb-0 text-center">
-          <p className="text-[11px] text-slate-400">
-            © Getaway Cleaning Service
-          </p>
-        </div>
-
-      </div>
+      <Suspense fallback={<div className="text-slate-500 text-sm">Loading...</div>}>
+        <BookingForm />
+      </Suspense>
     </main>
   );
 }
