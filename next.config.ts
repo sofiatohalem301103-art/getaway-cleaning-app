@@ -9,14 +9,25 @@ const nextConfig: NextConfig = {
     'localhost:3000',
   ],
 
-  // ข้ามการตรวจ TypeScript ตอนสั่ง Build
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+    ],
+  },
+
   typescript: {
     ignoreBuildErrors: true,
   },
-  // ข้ามการตรวจ ESLint ตอนสั่ง Build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-} as NextConfig;
+
+  // ใช้ Type Casting (as any) เฉพาะจุด เพื่อข้ามการตรวจ Type ของ eslint option
+  ...({
+    eslint: {
+      ignoreDuringBuilds: true,
+    },
+  } as any),
+};
 
 export default nextConfig;
