@@ -7,7 +7,7 @@ import Link from 'next/link';
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedAdmin, setSelectedAdmin] = useState('zaza');
+  const [selectedAdmin, setSelectedAdmin] = useState('Zaza');
   const router = useRouter();
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -28,44 +28,44 @@ export default function AdminLoginPage() {
         <p className="text-xs text-gray-500 mb-6 text-center">Sign in to manage bookings</p>
 
         <form onSubmit={handleAdminLogin} className="space-y-4">
-          {/* ตัวเลือก Admin (zaza / sam / sylvia) */}
+          {/* ตัวเลือก Admin (Zaza / Sam / Sylvia) */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Select Admin Profile</label>
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
-                onClick={() => setSelectedAdmin('zaza')}
+                onClick={() => setSelectedAdmin('Zaza')}
                 className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'zaza'
+                  selectedAdmin === 'Zaza'
                     ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                 }`}
               >
-                👱‍♀️ zaza
+                👱‍♀️ Zaza
               </button>
 
               <button
                 type="button"
-                onClick={() => setSelectedAdmin('sam')}
+                onClick={() => setSelectedAdmin('Sam')}
                 className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'sam'
+                  selectedAdmin === 'Sam'
                     ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                 }`}
               >
-                👨‍💼 sam
+                👨‍💼 Sam
               </button>
 
               <button
                 type="button"
-                onClick={() => setSelectedAdmin('sylvia')}
+                onClick={() => setSelectedAdmin('Sylvia')}
                 className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'sylvia'
+                  selectedAdmin === 'Sylvia'
                     ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                 }`}
               >
-                👩‍💼 sylvia
+                👩‍💼 Sylvia
               </button>
             </div>
           </div>

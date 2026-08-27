@@ -39,7 +39,7 @@ const getLocalDateString = () => {
 export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
-  const [adminUser] = useState('zaza');
+  const [adminUser] = useState('Zaza'); // เปลี่ยน zaza -> Zaza
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -192,7 +192,7 @@ export default function AdminDashboardPage() {
   // 5. ฟังก์ชันการทำงานต่างๆ
   // ----------------------------------------------------------------------
 
-  // 💳 1. ฟังก์ชันยืนยันการชำระเงิน + ส่งอีเมลแนบ PDF หาลูกค้า
+  // 1. ฟังก์ชันยืนยันการชำระเงิน + ส่งอีเมลแนบ PDF หาลูกค้า
   const handleConfirmPayment = async (task: any) => {
     if (!window.confirm(`Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`)) return;
 
@@ -243,7 +243,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 📤 2. ฟังก์ชันจ่ายงานให้พนักงาน
+  // 2. ฟังก์ชันจ่ายงานให้พนักงาน
   const handleDispatchTask = async (task: any, staffName: string) => {
     if (!staffName) {
       alert('⚠️ Please select a staff member first!');
@@ -279,9 +279,9 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 🗑️ 3. ฟังก์ชันลบงานเดี่ยว
+  // 3. ฟังก์ชันลบงานเดี่ยว
   const handleDeleteTask = async (taskId: any) => {
-    if (!window.confirm('⚠️ Are you sure you want to delete this task?')) return;
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
 
     const { error } = await supabase.from('bookings').delete().eq('id', taskId);
 
@@ -292,9 +292,9 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 🧹 4. ฟังก์ชันลบงานทั้งหมดใน Tab ปัจจุบัน
+  // 4. ฟังก์ชันลบงานทั้งหมดใน Tab ปัจจุบัน
   const handleClearAll = async () => {
-    if (!window.confirm(`⚠️ Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
 
     const idsToDelete = currentTasks.map((t) => t.id);
     if (idsToDelete.length === 0) return;
@@ -332,13 +332,13 @@ export default function AdminDashboardPage() {
     if (assignedTask) {
       return {
         color: 'bg-blue-500',
-        text: `📩 Waiting (${assignedTask.booking_code || `REF-${assignedTask.id}`})`,
+        text: `Waiting (${assignedTask.booking_code || `REF-${assignedTask.id}`})`,
         completedCount,
       };
     }
     return {
       color: 'bg-emerald-500',
-      text: '🟢 Available',
+      text: 'Available',
       completedCount,
     };
   };
@@ -394,19 +394,19 @@ export default function AdminDashboardPage() {
               onClick={handleClearAll}
               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
             >
-              🗑️ Clear All
+              Clear All
             </button>
 
             <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-lg px-3 py-1.5 text-xs">
-              🧑‍💼 {adminUser}
+              Admin: {adminUser}
             </span>
           </div>
         </div>
 
-        {/* 👷‍♂️ Staff Monitor ติดตามสถานะพนักงาน */}
+        {/* Staff Monitor ติดตามสถานะพนักงาน */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
           <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-            👷‍♂️ Staff Monitor (Realtime)
+            Staff Monitor (Realtime)
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {STAFF_LIST.map((staff) => {
@@ -441,7 +441,7 @@ export default function AdminDashboardPage() {
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
-            📜 History ({historyTasks.length})
+            History ({historyTasks.length})
           </button>
           <button
             onClick={() => setActiveTab('today')}
@@ -451,7 +451,7 @@ export default function AdminDashboardPage() {
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
-            📍 Today ({todayTasks.length})
+            Today ({todayTasks.length})
           </button>
           <button
             onClick={() => setActiveTab('upcoming')}
@@ -461,7 +461,7 @@ export default function AdminDashboardPage() {
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
-            📅 Upcoming ({upcomingTasks.length})
+            Upcoming ({upcomingTasks.length})
           </button>
         </div>
 
@@ -477,7 +477,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3">
                   <div className="h-[1px] bg-gray-300 flex-grow"></div>
                   <span className="text-xs font-bold text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                    📅 {date}
+                    {date}
                   </span>
                   <div className="h-[1px] bg-gray-300 flex-grow"></div>
                 </div>
@@ -540,14 +540,14 @@ function TaskCard({
 
         <div className="flex items-center gap-2">
           <span className="text-gray-500 font-medium">
-            📅 {task.booking_date} | {task.booking_time}
+            {task.booking_date} | {task.booking_time}
           </span>
           <button
             onClick={() => handleDeleteTask(task.id)}
-            className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition cursor-pointer"
+            className="text-gray-400 hover:text-red-600 px-2 py-1 hover:bg-red-50 rounded transition cursor-pointer text-[11px] font-medium"
             title="Delete Task"
           >
-            🗑️
+            Delete
           </button>
         </div>
       </div>
@@ -559,20 +559,20 @@ function TaskCard({
             {task.room_type || task.program || 'Cleaning Service'}
           </p>
           <p className="text-gray-600">
-            👤 Customer: <span className="font-semibold text-gray-800">{task.customer_name}</span>
+            Customer: <span className="font-semibold text-gray-800">{task.customer_name}</span>
           </p>
           {task.customer_email && (
             <p className="text-gray-400 text-[11px]">
-              ✉️ Email: {task.customer_email}
+              Email: {task.customer_email}
             </p>
           )}
           <p className="text-gray-500">
-            📍 Address / Room: {task.address || task.room_type || '-'}
+            Address / Room: {task.address || task.room_type || '-'}
           </p>
 
           {(task.price || task.amount) && (
             <p className="font-bold text-emerald-600">
-              💵 Amount: {String(task.price || task.amount).replace(/€/g, '').trim()}€
+              Amount: {String(task.price || task.amount).replace(/€/g, '').trim()}€
             </p>
           )}
         </div>
@@ -605,9 +605,9 @@ function TaskCard({
             <button
               onClick={() => handleConfirmPayment(task)}
               disabled={isLoading}
-              className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
+              className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition active:scale-95 shadow-sm cursor-pointer whitespace-nowrap flex items-center gap-1"
             >
-              {isLoading ? 'Sending Email...' : '💳 Confirm Payment'}
+              💳 {isLoading ? 'Sending Email...' : 'Confirm Payment'}
             </button>
           )}
         </div>
@@ -633,7 +633,7 @@ function TaskCard({
             <option value="">-- Select Staff --</option>
             {STAFF_LIST.map((staff) => (
               <option key={staff.id} value={staff.id}>
-                👷‍♂️ {staff.id} ({staff.name})
+                {staff.id} ({staff.name})
               </option>
             ))}
           </select>
@@ -651,7 +651,7 @@ function TaskCard({
               disabled
               className="bg-gray-100 border border-gray-200 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-[11px] cursor-not-allowed flex items-center gap-1 opacity-80"
             >
-              ⏳ Assigned
+              Assigned
             </button>
           ) : (
             <button
@@ -672,7 +672,7 @@ function TaskCard({
 
         {task.assigned_by && (
           <span className="text-[10px] text-gray-400">
-            (by 🧑‍💼 {task.assigned_by})
+            (by {task.assigned_by})
           </span>
         )}
       </div>
