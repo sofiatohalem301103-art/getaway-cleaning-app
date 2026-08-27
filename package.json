@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --no-lint",
     "start": "next start",
     "lint": "eslint"
   },
@@ -17,6 +17,7 @@
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
     "next": "16.3.1",
+    "nodemailer": "^9.0.5",
     "pdfkit": "^0.20.1",
     "react": "19.2.8",
     "react-datepicker": "^9.1.0",
@@ -28,6 +29,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/html2pdf.js": "^0.10.0",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",

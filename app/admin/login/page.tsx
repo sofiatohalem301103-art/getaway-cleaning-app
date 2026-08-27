@@ -103,8 +103,8 @@ export default function AdminLoginPage() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link href="/" className="text-xs text-gray-500 hover:underline">
-            ← Back to Home
+          <Link href="/admin" className="text-xs text-gray-500 hover:underline">
+            ← Back to Portal Selection
           </Link>
         </div>
       </div>

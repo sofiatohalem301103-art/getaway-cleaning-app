@@ -43,36 +43,37 @@ export default function AdminDashboardPage() {
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const todayStr = getLocalDateString();
 
   // ----------------------------------------------------------------------
-  // 3. ระบบเสียงแจ้งเตือน (Web Audio API)
+  // 3. ระบบเสียงแจ้งเตือนอัตโนมัติ (Web Audio API)
   // ----------------------------------------------------------------------
-  const toggleAudio = () => {
-    try {
-      if (!isAudioEnabled) {
+  useEffect(() => {
+    // ปลดล็อก AudioContext ทันทีเมื่อผู้ใช้มีการกดหรือคลิกส่วนใดก็ได้อย่างน้อย 1 ครั้ง
+    const unlockAudio = () => {
+      if (!audioCtxRef.current) {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (!audioCtxRef.current && AudioContextClass) {
-          audioCtxRef.current = new AudioContextClass();
-        }
-        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        setIsAudioEnabled(true);
-      } else {
-        setIsAudioEnabled(false);
+        if (AudioContextClass) audioCtxRef.current = new AudioContextClass();
       }
-    } catch (e) {
-      console.error('Failed to initialize AudioContext:', e);
-    }
-  };
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
+
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   const playAdminSound = (type: 'new_booking' | 'job_completed') => {
-    if (!isAudioEnabled) return;
-
     try {
       if (!audioCtxRef.current) {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -179,7 +180,7 @@ export default function AdminDashboardPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [todayStr, loadBookings, isAudioEnabled]);
+  }, [todayStr, loadBookings]);
 
   const handleSelectStaffLocal = (taskId: any, staffName: string) => {
     setSelectedStaffMap((prev) => ({
@@ -198,7 +199,6 @@ export default function AdminDashboardPage() {
 
     setLoadingId(task.id);
     try {
-      // 1. อัปเดตสถานะใน Supabase
       const { error } = await supabase
         .from('bookings')
         .update({ payment_status: 'Paid / Verified' })
@@ -206,7 +206,6 @@ export default function AdminDashboardPage() {
 
       if (error) throw error;
 
-      // 2. เรียก API ส่ง Email
       if (task.customer_email) {
         const emailRes = await fetch('/api/notify', {
           method: 'POST',
@@ -219,7 +218,6 @@ export default function AdminDashboardPage() {
             time: task.booking_time,
             amount: String(task.price || task.amount || '0').replace(/€/g, '').trim(),
             refNumber: task.booking_code || `REF-${task.id}`,
-            // ⚠️ จุดแก้ไขสำคัญ: ส่ง paymentMethod นี้เพื่อให้ API เข้าบล็อกสร้าง Voucher PDF
             paymentMethod: 'Admin Confirmation Voucher',
           }),
         });
@@ -393,17 +391,6 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggleAudio}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1 cursor-pointer ${
-                isAudioEnabled
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                  : 'bg-amber-50 border-amber-300 text-amber-700 animate-pulse'
-              }`}
-            >
-              {isAudioEnabled ? '🔔 Sound On' : '🔇 Enable Sound'}
-            </button>
-
             <button
               onClick={handleClearAll}
               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"

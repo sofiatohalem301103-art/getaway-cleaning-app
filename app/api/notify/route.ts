@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import fs from 'fs';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const REGISTERED_RESEND_EMAIL = 'sofiatohalem301103@gmail.com';
 
 // ----------------------------------------------------------------------
 // PDF Generation Function
@@ -105,7 +101,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     const tableWidth = 535;
     const tableHeight = 170;
 
-    // Header Background inside table
     doc.rect(tableLeft + 1, tableTop + 1, tableWidth - 2, 18).fill(COLOR_BG_HEADER);
     doc.moveTo(tableLeft, tableTop + 19).lineTo(tableLeft + tableWidth, tableTop + 19).strokeColor(COLOR_BLACK).lineWidth(0.8).stroke();
 
@@ -155,7 +150,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.text('0.00 €', sumValX, summaryY + 10, { width: 65, align: 'right' });
     doc.text('0.00 €', sumValX, summaryY + 20, { width: 65, align: 'right' });
 
-    // FIX 1: แถบสีเทาตรง Total - ตัดขอบล่างมนอย่างแม่นยำ ไม่ล้นออกนอกกรอบ
     const grandTotalY = summaryY + 31;
     doc.save();
     doc.roundedRect(tableLeft + 1, grandTotalY, tableWidth - 2, 170 - (grandTotalY - tableTop) - 1, 3).fill('#E5E5E5');
@@ -165,21 +159,18 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.text('Total Amount Paid', 40, grandTotalY + 5);
     doc.fontSize(9.5).text(`${data.amount || '90.00'} €`, sumValX, grandTotalY + 4, { width: 65, align: 'right' });
 
-    // วาดเส้นกรอบตารางทั้งหมดทับด้านบนเพื่อให้เส้นกรอบคมชัด
     doc.roundedRect(tableLeft, tableTop, tableWidth, tableHeight, 4).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
     // 5. Payment Method Section
     const bottomY = tableTop + 185;
     const rawMethod = String(data.paymentMethod || '').toLowerCase();
 
-    // FIX 2: ปรับปรุงระบบตรวจสอบวิธีการชำระเงินให้แม่นยำยิ่งขึ้น
     let isBank = rawMethod.includes('bank') || rawMethod.includes('transfer') || rawMethod.includes('โอน') || rawMethod.includes('promptpay') || rawMethod.includes('qr') || rawMethod.includes('scb') || rawMethod.includes('kbank') || rawMethod.includes('bbl');
     let isCash = rawMethod.includes('cash') || rawMethod.includes('เงินสด');
     let isCard = rawMethod.includes('card') || rawMethod.includes('credit') || rawMethod.includes('debit') || rawMethod.includes('stripe') || rawMethod.includes('visa') || rawMethod.includes('mastercard');
 
-    // กรณีไม่มีข้อมูลส่งมา หรือจับคำไม่ได้ ให้เป็น Bank Transfer หรือ Card แบบถูกต้อง
     if (!isBank && !isCash && !isCard) {
-      isBank = true; // ตั้งค่าเริ่มต้น
+      isBank = true;
     }
 
     doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Payment Method', 30, bottomY);
@@ -218,15 +209,36 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { to, customerName, room, date, time, amount, paymentMethod, refNumber } = body;
 
-    const isValidEmail = to && typeof to === 'string' && !to.includes('example.com') && to.includes('@');
-    const targetEmail = isValidEmail ? to : REGISTERED_RESEND_EMAIL;
+    // ดึงค่าจาก Env Variables สำหรับ Gmail
+    const gmailUser = process.env.GMAIL_USER || 'sofiatohalem301103@gmail.com';
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+    // ตรวจสอบค่า Gmail App Password
+    if (!gmailPass) {
+      console.error('GMAIL_APP_PASSWORD is missing in .env.local file');
+      return NextResponse.json(
+        { error: 'GMAIL_APP_PASSWORD is missing in environment variables. Please check .env.local file and restart server.' },
+        { status: 500 }
+      );
+    }
+
+    // ตั้งค่า Gmail SMTP Transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass,
+      },
+    });
+
+    const targetEmail = to || 'sofiatohalem301103@gmail.com';
 
     const isOtpRequest = 
       paymentMethod === 'Email OTP Service' || 
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
 
-    // Black & White HTML Email Templates
+    // HTML Email Templates
     const otpHtml = `
       <div style="font-family: Arial, sans-serif; padding: 32px 24px; border: 1px solid #1a1a1a; border-radius: 12px; max-width: 480px; margin: 0 auto; background-color: #ffffff; text-align: center;">
         <h2 style="color: #000000; margin-top: 0; font-size: 22px;">🔐 Getaway Cleaning Verification Code</h2>
@@ -294,20 +306,16 @@ export async function POST(request: Request) {
       });
     }
 
-    const mailResult = await resend.emails.send({
-      from: 'Getaway Cleaning <onboarding@resend.dev>',
-      to: [targetEmail],
+    // ส่งอีเมลด้วย Nodemailer (Gmail)
+    const info = await transporter.sendMail({
+      from: `"Getaway Cleaning" <${gmailUser}>`,
+      to: targetEmail,
       subject: subject,
       html: htmlContent,
       attachments: attachments,
     });
 
-    if (mailResult.error) {
-      console.error('Resend Error:', mailResult.error);
-      return NextResponse.json({ error: mailResult.error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, data: mailResult });
+    return NextResponse.json({ success: true, data: info });
   } catch (error: any) {
     console.error('Notify API Catch Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to send email' }, { status: 500 });

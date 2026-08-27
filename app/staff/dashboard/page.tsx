@@ -9,11 +9,13 @@ export default function StaffDashboardPage() {
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
 
-  // 🔔 State & Ref สำหรับระบบเสียงแจ้งเตือน
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  // Collapsible state for Job History
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Audio Context Ref for playing alert sound automatically
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // โหลดข้อมูลพนักงานที่ล็อกอินอยู่จาก LocalStorage
+  // Load current staff from LocalStorage
   useEffect(() => {
     const savedStaff = localStorage.getItem('currentStaff');
     if (savedStaff) {
@@ -28,30 +30,8 @@ export default function StaffDashboardPage() {
     }
   }, [router]);
 
-  // ฟังก์ชันสลับสถานะเปิด/ปิดเสียง
-  const toggleAudio = () => {
-    try {
-      if (!isAudioEnabled) {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (!audioCtxRef.current && AudioContextClass) {
-          audioCtxRef.current = new AudioContextClass();
-        }
-        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        setIsAudioEnabled(true);
-      } else {
-        setIsAudioEnabled(false);
-      }
-    } catch (e) {
-      console.error('Failed to initialize AudioContext:', e);
-    }
-  };
-
-  // 🔔 เล่นเสียงแจ้งเตือน
+  // Function to play alert sound automatically
   const playNotificationSound = () => {
-    if (!isAudioEnabled) return;
-
     try {
       if (!audioCtxRef.current) {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -69,21 +49,21 @@ export default function StaffDashboardPage() {
       const gainNode = audioCtx.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz pitch
+      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
 
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
 
       oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.5);
+      oscillator.stop(audioCtx.currentTime + 0.6);
     } catch (e) {
-      console.error('Audio play error:', e);
+      console.error('Audio playback error:', e);
     }
   };
 
-  // ดึงงานที่มอบหมายเฉพาะ Staff ID ของคนที่ล็อกอินอยู่
+  // Load staff tasks assigned to current staff ID
   const loadStaffTasks = useCallback(async () => {
     if (!currentStaff?.id) return;
 
@@ -139,15 +119,15 @@ export default function StaffDashboardPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentStaff, loadStaffTasks, isAudioEnabled]);
+  }, [currentStaff, loadStaffTasks]);
 
-  // ฟังก์ชัน Logout
+  // Handle Logout
   const handleLogout = () => {
     localStorage.removeItem('currentStaff');
     router.push('/staff/login');
   };
 
-  // 🔄 อัปเดตสถานะงาน (In Progress -> Completed)
+  // Update Task Status (In Progress -> Completed)
   const handleUpdateStatus = async (
     task: any,
     newStatus: string,
@@ -169,18 +149,18 @@ export default function StaffDashboardPage() {
       .eq('id', task.id);
 
     if (error) {
-      alert('Error: ' + error.message);
+      alert('Error updating status: ' + error.message);
     } else {
       if (newStatus === 'In Progress') {
-        alert('รับงานเรียบร้อย! กำลังเริ่มดำเนินการ');
+        alert('Task accepted! You may now begin.');
       } else if (newStatus === 'Completed') {
-        alert('ปิดงานสำเร็จ! ระบบบันทึกเวลาทำงานเรียบร้อยครับ');
+        alert('Task completed successfully! Working time recorded.');
       }
       loadStaffTasks();
     }
   };
 
-  // Badge แสดงสถานะ
+  // Render Status Badge
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'In Progress':
@@ -228,181 +208,201 @@ export default function StaffDashboardPage() {
   if (!currentStaff) return null;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-6 text-black">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Top Header */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center flex-wrap gap-2">
+    <main className="min-h-screen bg-slate-50 p-3 sm:p-6 text-slate-800 font-sans">
+      <div className="max-w-4xl mx-auto space-y-4">
+        
+        {/* 1. Top Header Card */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-bold text-slate-800">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800">
               Staff Workstation
             </h1>
-            <p className="text-xs text-gray-400">Task Management & History</p>
+            <p className="text-xs text-slate-400">Task Management & History</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* ปุ่มเปิดใช้งานเสียง */}
-            <button
-              onClick={toggleAudio}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1 cursor-pointer ${
-                isAudioEnabled
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                  : 'bg-amber-50 border-amber-300 text-amber-700 animate-pulse'
-              }`}
-            >
-              {isAudioEnabled ? '🔔 Sound On' : '🔇 Enable Sound'}
-            </button>
-
-            {/* แสดงชื่อและรหัสพนักงานที่ล็อกอินอยู่ */}
-            <div className="bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 font-bold text-slate-700">
+          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+            {/* Staff Badge */}
+            <div className="bg-slate-100 border border-slate-200/80 px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1 font-bold text-slate-700">
               <span>👷‍♂️</span>
               <span>{currentStaff.id}</span>
-              <span className="text-gray-400">({currentStaff.name})</span>
+              <span className="text-slate-400 text-[11px]">({currentStaff.name})</span>
             </div>
 
-            {/* ปุ่ม Logout */}
+            {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-bold transition cursor-pointer"
+              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               Logout
             </button>
           </div>
         </div>
 
-        {/* Layout Grid: Left History | Right Active Tasks */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Column: Job History */}
-          <div className="md:col-span-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3 h-fit">
-            <div className="flex justify-between items-center border-b pb-2 border-gray-100">
-              <h2 className="text-sm font-bold text-slate-800">📜 Job History</h2>
-              <span className="text-[11px] bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded-full">
-                {historyTasks.length}
-              </span>
+        {/* 2. Current Active Tasks Section (ย้ายขึ้นมาอยู่บนสุด) */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📌</span>
+              <h2 className="text-sm font-bold text-slate-800">Current Tasks</h2>
             </div>
-
-            {historyTasks.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-6">
-                No completed jobs yet.
-              </p>
-            ) : (
-              <div className="space-y-4 max-h-[550px] overflow-y-auto pr-1">
-                {Object.keys(groupedHistory).map((date) => (
-                  <div key={date} className="space-y-2">
-                    <div className="flex items-center gap-2 my-1">
-                      <div className="h-[1px] bg-gray-200 flex-grow"></div>
-                      <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
-                        📅 {date}
-                      </span>
-                      <div className="h-[1px] bg-gray-200 flex-grow"></div>
-                    </div>
-
-                    {groupedHistory[date].map((task) => (
-                      <div
-                        key={task.id}
-                        className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1 text-xs hover:border-gray-300 transition"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-slate-700">
-                            {task.booking_code || `REF-${task.id}`}
-                          </span>
-                          <span className="text-[10px] text-emerald-600 font-semibold">
-                            ✅ Completed
-                          </span>
-                        </div>
-                        <p className="font-medium text-slate-800 truncate">
-                          {task.room_type || task.program || 'Cleaning Service'}
-                        </p>
-                        <div className="text-[10px] text-gray-400 flex justify-between pt-1 border-t border-gray-200/50">
-                          <span>👤 {task.customer_name}</span>
-                          <span>⏰ {task.booking_time || '-'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
+            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+              {activeTasks.length} Active
+            </span>
           </div>
 
-          {/* Right Column: Active Tasks */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-slate-800">📌 Current Tasks</h2>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-                {activeTasks.length} Active
-              </span>
+          {activeTasks.length === 0 ? (
+            <div className="bg-slate-50/50 p-8 rounded-2xl text-center border border-dashed border-slate-200 text-slate-400 text-xs">
+              ☕ No active tasks assigned to you. Waiting for Admin dispatch...
             </div>
+          ) : (
+            activeTasks.map((task) => (
+              <div
+                key={task.id}
+                className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 text-xs"
+              >
+                <div className="flex justify-between items-center border-b pb-2 border-slate-100">
+                  <span className="font-bold text-emerald-600 text-sm">
+                    {task.booking_code || `REF-${task.id}`}
+                  </span>
+                  <span className="text-slate-400 font-medium text-[11px]">
+                    📅 {task.booking_date} | {task.booking_time}
+                  </span>
+                </div>
 
-            {activeTasks.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl text-center border border-dashed border-gray-200 text-gray-400 text-xs">
-                ☕ No active tasks assigned to you. Waiting for Admin dispatch...
-              </div>
-            ) : (
-              activeTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs"
-                >
-                  <div className="flex justify-between items-center border-b pb-2 border-gray-50">
-                    <span className="font-bold text-emerald-600 text-sm">
-                      {task.booking_code || `REF-${task.id}`}
-                    </span>
-                    <span className="text-gray-500 font-medium">
-                      📅 {task.booking_date} | {task.booking_time}
-                    </span>
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-800 text-sm">
+                    {task.room_type || task.program || 'Cleaning Service'}
+                  </p>
+                  <p className="text-slate-600">
+                    👤 Customer: <span className="font-semibold text-slate-800">{task.customer_name}</span>
+                  </p>
+                  <p className="text-slate-500">📍 Location: {task.address || task.room_type || '-'}</p>
+                </div>
+
+                {/* Status & Action Buttons */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Status: </span>
+                    {renderStatusBadge(task.status)}
                   </div>
 
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">
-                      {task.room_type || task.program || 'Cleaning Service'}
-                    </p>
-                    <p className="text-gray-600 mt-1">
-                      👤 Customer: <span className="font-semibold text-gray-800">{task.customer_name}</span>
-                    </p>
-                    <p className="text-gray-500">📍 Location: {task.address || task.room_type || '-'}</p>
-                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto justify-end pt-1 sm:pt-0">
+                    {(!task.status ||
+                      task.status === 'Assigned' ||
+                      task.status === 'Confirmed' ||
+                      task.status === 'Pending') && (
+                      <button
+                        onClick={() => handleUpdateStatus(task, 'In Progress')}
+                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-xl text-xs transition cursor-pointer shadow-sm flex items-center justify-center gap-1"
+                      >
+                        🚀 Accept & Start
+                      </button>
+                    )}
 
-                  {/* Status & Action Buttons */}
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-gray-400">Status: </span>
-                      {renderStatusBadge(task.status)}
-                    </div>
-
-                    <div className="flex gap-2">
-                      {(!task.status ||
-                        task.status === 'Assigned' ||
-                        task.status === 'Confirmed' ||
-                        task.status === 'Pending') && (
-                        <button
-                          onClick={() => handleUpdateStatus(task, 'In Progress')}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-lg text-xs transition cursor-pointer shadow-sm flex items-center gap-1"
-                        >
-                          🚀 Accept & Start
-                        </button>
-                      )}
-
-                      {task.status === 'In Progress' && (
-                        <button
-                          onClick={() =>
-                            handleUpdateStatus(
-                              task,
-                              'Completed',
-                              'Are you sure you have completed this cleaning task?'
-                            )
-                          }
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold rounded-lg text-xs transition cursor-pointer shadow-sm flex items-center gap-1"
-                        >
-                          ✅ Complete Job
-                        </button>
-                      )}
-                    </div>
+                    {task.status === 'In Progress' && (
+                      <button
+                        onClick={() =>
+                          handleUpdateStatus(
+                            task,
+                            'Completed',
+                            'Are you sure you have completed this cleaning task?'
+                          )
+                        }
+                        className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold rounded-xl text-xs transition cursor-pointer shadow-sm flex items-center justify-center gap-1"
+                      >
+                        ✅ Complete Job
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+            ))
+          )}
         </div>
+
+        {/* 3. Job History Card (ย้ายมาไว้ข้างล่างสุด) */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden transition-all duration-200">
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95 transition cursor-pointer"
+                aria-label="Toggle History"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isHistoryOpen ? 'rotate-90' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+
+              <span className="text-base">📜</span>
+              <h2 className="text-sm font-bold text-slate-800">Job History</h2>
+            </div>
+
+            <span className="text-[11px] bg-slate-100 text-slate-500 font-bold px-2.5 py-0.5 rounded-full">
+              {historyTasks.length}
+            </span>
+          </div>
+
+          {isHistoryOpen && (
+            <div className="px-4 pb-4 pt-1 border-t border-slate-50">
+              {historyTasks.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">
+                  No completed jobs yet.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                  {Object.keys(groupedHistory).map((date) => (
+                    <div key={date} className="space-y-2">
+                      <div className="flex items-center gap-2 my-2">
+                        <div className="h-[1px] bg-slate-100 flex-grow"></div>
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
+                          📅 {date}
+                        </span>
+                        <div className="h-[1px] bg-slate-100 flex-grow"></div>
+                      </div>
+
+                      {groupedHistory[date].map((task) => (
+                        <div
+                          key={task.id}
+                          className="p-3 bg-slate-50/60 rounded-2xl border border-slate-100 space-y-1 text-xs hover:border-slate-300 transition"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-slate-700">
+                              {task.booking_code || `REF-${task.id}`}
+                            </span>
+                            <span className="text-[10px] text-emerald-600 font-semibold">
+                              ✅ Completed
+                            </span>
+                          </div>
+                          <p className="font-medium text-slate-800 truncate">
+                            {task.room_type || task.program || 'Cleaning Service'}
+                          </p>
+                          <div className="text-[10px] text-slate-400 flex justify-between pt-1 border-t border-slate-200/40">
+                            <span>👤 {task.customer_name}</span>
+                            <span>⏰ {task.booking_time || '-'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
     </main>
   );
