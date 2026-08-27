@@ -34,14 +34,13 @@ function BookingForm() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
-  // แปลง Date เป็น ISO String (YYYY-MM-DD) สำหรับดึงข้อมูลจาก Database
+  // แปลง Date เป็น ISO String (YYYY-MM-DD)
   const formattedDateString = selectedDateObj
     ? selectedDateObj.toISOString().split('T')[0]
     : '';
 
   const loadUserData = async () => {
     try {
-      // 1. ดึงข้อมูลจาก URL Query Parameters
       const nameParam = searchParams.get('customerName') || searchParams.get('name');
       const emailParam = searchParams.get('email');
       const idParam = searchParams.get('userId');
@@ -55,7 +54,6 @@ function BookingForm() {
         return;
       }
 
-      // 2. ดึงข้อมูลจาก Supabase Auth
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user && user.email) {
@@ -81,7 +79,6 @@ function BookingForm() {
         return;
       }
 
-      // 3. ดึงข้อมูลจาก LocalStorage / SessionStorage
       const savedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email');
       const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
 
@@ -120,7 +117,6 @@ function BookingForm() {
     };
   }, [searchParams]);
 
-  // ดึงช่วงเวลาที่ถูกจองแล้วจาก Supabase
   useEffect(() => {
     const fetchBookedSlots = async () => {
       if (!formattedDateString) return;
@@ -189,7 +185,6 @@ function BookingForm() {
 
     const finalRoom = selectedRoom === 'Other' ? customRoomName : selectedRoom;
 
-    // ส่ง Query Params รวม Email ต่อไปยังหน้า /customer/program
     const query = new URLSearchParams({
       userId: currentUser?.id || '',
       customerName: currentUser?.name || '',
@@ -202,7 +197,6 @@ function BookingForm() {
     router.push(`/customer/program?${query}`);
   };
 
-  // Custom Input สำหรับ React-DatePicker
   const CustomDateInput = forwardRef<HTMLButtonElement, any>(({ value, onClick }, ref) => (
     <button
       type="button"
@@ -230,7 +224,7 @@ function BookingForm() {
   CustomDateInput.displayName = 'CustomDateInput';
 
   return (
-    <div className="w-full min-h-dvh sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-8 rounded-none sm:rounded-3xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative">
+    <div className="w-full h-full sm:max-w-md bg-white p-5 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto">
       
       {/* User Profile Badge (มุมซ้ายบน) */}
       <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-full py-1 px-3 shadow-2xs z-10">
@@ -250,7 +244,7 @@ function BookingForm() {
       </div>
 
       {/* Logo Section */}
-      <div className="w-full flex flex-col items-center pt-8 sm:pt-4 pb-2">
+      <div className="w-full flex flex-col items-center pt-8 sm:pt-4 pb-2 shrink-0">
         <Image
           src="/logo.jpeg"
           alt="Company Logo"
@@ -263,7 +257,7 @@ function BookingForm() {
       </div>
 
       {/* Form Body */}
-      <div className="w-full py-2 space-y-5 my-auto">
+      <div className="w-full py-2 space-y-5 my-auto shrink-0">
         <form onSubmit={handleNext} className="space-y-5">
           
           {/* Section 1: Select Room & Date */}
@@ -384,7 +378,7 @@ function BookingForm() {
       </div>
 
       {/* Footer */}
-      <div className="w-full pt-4 pb-2 text-center">
+      <div className="w-full pt-4 pb-2 text-center shrink-0">
         <p className="text-[11px] text-slate-400">
           © Getaway Cleaning Service
         </p>
@@ -396,7 +390,7 @@ function BookingForm() {
 
 export default function BookingPage() {
   return (
-    <main className="min-h-dvh bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <main className="fixed inset-0 sm:relative sm:min-h-[100dvh] bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans overflow-hidden">
       
       {/* CSS Override สำหรับดีไซน์ Datepicker */}
       <style jsx global>{`
