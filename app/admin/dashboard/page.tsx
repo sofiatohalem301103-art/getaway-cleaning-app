@@ -51,7 +51,6 @@ export default function AdminDashboardPage() {
   // 3. ระบบเสียงแจ้งเตือนอัตโนมัติ (Web Audio API)
   // ----------------------------------------------------------------------
   useEffect(() => {
-    // ปลดล็อก AudioContext ทันทีเมื่อผู้ใช้มีการกดหรือคลิกส่วนใดก็ได้อย่างน้อย 1 ครั้ง
     const unlockAudio = () => {
       if (!audioCtxRef.current) {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -533,7 +532,7 @@ function TaskCard({
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs relative group">
-      {/* Card Header (รหัสงาน + วันเวลา + ปุ่มลบ) */}
+      {/* Card Header */}
       <div className="flex justify-between items-center border-b pb-2 border-gray-50">
         <span className="font-bold text-emerald-600 text-sm">
           {task.booking_code || `REF-${task.id}`}
@@ -553,7 +552,7 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Card Body (รายละเอียดงาน + สลิป + ปุ่ม Confirm Payment อยู่ใต้รูปสลิป) */}
+      {/* Card Body */}
       <div className="flex justify-between items-start gap-4">
         <div className="space-y-1 flex-1">
           <p className="font-bold text-slate-800 text-sm">
@@ -578,7 +577,7 @@ function TaskCard({
           )}
         </div>
 
-        {/* 💳 ฝั่งขวาบน: รูปสลิปการชำระเงิน + ปุ่ม Confirm Payment */}
+        {/* Payment Slip */}
         <div className="flex flex-col items-end space-y-1.5">
           <span className="text-[10px] text-gray-400">Payment Slip:</span>
           {slipImage ? (
@@ -598,7 +597,6 @@ function TaskCard({
             </div>
           )}
 
-          {/* ปุ่ม Confirm Payment (อยู่ใต้รูปสลิป) */}
           {isPaid ? (
             <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2 py-1 rounded-lg block text-center">
               ✓ Paid Verified
@@ -615,7 +613,7 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Card Footer (ส่วนล่าง: ช่องเลือกพนักงาน + ปุ่ม Assign Task ต่อท้าย) */}
+      {/* Card Footer */}
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-gray-500 font-medium">Assigned To:</span>
@@ -640,7 +638,6 @@ function TaskCard({
             ))}
           </select>
 
-          {/* 📤 ปุ่ม Assign Task วางต่อท้าย Dropdown ทันที */}
           {task.status === 'Completed' ? (
             <span className="bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1">
               ✅ Completed
