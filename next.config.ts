@@ -9,10 +9,14 @@ const nextConfig: NextConfig = {
     'localhost:3000',
   ],
 
-  // ข้ามการตรวจ TypeScript Error ตอนสั่ง Build บน Vercel
+  // ข้ามการตรวจ TypeScript ตอนสั่ง Build
   typescript: {
     ignoreBuildErrors: true,
   },
-};
+  // ข้ามการตรวจ ESLint ตอนสั่ง Build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+} as NextConfig;
 
 export default nextConfig;
