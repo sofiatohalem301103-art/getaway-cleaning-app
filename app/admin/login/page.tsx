@@ -13,9 +13,16 @@ export default function AdminLoginPage() {
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // บันทึกโปรไฟล์ Admin แล้วให้ผ่านเข้าสู่ระบบทันที
-    localStorage.setItem('admin_user', selectedAdmin);
-    router.push('/admin/dashboard');
+    // ตัดช่องว่างหน้า-หลังออกก่อนตรวจสอบ
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (cleanEmail === 'info@getaway-homes.com' && cleanPassword === 'Paphos2026') {
+      localStorage.setItem('admin_user', selectedAdmin);
+      router.push('/admin/dashboard');
+    } else {
+      alert('Invalid Admin email or password.');
+    }
   };
 
   return (
