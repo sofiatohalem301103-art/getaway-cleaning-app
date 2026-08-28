@@ -179,7 +179,6 @@ const RAW_TIME_SLOTS = [
   '15:00 - 16:00',
 ];
 
-// Helper: แปลง Date เป็น YYYY-MM-DD แบบ Local Timezone
 const formatDateToLocalString = (date: Date | null) => {
   if (!date) return '';
   const year = date.getFullYear();
@@ -188,24 +187,23 @@ const formatDateToLocalString = (date: Date | null) => {
   return `${year}-${month}-${day}`;
 };
 
-// Helper: แปลงเบอร์โทรศัพท์ให้มีช่องว่างอัตโนมัติตาม Country Code
 const formatPhoneNumber = (value: string, countryCode: string) => {
   const cleaned = value.replace(/\D/g, '');
 
   switch (countryCode) {
-    case '+357': // Cyprus: XX XXX XXX -> 96 256 8961
+    case '+357':
       if (cleaned.length <= 2) return cleaned;
       if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
       return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
 
-    case '+66': // Thailand: XXX XXX XXXX -> 081 234 5678
+    case '+66':
       if (cleaned.length <= 3) return cleaned;
       if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
       return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
 
-    case '+1': // US/CA
-    case '+44': // UK
-    default: // รูปแบบมาตรฐานทั่วไป: XXX XXX XXXX
+    case '+1':
+    case '+44':
+    default:
       if (cleaned.length <= 3) return cleaned;
       if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
       return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
@@ -375,6 +373,32 @@ function BookingForm() {
 
     fetchBookedSlots();
   }, [formattedDateString]);
+
+  // Logout Functionality
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('user_name');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_phone');
+
+      setCurrentUser({
+        id: '',
+        name: '',
+        email: '',
+        phone: '',
+        countryCode: '+357',
+      });
+      setEditName('');
+      setEditEmail('');
+      setEditPhone('');
+
+      setIsProfileModalOpen(false);
+      router.push('/login');
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -666,7 +690,20 @@ function BookingForm() {
       {isProfileModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl space-y-4 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="text-base font-bold text-slate-800">Customer Profile</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-slate-800">Customer Profile</h3>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Log Out
+              </button>
+            </div>
+
             <p className="text-xs text-slate-500">
               Please check your information for admin confirmation.
             </p>
