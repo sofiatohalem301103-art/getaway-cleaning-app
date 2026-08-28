@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16' as any,
-});
-
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_build';
+    
+    const stripe = new Stripe(apiKey, {
+      apiVersion: '2023-10-16' as any,
+    });
+
     const { amount, holderName, email } = await req.json();
 
     const numericAmount = typeof amount === 'number'
@@ -19,11 +21,11 @@ export async function POST(req: Request) {
 
     const amountInCents = Math.round(numericAmount * 100);
 
-    // ใช้ Test Token 'tok_visa' เพื่อเลี่ยงการส่ง Raw Card Data ในโหมด Dev
+    // ใช้ Test Token 'tok_visa' หรือ 'pm_card_visa' ในโหมด Dev/Test
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'eur',
-      payment_method: 'pm_card_visa', // ใช้ Test Payment Method ID
+      payment_method: 'pm_card_visa',
       confirm: true,
       automatic_payment_methods: {
         enabled: true,

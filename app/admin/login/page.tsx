@@ -13,16 +13,9 @@ export default function AdminLoginPage() {
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ตัดช่องว่างหน้า-หลังออกก่อนตรวจสอบ
-    const cleanEmail = email.trim();
-    const cleanPassword = password.trim();
-
-    if (cleanEmail === 'info@getaway-homes.com' && cleanPassword === 'Paphos2026') {
-      localStorage.setItem('admin_user', selectedAdmin);
-      router.push('/admin/dashboard');
-    } else {
-      alert('Invalid Admin email or password.');
-    }
+    // บันทึกชื่อ Admin และเปลี่ยนหน้าไปยัง Dashboard ทันทีโดยไม่ต้องตรวจรหัส
+    localStorage.setItem('admin_user', selectedAdmin);
+    router.push('/admin/dashboard');
   };
 
   return (
@@ -81,7 +74,6 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg text-sm text-black focus:outline-indigo-600"
-              placeholder="info@getaway-homes.com"
             />
           </div>
 
@@ -93,7 +85,6 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg text-sm text-black focus:outline-indigo-600"
-              placeholder="••••••••"
             />
           </div>
 
