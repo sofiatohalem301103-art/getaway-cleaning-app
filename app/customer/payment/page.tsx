@@ -21,6 +21,7 @@ function PaymentOptionsContent() {
     id: string;
     name: string;
     email: string;
+    phone: string;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -35,31 +36,37 @@ function PaymentOptionsContent() {
 
       const nameParam = searchParams.get('customerName') || searchParams.get('name');
       const emailParam = searchParams.get('email');
-      const idParam = searchParams.get('userId');
+      const phoneParam = searchParams.get('phone');
+      const idParam = searchParams.get('userId') || searchParams.get('id');
 
-      // 1. ดึงจาก URL Query Parameters
-      if (nameParam || emailParam) {
-        setCurrentUser({
+      // 1. ตรวจสอบข้อมูลจาก URL Query String
+      if (nameParam || emailParam || phoneParam) {
+        const userDataFromUrl = {
           id: idParam || '',
-          name: nameParam || emailParam?.split('@')[0] || 'User',
+          name: nameParam || 'Guest',
           email: emailParam || '',
-        });
+          phone: phoneParam || '',
+        };
+        
+        setCurrentUser(userDataFromUrl);
+        localStorage.setItem('user', JSON.stringify(userDataFromUrl));
         return;
       }
 
-      // 2. ดึงจาก Supabase Auth Session
+      // 2. ดึงข้อมูลจาก Supabase Auth & Table profiles
       const { data: { session } } = await supabase.auth.getSession();
-      let user: any = session?.user;
+      let user = session?.user;
 
       if (!user) {
         const { data: userData } = await supabase.auth.getUser();
-        user = userData?.user;
+        user = userData?.user ?? undefined;
       }
 
       if (user) {
+        // ค้นหาข้อมูลจากตาราง profiles
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, name, email')
+          .select('*')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -68,31 +75,40 @@ function PaymentOptionsContent() {
           profile?.name ||
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
-          user.user_metadata?.user_name ||
           user.email?.split('@')[0] ||
-          '';
+          'User';
 
         const email = profile?.email || user.email || '';
+        
+        // ดึงเบอร์โทรศัพท์ตามลำดับความสำคัญ (Profile DB > Metadata)
+        const phone = 
+          profile?.phone || 
+          profile?.phone_number || 
+          profile?.mobile || 
+          user.user_metadata?.phone || 
+          user.user_metadata?.phone_number || 
+          '';
 
-        setCurrentUser({ id: user.id, name, email });
+        const fetchedUser = { id: user.id, name, email, phone };
+        setCurrentUser(fetchedUser);
+        localStorage.setItem('user', JSON.stringify(fetchedUser));
         return;
       }
 
-      // 3. ดึงจาก localStorage
+      // 3. Fallback ไปดูใน LocalStorage
       const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
       if (localUser) {
         const parsed = JSON.parse(localUser);
         setCurrentUser({
           id: parsed.id || '',
-          name: parsed.name || parsed.full_name || (parsed.email ? parsed.email.split('@')[0] : ''),
+          name: parsed.name || parsed.full_name || 'User',
           email: parsed.email || localStorage.getItem('user_email') || '',
+          phone: parsed.phone || parsed.phone_number || parsed.mobile || '',
         });
         return;
       }
 
-      // 4. กรณีไม่พบข้อมูลผู้ใช้ในทุกช่องทาง
       setCurrentUser(null);
-
     } catch (err) {
       console.error('Failed to load user:', err);
       setCurrentUser(null);
@@ -103,13 +119,14 @@ function PaymentOptionsContent() {
 
   useEffect(() => {
     loadUserData();
-  }, []);
+  }, [searchParams]);
 
   const handleNext = () => {
     const query = new URLSearchParams({
       userId: currentUser?.id || '',
       customerName: currentUser?.name || '',
       email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
       room,
       date,
       time,
@@ -136,146 +153,174 @@ function PaymentOptionsContent() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between items-center relative">
+    <div className="w-full max-w-md min-h-[620px] bg-white p-5 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between items-center relative shrink-0 my-auto">
       
-      {/* Profile Menu (Top Left) */}
-      <div className="absolute top-5 left-5 z-20">
-        <button
-          type="button"
-          onClick={() => setShowProfileMenu(!showProfileMenu)}
-          className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition active:scale-95 cursor-pointer touch-manipulation"
-        >
-          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
-            {isLoadingUser
-              ? '...'
-              : currentUser?.name
-              ? currentUser.name.charAt(0).toUpperCase()
-              : 'U'}
-          </div>
-          <span>Profile</span>
-        </button>
-
-        {/* Profile Popup */}
-        {showProfileMenu && (
-          <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-left z-30">
-            <div className="border-b border-slate-100 pb-2 mb-2">
-              <p className="text-xs font-bold text-slate-800">
-                {isLoadingUser ? 'Loading...' : currentUser?.name || 'Guest User'}
-              </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                {isLoadingUser ? 'Checking...' : currentUser?.email || 'No email associated'}
-              </p>
+      {/* Header Section */}
+      <div className="w-full relative">
+        
+        {/* Profile Badge */}
+        <div className="absolute top-[-12px] left-0 z-10">
+          <button
+            type="button"
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-full py-1 px-2.5 shadow-2xs transition active:scale-95 cursor-pointer touch-manipulation"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#00875A] text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {isLoadingUser
+                ? '...'
+                : currentUser?.name
+                ? currentUser.name.charAt(0).toUpperCase()
+                : 'U'}
             </div>
+            <div className="flex flex-col text-left pr-0.5 overflow-hidden">
+              <span className="text-[11px] font-semibold text-slate-700 leading-tight truncate max-w-[80px] sm:max-w-[95px]">
+                {isLoadingUser ? '...' : currentUser?.name || 'Guest'}
+              </span>
+              {currentUser?.phone && (
+                <span className="text-[9px] text-slate-400 leading-tight truncate max-w-[80px] sm:max-w-[95px]">
+                  {isLoadingUser ? '...' : currentUser.phone}
+                </span>
+              )}
+            </div>
+          </button>
 
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-2 rounded-xl transition cursor-pointer"
-              >
-                Log out
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => router.push('/login')}
-                className="w-full text-left text-xs font-medium text-emerald-600 hover:bg-emerald-50 p-2 rounded-xl transition cursor-pointer"
-              >
-                Log in
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+          {/* Profile Dropdown Menu */}
+          {showProfileMenu && (
+            <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-left z-30">
+              <div className="border-b border-slate-100 pb-2 mb-2">
+                <p className="text-xs font-bold text-slate-800">
+                  {isLoadingUser ? 'Loading...' : currentUser?.name || 'Guest'}
+                </p>
+                {currentUser?.email && (
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    {currentUser.email}
+                  </p>
+                )}
+                {currentUser?.phone && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {currentUser.phone}
+                  </p>
+                )}
+              </div>
 
-      {/* Logo Section */}
-      <div className="w-full flex flex-col items-center pt-4 sm:pt-0">
-        <Image
-          src="/logo.jpeg"
-          alt="Company Logo"
-          width={130}
-          height={130}
-          className="object-contain"
-          style={{ width: 'auto', height: 'auto' }}
-          priority
-        />
+              {currentUser ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-1.5 rounded-xl transition cursor-pointer"
+                >
+                  Log out
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push('/login')}
+                  className="w-full text-left text-xs font-medium text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-xl transition cursor-pointer"
+                >
+                  Log in
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Logo Section */}
+        <div className="w-full flex justify-center pt-5 pb-1">
+          <Image
+            src="/logo.jpeg"
+            alt="Getaway Cleaning"
+            width={160}
+            height={65}
+            className="object-contain max-h-[60px] w-auto"
+            priority
+          />
+        </div>
+
+        {/* Title */}
+        <h2 className="text-base font-bold text-slate-800 text-center mt-3">
+          Select Payment
+        </h2>
       </div>
 
       {/* Form Body */}
-      <div className="w-full my-auto py-6 space-y-6">
-        <h2 className="text-base font-bold text-slate-800 text-center">
-          Select Payment
-        </h2>
+      <div className="w-full flex-1 flex flex-col justify-between py-5 space-y-4">
+        <div className="space-y-4 my-auto">
+          {/* Total Amount Summary */}
+          <div className="w-full bg-[#f2fcf7] border border-[#10b981]/30 rounded-2xl p-3.5 text-center">
+            <span className="text-xs text-slate-600 font-medium">Total Amount: </span>
+            <span className="text-base font-bold text-[#10b981]">{price}</span>
+          </div>
 
-        {/* Total Amount Summary */}
-        <div className="w-full bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3.5 text-center">
-          <span className="text-xs text-emerald-800 font-medium">Total Amount: </span>
-          <span className="text-base font-bold text-emerald-700">{price}</span>
-        </div>
+          {/* Payment Options Selection */}
+          <div className="w-full space-y-3">
+            {/* Option 1: Credit / Debit Card */}
+            <label
+              onClick={() => setSelectedMethod('card')}
+              className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition touch-manipulation ${
+                selectedMethod === 'card'
+                  ? 'border-[#10b981] bg-[#f2fcf7] ring-1 ring-[#10b981]/30'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {/* SVG Icon บัตรเครดิต */}
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#10b981] flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Credit / Debit Card</p>
+                  <p className="text-[11px] text-slate-500">Pay securely with Visa, Mastercard</p>
+                </div>
+              </div>
+              <input
+                type="radio"
+                name="payment_method"
+                checked={selectedMethod === 'card'}
+                onChange={() => setSelectedMethod('card')}
+                className="accent-[#10b981] w-4 h-4 cursor-pointer shrink-0"
+              />
+            </label>
 
-        {/* Payment Options Selection */}
-        <div className="w-full space-y-3">
-          {/* Option 1: Credit / Debit Card */}
-          <label
-            onClick={() => setSelectedMethod('card')}
-            className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition touch-manipulation ${
-              selectedMethod === 'card'
-                ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                : 'border-slate-200 hover:border-slate-300 bg-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-base">
-                💳
+            {/* Option 2: Bank Transfer */}
+            <label
+              onClick={() => setSelectedMethod('bank')}
+              className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition touch-manipulation ${
+                selectedMethod === 'bank'
+                  ? 'border-[#10b981] bg-[#f2fcf7] ring-1 ring-[#10b981]/30'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {/* SVG Icon ธนาคาร */}
+                <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Bank Transfer</p>
+                  <p className="text-[11px] text-slate-500">Alpha Bank & upload slip</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Credit / Debit Card</p>
-                <p className="text-[11px] text-slate-500">Pay securely with Visa, Mastercard</p>
-              </div>
-            </div>
-            <input
-              type="radio"
-              name="payment_method"
-              checked={selectedMethod === 'card'}
-              onChange={() => setSelectedMethod('card')}
-              className="accent-emerald-600 w-4 h-4 cursor-pointer"
-            />
-          </label>
-
-          {/* Option 2: Bank Transfer */}
-          <label
-            onClick={() => setSelectedMethod('bank')}
-            className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition touch-manipulation ${
-              selectedMethod === 'bank'
-                ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                : 'border-slate-200 hover:border-slate-300 bg-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-base">
-                🏦
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Bank Transfer</p>
-                <p className="text-[11px] text-slate-500">Alpha Bank & upload slip</p>
-              </div>
-            </div>
-            <input
-              type="radio"
-              name="payment_method"
-              checked={selectedMethod === 'bank'}
-              onChange={() => setSelectedMethod('bank')}
-              className="accent-emerald-600 w-4 h-4 cursor-pointer"
-            />
-          </label>
+              <input
+                type="radio"
+                name="payment_method"
+                checked={selectedMethod === 'bank'}
+                onChange={() => setSelectedMethod('bank')}
+                className="accent-[#10b981] w-4 h-4 cursor-pointer shrink-0"
+              />
+            </label>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-2 gap-3">
+        <div className="flex justify-between items-center gap-3 pt-2">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-3 min-h-[48px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation"
+            className="px-6 py-2.5 min-h-[44px] bg-[#edf2f7] hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation"
           >
             ← Back
           </button>
@@ -283,7 +328,7 @@ function PaymentOptionsContent() {
           <button
             type="button"
             onClick={handleNext}
-            className="px-8 py-3 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm cursor-pointer touch-manipulation"
+            className="px-8 py-2.5 min-h-[44px] bg-[#27354a] hover:bg-slate-800 active:bg-slate-900 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation"
           >
             Continue
           </button>
@@ -291,7 +336,7 @@ function PaymentOptionsContent() {
       </div>
 
       {/* Footer */}
-      <div className="w-full pb-4 sm:pb-0 text-center">
+      <div className="w-full pt-1 text-center shrink-0">
         <p className="text-[11px] text-slate-400">
           © Getaway Cleaning Service
         </p>
@@ -303,7 +348,7 @@ function PaymentOptionsContent() {
 
 export default function PaymentPage() {
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <main className="min-h-[100dvh] bg-[#f8fafc] flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
       <Suspense fallback={<div className="text-xs text-slate-500">Loading payment options...</div>}>
         <PaymentOptionsContent />
       </Suspense>

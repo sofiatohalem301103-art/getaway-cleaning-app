@@ -3,24 +3,98 @@
 import { Suspense, useRef, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabaseClient';
 
 function ConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const room = searchParams.get('room') || 'Beautiful Apartment in Harbour Paphos';
-  const rawDate = searchParams.get('date') || '22 Aug 2026';
+  // ดึงค่า Query Parameters พร้อม Fallback สำหรับ Booking Details
+  const room = searchParams.get('room') || searchParams.get('location') || 'Beautiful Apartment in Harbour Paphos | Central';
+  const rawDate = searchParams.get('date') || '28 Aug 2026';
   const time = searchParams.get('time') || '10:00 - 11:00';
   const program = searchParams.get('program') || 'General cleaning';
-  const price = searchParams.get('price') || '90€';
+  const price = searchParams.get('price') || searchParams.get('amount') || '90€';
+  const rawPaymentMethod = searchParams.get('paymentMethod') || searchParams.get('method') || 'Card';
+  const refFromParam = searchParams.get('ref') || searchParams.get('refNumber');
 
-  const [bookingRef, setBookingRef] = useState('');
+  // State สำหรับ Customer Information (เริ่มต้นดึงจาก URL)
+  const [customerInfo, setCustomerInfo] = useState({
+    name: searchParams.get('customerName') || searchParams.get('name') || searchParams.get('userName') || '',
+    email: searchParams.get('email') || searchParams.get('customerEmail') || '',
+    phone: searchParams.get('phone') || searchParams.get('customerPhone') || searchParams.get('mobile') || '',
+  });
+
+  const [bookingRef, setBookingRef] = useState(refFromParam || 'REF-913879');
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // ดึงข้อมูล User จาก Supabase / LocalStorage เพิ่มเติม (หากใน URL ไม่มี)
   useEffect(() => {
-    setBookingRef(`REF-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`);
-  }, []);
+    if (!refFromParam && !bookingRef) {
+      setBookingRef(`REF-${Math.floor(100000 + Math.random() * 900000)}`);
+    }
+
+    const loadUserData = async () => {
+      let currentName = customerInfo.name;
+      let currentEmail = customerInfo.email;
+      let currentPhone = customerInfo.phone;
+
+      // 1. Try Supabase
+      if (!currentName || !currentEmail || !currentPhone) {
+        try {
+          if (supabase) {
+            const { data: { session } } = await supabase.auth.getSession();
+            const user = session?.user;
+
+            if (user) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
+
+              if (!currentName) currentName = profile?.full_name || profile?.name || user.user_metadata?.full_name || '';
+              if (!currentEmail) currentEmail = profile?.email || user.email || '';
+              if (!currentPhone) currentPhone = profile?.phone || profile?.phone_number || profile?.mobile || user.user_metadata?.phone || '';
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load user info from Supabase:', err);
+        }
+      }
+
+      // 2. Try LocalStorage
+      if (!currentName || !currentEmail || !currentPhone) {
+        try {
+          const localUser = localStorage.getItem('user') || localStorage.getItem('booking_customer') || localStorage.getItem('checkout_info');
+          if (localUser) {
+            const parsed = JSON.parse(localUser);
+            if (!currentName) currentName = parsed.name || parsed.full_name || parsed.customerName || '';
+            if (!currentEmail) currentEmail = parsed.email || parsed.customerEmail || '';
+            if (!currentPhone) currentPhone = parsed.phone || parsed.phone_number || parsed.mobile || '';
+          }
+        } catch (e) {
+          console.error('Failed to read localStorage:', e);
+        }
+      }
+
+      setCustomerInfo({
+        name: currentName,
+        email: currentEmail,
+        phone: currentPhone,
+      });
+    };
+
+    loadUserData();
+  }, [searchParams]);
+
+  const formatPaymentMethod = (method: string) => {
+    const lower = method.toLowerCase();
+    if (lower.includes('card') || lower.includes('stripe') || lower.includes('credit')) return 'Credit / Debit Card';
+    if (lower.includes('bank') || lower.includes('transfer')) return 'Bank Transfer';
+    return method || 'Credit / Debit Card';
+  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -33,7 +107,6 @@ function ConfirmationContent() {
     }
   };
 
-  // ฟังก์ชันช่วยดาวน์โหลด Blob รองรับมือถือ 100%
   const triggerMobileDownload = (blob: Blob, filename: string) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -54,25 +127,21 @@ function ConfirmationContent() {
     const html2canvas = html2canvasModule.default || html2canvasModule;
 
     return await html2canvas(receiptRef.current, {
-      scale: 3, // เพิ่มความคมชัด
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
     });
   };
 
-  // 1. บันทึกเป็นรูปภาพ (.png)
   const handleDownloadImage = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
     try {
       const canvas = await generateCanvas();
       if (!canvas) return;
-
       canvas.toBlob((blob) => {
-        if (blob) {
-          triggerMobileDownload(blob, `Booking_Receipt_${bookingRef}.png`);
-        }
+        if (blob) triggerMobileDownload(blob, `Booking_Receipt_${bookingRef}.png`);
       }, 'image/png');
     } catch (error) {
       console.error('Error saving image:', error);
@@ -82,7 +151,6 @@ function ConfirmationContent() {
     }
   };
 
-  // 2. บันทึกเป็นไฟล์ PDF (.pdf)
   const handleDownloadPDF = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -92,13 +160,8 @@ function ConfirmationContent() {
 
       const jsPDFModule = await import('jspdf');
       const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
-
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
       const imgWidth = 140;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -106,8 +169,6 @@ function ConfirmationContent() {
       const yPos = 20;
 
       pdf.addImage(imgData, 'PNG', xPos, yPos, imgWidth, imgHeight);
-
-      // แปลง PDF เป็น Blob เพื่อส่งโหลดตรงบนมือถือ
       const pdfBlob = pdf.output('blob');
       triggerMobileDownload(pdfBlob, `Booking_Receipt_${bookingRef}.pdf`);
     } catch (error) {
@@ -118,15 +179,19 @@ function ConfirmationContent() {
     }
   };
 
+  // ตรวจสอบว่ามีข้อมูล Customer ให้แสดงหรือไม่
+  const hasCustomerInfo = Boolean(customerInfo.name || customerInfo.email || customerInfo.phone);
+
   return (
     <div className="w-full max-w-md mx-auto relative flex flex-col items-center">
       
-      {/* ส่วนตัวใบเสร็จ (ที่จะถูก Export) */}
+      {/* ใบเสร็จรับเงิน */}
       <div 
         ref={receiptRef} 
         style={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6' }}
-        className="p-8 rounded-2xl shadow-sm border w-full relative flex flex-col items-center"
+        className="p-6 sm:p-8 rounded-3xl shadow-sm border w-full relative flex flex-col items-center"
       >
+        {/* Icon Success */}
         <div 
           style={{ backgroundColor: '#d1fae5', color: '#059669' }}
           className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
@@ -136,66 +201,110 @@ function ConfirmationContent() {
           </svg>
         </div>
 
-        <h2 style={{ color: '#1f2937' }} className="text-xl font-bold mb-1">
+        <h2 style={{ color: '#1f2937' }} className="text-xl font-bold mb-1 text-center">
           Payment Successful!
         </h2>
         <p style={{ color: '#6b7280' }} className="text-xs mb-6 text-center">
           Thank you. Your booking has been confirmed.
         </p>
 
+        {/* Details Box */}
         <div 
           style={{ backgroundColor: '#f9fafb', borderColor: '#f3f4f6' }}
-          className="w-full rounded-xl p-5 mb-2 border space-y-3"
+          className="w-full rounded-2xl p-5 mb-3 border space-y-3 text-xs"
         >
+          {/* Booking Ref */}
           <div 
             style={{ borderColor: '#e5e7eb' }}
-            className="flex justify-between items-start border-b pb-3"
+            className="flex justify-between items-center border-b pb-3"
           >
-            <span style={{ color: '#6b7280' }} className="text-xs">Booking Ref</span>
-            <span style={{ color: '#1f2937' }} className="text-xs font-bold">{bookingRef || 'Loading...'}</span>
+            <span style={{ color: '#6b7280' }}>Booking Ref</span>
+            <span style={{ color: '#1f2937' }} className="font-bold font-mono text-sm">{bookingRef}</span>
           </div>
-          
-          <div className="space-y-2 pt-1">
-            <div className="flex justify-between">
-              <span style={{ color: '#6b7280' }} className="text-xs">Location</span>
-              <span style={{ color: '#1f2937' }} className="text-xs font-medium text-right max-w-[60%]">{room}</span>
+
+          {/* Customer Details Section (แสดงผลเฉพาะเมื่อมีข้อมูลอย่างน้อย 1 อย่าง) */}
+          {hasCustomerInfo && (
+            <div 
+              style={{ borderColor: '#e5e7eb' }}
+              className="space-y-2 border-b pb-3 pt-1"
+            >
+              {customerInfo.name && (
+                <div className="flex justify-between items-center">
+                  <span style={{ color: '#6b7280' }}>Customer</span>
+                  <span style={{ color: '#1f2937' }} className="font-semibold">{customerInfo.name}</span>
+                </div>
+              )}
+              {customerInfo.phone && (
+                <div className="flex justify-between items-center">
+                  <span style={{ color: '#6b7280' }}>Phone</span>
+                  <span style={{ color: '#374151' }} className="font-medium">{customerInfo.phone}</span>
+                </div>
+              )}
+              {customerInfo.email && (
+                <div className="flex justify-between items-start gap-2">
+                  <span style={{ color: '#6b7280' }} className="shrink-0">Email</span>
+                  <span style={{ color: '#374151' }} className="font-medium truncate max-w-[200px] text-right">{customerInfo.email}</span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between">
-              <span style={{ color: '#6b7280' }} className="text-xs">Date</span>
-              <span style={{ color: '#1f2937' }} className="text-xs font-medium">{rawDate.includes('20') ? formatDate(rawDate) : rawDate}</span>
+          )}
+
+          {/* Service Details Section */}
+          <div 
+            style={{ borderColor: '#e5e7eb' }}
+            className="space-y-2 border-b pb-3 pt-1"
+          >
+            <div className="flex justify-between items-start gap-3">
+              <span style={{ color: '#6b7280' }} className="shrink-0">Location</span>
+              <span style={{ color: '#1f2937' }} className="font-semibold text-right max-w-[65%]">{room}</span>
             </div>
-            <div className="flex justify-between">
-              <span style={{ color: '#6b7280' }} className="text-xs">Time</span>
-              <span style={{ color: '#1f2937' }} className="text-xs font-medium">{time}</span>
+            <div className="flex justify-between items-center">
+              <span style={{ color: '#6b7280' }}>Date</span>
+              <span style={{ color: '#1f2937' }} className="font-semibold">{rawDate.includes('20') ? formatDate(rawDate) : rawDate}</span>
             </div>
-            <div className="flex justify-between">
-              <span style={{ color: '#6b7280' }} className="text-xs">Program</span>
-              <span style={{ color: '#1f2937' }} className="text-xs font-medium">{program}</span>
+            <div className="flex justify-between items-center">
+              <span style={{ color: '#6b7280' }}>Time</span>
+              <span style={{ color: '#1f2937' }} className="font-semibold">{time}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span style={{ color: '#6b7280' }}>Program</span>
+              <span style={{ color: '#1f2937' }} className="font-semibold">{program}</span>
             </div>
           </div>
 
+          {/* Payment Method Section */}
+          <div className="flex justify-between items-center pt-1">
+            <span style={{ color: '#6b7280' }}>Payment Method</span>
+            <span style={{ color: '#374151', backgroundColor: '#e5e7eb' }} className="font-medium px-2 py-0.5 rounded text-[11px]">
+              💳 {formatPaymentMethod(rawPaymentMethod)}
+            </span>
+          </div>
+
+          {/* Total Paid Section */}
           <div 
             style={{ borderColor: '#e5e7eb' }}
-            className="flex justify-between items-center border-t pt-3 mt-1"
+            className="flex justify-between items-center border-t pt-3 mt-2"
           >
-            <span style={{ color: '#374151' }} className="text-sm font-bold">Total Paid</span>
+            <span style={{ color: '#1f2937' }} className="font-bold text-sm">Total Paid</span>
             <span style={{ color: '#059669' }} className="text-lg font-bold">{price}</span>
           </div>
         </div>
 
-        <div className="flex justify-center mt-6 opacity-60">
+        {/* Footer Logo */}
+        <div className="flex justify-center mt-4">
           <Image 
             src="/logo.jpeg" 
-            alt="Company Logo" 
-            width={80} 
-            height={80} 
-            className="object-contain w-auto h-auto" 
+            alt="Getaway Cleaning" 
+            width={120} 
+            height={45} 
+            className="object-contain max-h-[40px] w-auto" 
+            priority
           />
         </div>
       </div>
 
-      {/* ปุ่มกดดาวน์โหลด 2 ปุ่ม ( Save Image / Save PDF ) */}
-      <div className="w-full grid grid-cols-2 gap-3 mt-6">
+      {/* Buttons */}
+      <div className="w-full grid grid-cols-2 gap-3 mt-5">
         <button
           onClick={handleDownloadImage}
           disabled={isDownloading}
@@ -218,7 +327,6 @@ function ConfirmationContent() {
         </button>
       </div>
 
-      {/* ปุ่ม กลับหน้าหลัก */}
       <button
         onClick={() => router.push('/')}
         className="w-full py-3 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-semibold rounded-xl text-xs transition mt-3 cursor-pointer"
@@ -233,7 +341,7 @@ function ConfirmationContent() {
 export default function ConfirmationPage() {
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <Suspense fallback={<div className="text-xs text-gray-500">Loading...</div>}>
+      <Suspense fallback={<div className="text-xs text-gray-500">Loading receipt...</div>}>
         <ConfirmationContent />
       </Suspense>
     </main>

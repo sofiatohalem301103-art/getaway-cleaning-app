@@ -9,8 +9,19 @@ export default function VerifyOtpPage() {
   const [timer, setTimer] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // ฟังก์ชันกรองอีเมลมหาลัยค้างเก่าออก
+  const sanitizeEmail = (inputEmail: string | null | undefined): string => {
+    if (!inputEmail) return '';
+    const cleanEmail = inputEmail.trim();
+    if (cleanEmail === 's6530611056@phuket.psu.ac.th') {
+      return '';
+    }
+    return cleanEmail;
+  };
+
   const handleSendOtp = useCallback(async (targetEmail: string) => {
-    if (timer > 0 || loading || !targetEmail) return;
+    const validEmail = sanitizeEmail(targetEmail);
+    if (timer > 0 || loading || !validEmail) return;
     setLoading(true);
 
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -20,7 +31,7 @@ export default function VerifyOtpPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: targetEmail,
+          to: validEmail,
           subject: 'Your Getaway OTP Verification Code',
           customerName: 'Customer',
           room: 'OTP Verification',
@@ -38,7 +49,7 @@ export default function VerifyOtpPage() {
         sessionStorage.setItem('otp_expires_at', (Date.now() + 5 * 60 * 1000).toString());
 
         setTimer(60);
-        alert(`OTP code has been successfully sent to ${targetEmail}`);
+        alert(`OTP code has been successfully sent to ${validEmail}`);
       } else {
         alert(`Failed to send OTP: ${data.error || 'Please check Email API configuration'}`);
       }
@@ -51,9 +62,34 @@ export default function VerifyOtpPage() {
   }, [timer, loading]);
 
   useEffect(() => {
+    // 1. เคลียร์ค่ามหาลัยค้างเก่าออกจาก Storage ทันที
+    const oldKeys = ['user_email', 'temp_email', 'temp_phone'];
+    oldKeys.forEach((key) => {
+      if (localStorage.getItem(key) === 's6530611056@phuket.psu.ac.th') {
+        localStorage.removeItem(key);
+      }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const urlEmail = sanitizeEmail(params.get('email'));
+
+    // ดึงค่า user จาก localStorage
+    let parsedUserEmail = '';
+    const localUser = localStorage.getItem('user');
+    if (localUser) {
+      try {
+        const parsed = JSON.parse(localUser);
+        parsedUserEmail = sanitizeEmail(parsed?.email);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
     const savedEmail =
-      localStorage.getItem('temp_phone') ||
-      localStorage.getItem('temp_email') ||
+      urlEmail ||
+      parsedUserEmail ||
+      sanitizeEmail(localStorage.getItem('user_email')) ||
+      sanitizeEmail(localStorage.getItem('temp_email')) ||
       '';
 
     setEmail(savedEmail);

@@ -209,11 +209,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { to, customerName, room, date, time, amount, paymentMethod, refNumber } = body;
 
-    // ดึงค่าจาก Env Variables สำหรับ Gmail
+    // 1. กำหนด Email ผู้ส่ง (Gmail) และ Email แอดมิน
     const gmailUser = process.env.GMAIL_USER || 'sofiatohalem301103@gmail.com';
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const adminEmail = 'info@getaway-homes.com'; // อีเมลของแอดมิน
 
-    // ตรวจสอบค่า Gmail App Password
     if (!gmailPass) {
       console.error('GMAIL_APP_PASSWORD is missing in .env.local file');
       return NextResponse.json(
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ตั้งค่า Gmail SMTP Transporter
+    // 2. ตั้งค่า Nodemailer SMTP
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -231,12 +231,28 @@ export async function POST(request: Request) {
       },
     });
 
-    const targetEmail = to || 'sofiatohalem301103@gmail.com';
-
     const isOtpRequest = 
       paymentMethod === 'Email OTP Service' || 
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
+
+    // 3. กำหนดรายชื่อผู้รับ (แยกเคส OTP กับ ใบเสร็จ)
+    let recipients: string[] = [];
+
+    if (isOtpRequest) {
+      // ✅ เคสที่ 1: OTP -> ส่งหาผู้ใช้คนเดียวเท่านั้น (ไม่ส่งหาแอดมิน)
+      if (to) recipients.push(to);
+    } else {
+      // ✅ เคสที่ 2: ใบเสร็จการจอง -> ส่งหาทั้งแอดมิน (info@getaway-homes.com) และลูกค้า
+      recipients.push(adminEmail);
+      if (to && to !== adminEmail) {
+        recipients.push(to);
+      }
+    }
+
+    if (recipients.length === 0) {
+      return NextResponse.json({ error: 'No recipient email specified' }, { status: 400 });
+    }
 
     // HTML Email Templates
     const otpHtml = `
@@ -266,8 +282,17 @@ export async function POST(request: Request) {
         </div>
         
         <div style="margin: 20px 0; color: #1a1a1a; font-size: 14px; line-height: 1.6;">
-          <p>Dear <strong>${customerName || 'Sofia Ross'}</strong>,</p>
-          <p>Your payment for booking <strong>${refNumber || 'REF-487879'}</strong> has been successfully processed.</p>
+          <p>Dear <strong>${customerName || 'Customer'}</strong>,</p>
+          <p>Your payment for booking reference <strong>${refNumber || 'REF-487879'}</strong> has been successfully processed.</p>
+          
+          <div style="background-color: #f9f9f9; padding: 12px 16px; border-radius: 6px; border-left: 4px solid #000000; margin: 16px 0;">
+            <p style="margin: 0; font-weight: bold;">Booking Details:</p>
+            <p style="margin: 4px 0 0 0;">• Service: ${room || 'Cleaning Package'}</p>
+            <p style="margin: 2px 0 0 0;">• Date / Time: ${date || '-'} (${time || '-'})</p>
+            <p style="margin: 2px 0 0 0;">• Paid Amount: ${amount || '0'} €</p>
+            <p style="margin: 2px 0 0 0;">• Payment Method: ${paymentMethod || 'Card'}</p>
+          </div>
+
           <p>📎 <strong>We have attached your Payment Receipt PDF to this email.</strong></p>
         </div>
 
@@ -288,7 +313,7 @@ export async function POST(request: Request) {
       subject = `[${amount}] is your OTP verification code - Getaway Cleaning`;
       htmlContent = otpHtml;
     } else {
-      subject = `Official Receipt & Voucher [${refNumber || 'REF-487879'}] - Getaway Cleaning`;
+      subject = `🔔 [New Booking] Receipt & Voucher [${refNumber || 'REF-487879'}] - ${customerName || 'Customer'}`;
       
       const pdfBuffer = await generateVoucherPDF({ 
         customerName: customerName || 'Sofia Ross', 
@@ -306,10 +331,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // ส่งอีเมลด้วย Nodemailer (Gmail)
+    // 4. สั่งส่งอีเมลหาผู้รับตามที่กำหนดไว้
     const info = await transporter.sendMail({
       from: `"Getaway Cleaning" <${gmailUser}>`,
-      to: targetEmail,
+      to: recipients.join(', '),
       subject: subject,
       html: htmlContent,
       attachments: attachments,

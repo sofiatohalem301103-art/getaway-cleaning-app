@@ -13,7 +13,8 @@ export default function AdminLoginPage() {
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (email === 'info@getaway-homes.com' && password === '123456') {
+    // อัปเดตรหัสผ่านเป็น Paphos2026 เรียบร้อยแล้ว
+    if (email === 'info@getaway-homes.com' && password === 'Paphos2026') {
       localStorage.setItem('admin_user', selectedAdmin);
       router.push('/admin/dashboard');
     } else {
