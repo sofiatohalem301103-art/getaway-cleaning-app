@@ -5,24 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('info@getaway-homes.com');
+  const [password, setPassword] = useState('Paphos2026');
   const [selectedAdmin, setSelectedAdmin] = useState('Zaza');
   const router = useRouter();
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ตัดช่องว่างหน้า-หลัง (Space) ออกอัตโนมัติด้วย .trim()
-    const cleanEmail = email.trim();
-    const cleanPassword = password.trim();
-
-    if (cleanEmail === 'info@getaway-homes.com' && cleanPassword === 'Paphos2026') {
-      localStorage.setItem('admin_user', selectedAdmin);
-      router.push('/admin/dashboard');
-    } else {
-      alert('Invalid Admin email or password.');
-    }
+    // บันทึกโปรไฟล์ Admin แล้วให้ผ่านเข้าสู่ระบบทันที
+    localStorage.setItem('admin_user', selectedAdmin);
+    router.push('/admin/dashboard');
   };
 
   return (
@@ -32,7 +25,6 @@ export default function AdminLoginPage() {
         <p className="text-xs text-gray-500 mb-6 text-center">Sign in to manage bookings</p>
 
         <form onSubmit={handleAdminLogin} className="space-y-4">
-          {/* ตัวเลือก Admin (Zaza / Sam / Sylvia) */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Select Admin Profile</label>
             <div className="grid grid-cols-3 gap-1.5">
