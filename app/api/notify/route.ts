@@ -33,7 +33,8 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.jpeg');
       if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 370, 20, { fit: [180, 50], align: 'right' });
+        const logoBuffer = fs.readFileSync(logoPath);
+        doc.image(logoBuffer, 370, 20, { fit: [180, 50], align: 'right' });
       } else {
         doc.fillColor(COLOR_BLACK).fontSize(14).font('Helvetica-Bold').text('Getaway Cleaning', 380, 30, { align: 'right', width: 185 });
       }
@@ -49,31 +50,31 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     // Left Column: Customer
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica');
     doc.text('Customer Name', 30, infoY);
-    doc.text('Address', 30, infoY + 11);
-    doc.text('Tax ID', 30, infoY + 22);
-    doc.text('Contact', 30, infoY + 33);
+    doc.text('Service Room', 30, infoY + 11);
+    doc.text('Service Date', 30, infoY + 22);
+    doc.text('Contact Support', 30, infoY + 33);
 
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold');
-    doc.text(data.customerName || 'Sofia Ross', 110, infoY);
+    doc.text(data.customerName || 'Valued Customer', 110, infoY);
     doc.font('Helvetica');
     doc.text(data.room || 'Cleaning Service | Standard Package', 110, infoY + 11, { width: 180 });
-    doc.text('CY10437383C', 110, infoY + 22);
-    doc.text('Getaway Support', 110, infoY + 33);
+    doc.text(`${data.date || '-'} (${data.time || '-'})`, 110, infoY + 22);
+    doc.text('info@getaway-homes.com', 110, infoY + 33);
 
     // Right Column: Metadata
     const rightX = 360;
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica');
     doc.text('Receipt No.', rightX, infoY);
-    doc.text('Date', rightX, infoY + 11);
-    doc.text('Due Date', rightX, infoY + 22);
+    doc.text('Issued Date', rightX, infoY + 11);
+    doc.text('Status', rightX, infoY + 22);
     doc.text('Reference', rightX, infoY + 33);
 
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold');
     doc.text(data.refNumber || 'REF-487879', rightX + 60, infoY);
     doc.font('Helvetica');
-    doc.text(data.date || '2026-08-26', rightX + 60, infoY + 11);
-    doc.text(data.date || '2026-08-26', rightX + 60, infoY + 22);
-    doc.text('CONFIRMED', rightX + 60, infoY + 33);
+    doc.text(data.date || new Date().toISOString().split('T')[0], rightX + 60, infoY + 11);
+    doc.text('PAID / CONFIRMED', rightX + 60, infoY + 22);
+    doc.text(data.refNumber || 'CONFIRMED', rightX + 60, infoY + 33);
 
     doc.moveTo(30, infoY + 48).lineTo(565, infoY + 48).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
 
@@ -88,11 +89,11 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.text('Neofytou Nikolaidis 61, Saint Theodoros, 8011 Paphos, Cyprus', 110, companyY + 11, { width: 220 });
 
     doc.fillColor(COLOR_TEXT_MUTED);
-    doc.text('Tax ID', rightX, companyY);
+    doc.text('VAT No.', rightX, companyY);
     doc.text('Phone', rightX, companyY + 11);
 
     doc.fillColor(COLOR_TEXT_DARK);
-    doc.text('1234567890', rightX + 60, companyY);
+    doc.text('CY10437383C', rightX + 60, companyY);
     doc.text('+357 12 345 678', rightX + 60, companyY + 11);
 
     // 3. Itemized Table
@@ -112,7 +113,7 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.text('Amount', 490, tableTop + 5, { width: 65, align: 'right' });
 
     const items = [
-      { id: '1', name: `Service: ${data.room || 'Cleaning Service | Standard Package'}`, qty: '1', price: `${data.amount || '90.00'} €`, total: `${data.amount || '90.00'} €` },
+      { id: '1', name: `Cleaning Service: ${data.room || 'Standard Package'}`, qty: '1', price: `${data.amount || '0.00'} €`, total: `${data.amount || '0.00'} €` },
       { id: '2', name: 'Service Charge & Mandatory Taxes', qty: '1', price: '0.00 €', total: '0.00 €' }
     ];
 
@@ -142,11 +143,11 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica');
     doc.text('Subtotal', sumLabelX, summaryY);
-    doc.text('VAT (7%)', sumLabelX, summaryY + 10);
+    doc.text('VAT Inclusive', sumLabelX, summaryY + 10);
     doc.text('Discount', sumLabelX, summaryY + 20);
 
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica');
-    doc.text(`${data.amount || '90.00'} €`, sumValX, summaryY, { width: 65, align: 'right' });
+    doc.text(`${data.amount || '0.00'} €`, sumValX, summaryY, { width: 65, align: 'right' });
     doc.text('0.00 €', sumValX, summaryY + 10, { width: 65, align: 'right' });
     doc.text('0.00 €', sumValX, summaryY + 20, { width: 65, align: 'right' });
 
@@ -157,7 +158,7 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold');
     doc.text('Total Amount Paid', 40, grandTotalY + 5);
-    doc.fontSize(9.5).text(`${data.amount || '90.00'} €`, sumValX, grandTotalY + 4, { width: 65, align: 'right' });
+    doc.fontSize(9.5).text(`${data.amount || '0.00'} €`, sumValX, grandTotalY + 4, { width: 65, align: 'right' });
 
     doc.roundedRect(tableLeft, tableTop, tableWidth, tableHeight, 4).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
@@ -165,12 +166,12 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     const bottomY = tableTop + 185;
     const rawMethod = String(data.paymentMethod || '').toLowerCase();
 
-    let isBank = rawMethod.includes('bank') || rawMethod.includes('transfer') || rawMethod.includes('โอน') || rawMethod.includes('promptpay') || rawMethod.includes('qr') || rawMethod.includes('scb') || rawMethod.includes('kbank') || rawMethod.includes('bbl');
+    let isBank = rawMethod.includes('bank') || rawMethod.includes('transfer') || rawMethod.includes('โอน') || rawMethod.includes('promptpay') || rawMethod.includes('qr');
     let isCash = rawMethod.includes('cash') || rawMethod.includes('เงินสด');
     let isCard = rawMethod.includes('card') || rawMethod.includes('credit') || rawMethod.includes('debit') || rawMethod.includes('stripe') || rawMethod.includes('visa') || rawMethod.includes('mastercard');
 
     if (!isBank && !isCash && !isCard) {
-      isBank = true;
+      isCard = true;
     }
 
     doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Payment Method', 30, bottomY);
@@ -209,20 +210,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { to, customerName, room, date, time, amount, paymentMethod, refNumber } = body;
 
-    // 1. กำหนด Email ผู้ส่ง (Gmail) และ Email แอดมิน
     const gmailUser = process.env.GMAIL_USER || 'sofiatohalem301103@gmail.com';
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    const adminEmail = 'info@getaway-homes.com'; // อีเมลของแอดมิน
+    const adminEmail = 'info@getaway-homes.com';
 
     if (!gmailPass) {
-      console.error('GMAIL_APP_PASSWORD is missing in .env.local file');
+      console.error('GMAIL_APP_PASSWORD is missing in environment variables');
       return NextResponse.json(
-        { error: 'GMAIL_APP_PASSWORD is missing in environment variables. Please check .env.local file and restart server.' },
+        { error: 'GMAIL_APP_PASSWORD is missing in environment variables. Please check Vercel settings.' },
         { status: 500 }
       );
     }
 
-    // 2. ตั้งค่า Nodemailer SMTP
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -236,14 +235,11 @@ export async function POST(request: Request) {
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
 
-    // 3. กำหนดรายชื่อผู้รับ (แยกเคส OTP กับ ใบเสร็จ)
     let recipients: string[] = [];
 
     if (isOtpRequest) {
-      // ✅ เคสที่ 1: OTP -> ส่งหาผู้ใช้คนเดียวเท่านั้น (ไม่ส่งหาแอดมิน)
       if (to) recipients.push(to);
     } else {
-      // ✅ เคสที่ 2: ใบเสร็จการจอง -> ส่งหาทั้งแอดมิน (info@getaway-homes.com) และลูกค้า
       recipients.push(adminEmail);
       if (to && to !== adminEmail) {
         recipients.push(to);
@@ -254,7 +250,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No recipient email specified' }, { status: 400 });
     }
 
-    // HTML Email Templates
     const otpHtml = `
       <div style="font-family: Arial, sans-serif; padding: 32px 24px; border: 1px solid #1a1a1a; border-radius: 12px; max-width: 480px; margin: 0 auto; background-color: #ffffff; text-align: center;">
         <h2 style="color: #000000; margin-top: 0; font-size: 22px;">🔐 Getaway Cleaning Verification Code</h2>
@@ -316,7 +311,7 @@ export async function POST(request: Request) {
       subject = `🔔 [New Booking] Receipt & Voucher [${refNumber || 'REF-487879'}] - ${customerName || 'Customer'}`;
       
       const pdfBuffer = await generateVoucherPDF({ 
-        customerName: customerName || 'Sofia Ross', 
+        customerName, 
         room, 
         date, 
         time, 
@@ -331,7 +326,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // 4. สั่งส่งอีเมลหาผู้รับตามที่กำหนดไว้
     const info = await transporter.sendMail({
       from: `"Getaway Cleaning" <${gmailUser}>`,
       to: recipients.join(', '),
