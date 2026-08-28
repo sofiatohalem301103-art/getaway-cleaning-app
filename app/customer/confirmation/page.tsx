@@ -222,7 +222,7 @@ function ConfirmationContent() {
             <span style={{ color: '#1f2937' }} className="font-bold font-mono text-sm">{bookingRef}</span>
           </div>
 
-          {/* Customer Details Section (แสดงผลเฉพาะเมื่อมีข้อมูลอย่างน้อย 1 อย่าง) */}
+          {/* Customer Details Section */}
           {hasCustomerInfo && (
             <div 
               style={{ borderColor: '#e5e7eb' }}
@@ -328,10 +328,10 @@ function ConfirmationContent() {
       </div>
 
       <button
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/customer/booking')}
         className="w-full py-3 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-semibold rounded-xl text-xs transition mt-3 cursor-pointer"
       >
-        Back to Home
+        Back to Booking
       </button>
 
     </div>
