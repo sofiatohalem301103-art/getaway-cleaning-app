@@ -45,7 +45,9 @@ export default function VerifyOtpPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // บันทึก OTP และอีเมลที่ถูกส่งล่าสุดลง session
         sessionStorage.setItem('sent_otp', generatedOtp);
+        sessionStorage.setItem('sent_otp_email', validEmail);
         sessionStorage.setItem('otp_expires_at', (Date.now() + 5 * 60 * 1000).toString());
 
         setTimer(60);
@@ -94,7 +96,11 @@ export default function VerifyOtpPage() {
 
     setEmail(savedEmail);
 
-    if (savedEmail && !sessionStorage.getItem('sent_otp')) {
+    // ตรวจสอบว่าเคยส่งให้ email นี้แล้วหรือยัง หากเป็น email ใหม่ให้ล้าง OTP เก่าทิ้งแล้วส่งใหม่ทันที
+    const previousSentEmail = sessionStorage.getItem('sent_otp_email');
+    if (savedEmail && (savedEmail !== previousSentEmail || !sessionStorage.getItem('sent_otp'))) {
+      sessionStorage.removeItem('sent_otp');
+      sessionStorage.removeItem('otp_expires_at');
       handleSendOtp(savedEmail);
     }
   }, [handleSendOtp]);
@@ -158,6 +164,7 @@ export default function VerifyOtpPage() {
 
     if (inputOtp === savedOtp || inputOtp === '123456') {
       sessionStorage.removeItem('sent_otp');
+      sessionStorage.removeItem('sent_otp_email');
       sessionStorage.removeItem('otp_expires_at');
       localStorage.setItem('user_is_authenticated', 'true');
 
@@ -188,7 +195,7 @@ export default function VerifyOtpPage() {
         </div>
 
         {/* Form Inputs & Main Action Section */}
-        <div className="w-full space-y-6 my-auto py-4">
+        <div className="w-full space-y-5 my-auto py-4">
           <form onSubmit={handleVerify} className="space-y-6">
             <div className="flex justify-between items-center gap-1.5 sm:gap-2 px-1" onPaste={handlePaste}>
               {otp.map((digit, idx) => (
@@ -216,21 +223,30 @@ export default function VerifyOtpPage() {
             </button>
           </form>
 
-          {/* Resend OTP Section */}
-          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center px-1">
-            <span>Didn't receive code?</span>
-            <button
-              type="button"
-              onClick={() => handleSendOtp(email)}
-              disabled={loading || timer > 0 || !email}
-              className={`font-semibold transition cursor-pointer touch-manipulation ${
-                timer > 0 || loading || !email
-                  ? 'text-slate-300 cursor-not-allowed'
-                  : 'text-emerald-600 hover:underline active:text-emerald-800'
-              }`}
-            >
-              {loading ? 'Sending...' : timer > 0 ? `Resend in (${timer}s)` : 'Send OTP to Email'}
-            </button>
+          {/* Resend OTP & Spam Check Section */}
+          <div className="pt-4 border-t border-slate-100 space-y-1.5 px-1">
+            <div className="text-xs text-slate-400 flex justify-between items-center">
+              <span>Didn't receive code?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.removeItem('sent_otp');
+                  handleSendOtp(email);
+                }}
+                disabled={loading || timer > 0 || !email}
+                className={`font-semibold transition cursor-pointer touch-manipulation ${
+                  timer > 0 || loading || !email
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : 'text-emerald-600 hover:underline active:text-emerald-800'
+                }`}
+              >
+                {loading ? 'Sending...' : timer > 0 ? `Resend in (${timer}s)` : 'Send OTP to Email'}
+              </button>
+            </div>
+
+            <p className="text-[11px] text-amber-600/90 text-center bg-amber-50/60 py-1.5 px-3 rounded-xl border border-amber-100">
+              💡 Please check your <span className="font-semibold underline">Spam / Junk</span> folder if not found.
+            </p>
           </div>
         </div>
 
