@@ -42,17 +42,14 @@ export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
   
-  // 🛠️ แก้ไข: อ่านค่า Admin จาก localStorage ที่ Login ไว้
   const [adminUser, setAdminUser] = useState<string>('Sam');
-  
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-
   const todayStr = getLocalDateString();
 
-  // 🛠️ เพิ่ม: โหลดค่า Admin Profile จาก localStorage ตอนเปิดหน้าเว็บ
+  // โหลดค่า Admin Profile จาก localStorage ตอนเปิดหน้าเว็บ
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedAdmin = localStorage.getItem('admin_user');
@@ -62,7 +59,6 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // 🛠️ เพิ่ม: ฟังก์ชันเปลี่ยนชื่อ Admin พร้อมบันทึกลง localStorage
   const handleAdminChange = (newName: string) => {
     setAdminUser(newName);
     if (typeof window !== 'undefined') {
@@ -215,7 +211,6 @@ export default function AdminDashboardPage() {
   // 5. ฟังก์ชันการทำงานต่างๆ
   // ----------------------------------------------------------------------
 
-  // 1. ฟังก์ชันยืนยันการชำระเงิน + ส่งอีเมลแนบ PDF หาลูกค้า
   const handleConfirmPayment = async (task: any) => {
     const targetEmail = task.customer_email || task.email || (typeof window !== 'undefined' ? localStorage.getItem('user_email') || localStorage.getItem('temp_email') : '');
 
@@ -268,7 +263,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 2. ฟังก์ชันจ่ายงานให้พนักงาน
   const handleDispatchTask = async (task: any, staffName: string) => {
     if (!staffName) {
       alert('⚠️ Please select a staff member first!');
@@ -283,7 +277,7 @@ export default function AdminDashboardPage() {
         .from('bookings')
         .update({
           assigned_staff: staffName,
-          assigned_by: adminUser, // จะใช้ชื่อ Admin ตามที่เลือกปัจจุบัน
+          assigned_by: adminUser,
           status: 'Assigned',
         })
         .eq('id', task.id);
@@ -304,7 +298,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 3. ฟังก์ชันลบงานเดี่ยว
   const handleDeleteTask = async (taskId: any) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
 
@@ -317,7 +310,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 4. ฟังก์ชันลบงานทั้งหมดใน Tab ปัจจุบัน
   const handleClearAll = async () => {
     if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
 
@@ -440,7 +432,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Staff Monitor ติดตามสถานะพนักงาน */}
+        {/* Staff Monitor */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
           <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
             Staff Monitor (Realtime)
@@ -468,7 +460,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Navigation Tabs ปุ่มเปลี่ยนหน้า */}
+        {/* Navigation Tabs */}
         <div className="bg-gray-200/60 p-1 rounded-xl flex gap-1 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('history')}
@@ -502,7 +494,7 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* Task List รายการการ์ดงาน */}
+        {/* Task List */}
         {Object.keys(groupedTasks).length === 0 ? (
           <div className="bg-white p-12 rounded-2xl text-center border border-dashed border-gray-200 text-gray-400 text-xs">
             No tasks found for this view.
@@ -567,12 +559,22 @@ function TaskCard({
   const isPaid = task.payment_status === 'Paid / Verified';
   const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
-  // ดึงค่า Email จากข้อมูลใน Task หรือจาก LocalStorage 
+  // ดึงค่า Email
   const displayEmail =
     task.customer_email ||
     task.email ||
     (typeof window !== 'undefined'
       ? localStorage.getItem('user_email') || localStorage.getItem('temp_email')
+      : '') ||
+    '';
+
+  // 🛠️ เพิ่ม: ดึงค่า Phone Number จาก Supabase หรือ LocalStorage
+  const displayPhone =
+    task.customer_phone ||
+    task.phone ||
+    task.phone_number ||
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('user_phone') || localStorage.getItem('temp_phone')
       : '') ||
     '';
 
@@ -608,9 +610,23 @@ function TaskCard({
             Customer: <span className="font-semibold text-gray-800">{task.customer_name || 'N/A'}</span>
           </p>
 
-          {/* แสดง Email ของผู้ใช้งานเสมอ */}
           <p className="text-gray-500 text-[11px]">
             Email: <span className="font-medium text-slate-700">{displayEmail || 'N/A'}</span>
+          </p>
+
+          {/* 🛠️ เพิ่ม: แสดงผลเบอร์โทรศัพท์ พร้อมปุ่มกดโทรออก */}
+          <p className="text-gray-500 text-[11px]">
+            Phone:{' '}
+            {displayPhone ? (
+              <a
+                href={`tel:${displayPhone}`}
+                className="font-medium text-indigo-600 hover:underline cursor-pointer"
+              >
+                {displayPhone}
+              </a>
+            ) : (
+              <span className="font-medium text-slate-700">N/A</span>
+            )}
           </p>
 
           <p className="text-gray-500">
