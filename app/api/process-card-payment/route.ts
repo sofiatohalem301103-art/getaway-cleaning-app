@@ -3,9 +3,16 @@ import Stripe from 'stripe';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_build';
-    
-    const stripe = new Stripe(apiKey, {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!secretKey) {
+      return NextResponse.json(
+        { error: 'STRIPE_SECRET_KEY is missing in environment variables' },
+        { status: 500 }
+      );
+    }
+
+    const stripe = new Stripe(secretKey, {
       apiVersion: '2023-10-16' as any,
     });
 
@@ -21,7 +28,6 @@ export async function POST(req: Request) {
 
     const amountInCents = Math.round(numericAmount * 100);
 
-    // ใช้ Test Token 'tok_visa' หรือ 'pm_card_visa' ในโหมด Dev/Test
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'eur',
@@ -32,7 +38,7 @@ export async function POST(req: Request) {
         allow_redirects: 'never',
       },
       receipt_email: email || undefined,
-      description: `Payment by ${holderName}`,
+      description: `Payment by ${holderName || 'Guest'}`,
     });
 
     if (paymentIntent.status === 'succeeded') {
