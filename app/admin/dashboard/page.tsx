@@ -42,7 +42,7 @@ export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
   
-  //  แก้ไข: ปรับเป็น State ที่อัปเดตค่าได้เมื่อเปลี่ยนชื่อ Admin (ค่าเริ่มต้นเป็น 'Sam')
+  // 🛠️ แก้ไข: อ่านค่า Admin จาก localStorage ที่ Login ไว้
   const [adminUser, setAdminUser] = useState<string>('Sam');
   
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
@@ -51,6 +51,24 @@ export default function AdminDashboardPage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const todayStr = getLocalDateString();
+
+  // 🛠️ เพิ่ม: โหลดค่า Admin Profile จาก localStorage ตอนเปิดหน้าเว็บ
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAdmin = localStorage.getItem('admin_user');
+      if (savedAdmin && ADMIN_LIST.includes(savedAdmin)) {
+        setAdminUser(savedAdmin);
+      }
+    }
+  }, []);
+
+  // 🛠️ เพิ่ม: ฟังก์ชันเปลี่ยนชื่อ Admin พร้อมบันทึกลง localStorage
+  const handleAdminChange = (newName: string) => {
+    setAdminUser(newName);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_user', newName);
+    }
+  };
 
   // ----------------------------------------------------------------------
   // 3. ระบบเสียงแจ้งเตือนอัตโนมัติ (Web Audio API)
@@ -404,12 +422,12 @@ export default function AdminDashboardPage() {
               Clear All
             </button>
 
-            {/*  ส่วนเลือกชื่อ Admin */}
+            {/* ส่วนเลือกชื่อ Admin */}
             <div className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
               <span className="text-xs font-bold text-indigo-700">Admin:</span>
               <select
                 value={adminUser}
-                onChange={(e) => setAdminUser(e.target.value)}
+                onChange={(e) => handleAdminChange(e.target.value)}
                 className="bg-transparent font-bold text-xs text-indigo-800 focus:outline-none cursor-pointer"
               >
                 {ADMIN_LIST.map((name) => (
