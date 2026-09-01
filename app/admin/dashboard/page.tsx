@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----------------------------------------------------------------------
-// 1. กำหนดรายชื่อพนักงาน
+// 1. กำหนดรายชื่อพนักงาน และ รายชื่อ Admin
 // ----------------------------------------------------------------------
 const STAFF_LIST = [
   { id: 'GW-S1', name: 'Staff 01' },
@@ -13,6 +13,8 @@ const STAFF_LIST = [
   { id: 'GW-S4', name: 'Staff 04' },
   { id: 'GW-S5', name: 'Staff 05' },
 ];
+
+const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
 // ----------------------------------------------------------------------
 // 2. ฟังก์ชันจัดการ Path ของรูปภาพสลิป
@@ -39,7 +41,10 @@ const getLocalDateString = () => {
 export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
-  const [adminUser] = useState('Zaza');
+  
+  //  แก้ไข: ปรับเป็น State ที่อัปเดตค่าได้เมื่อเปลี่ยนชื่อ Admin (ค่าเริ่มต้นเป็น 'Sam')
+  const [adminUser, setAdminUser] = useState<string>('Sam');
+  
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -260,7 +265,7 @@ export default function AdminDashboardPage() {
         .from('bookings')
         .update({
           assigned_staff: staffName,
-          assigned_by: adminUser,
+          assigned_by: adminUser, // จะใช้ชื่อ Admin ตามที่เลือกปัจจุบัน
           status: 'Assigned',
         })
         .eq('id', task.id);
@@ -391,7 +396,7 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleClearAll}
               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
@@ -399,9 +404,21 @@ export default function AdminDashboardPage() {
               Clear All
             </button>
 
-            <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-lg px-3 py-1.5 text-xs">
-              Admin: {adminUser}
-            </span>
+            {/*  ส่วนเลือกชื่อ Admin */}
+            <div className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
+              <span className="text-xs font-bold text-indigo-700">Admin:</span>
+              <select
+                value={adminUser}
+                onChange={(e) => setAdminUser(e.target.value)}
+                className="bg-transparent font-bold text-xs text-indigo-800 focus:outline-none cursor-pointer"
+              >
+                {ADMIN_LIST.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
