@@ -9,7 +9,7 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
-  // 1. ดึงค่า Data จาก Query String (รองรับทุก key ที่เป็นไปได้)
+  // 1. ดึงค่า Data จาก Query String
   const customerName = searchParams.get('customerName') || searchParams.get('name') || 'sofia tohalem';
   const program = searchParams.get('program') || searchParams.get('service') || 'Cleaning Service';
   const room = searchParams.get('room') || searchParams.get('roomName') || 'Beautiful Apartment in Harbour Paphos | Central';
@@ -28,29 +28,6 @@ export async function GET(req: NextRequest) {
     }
   }
   if (!rawTime) rawTime = '09:00 - 10:00';
-
-  // ตรวจจับวิธีชำระเงิน (ตั้งค่าเริ่มต้นเป็น bank)
-  const rawPaymentParam = (
-    searchParams.get('paymentMethod') || 
-    searchParams.get('payment_method') || 
-    searchParams.get('payment') || 
-    'bank'
-  ).toLowerCase();
-
-  let activeMethod: 'cash' | 'card' | 'bank' = 'bank';
-
-  if (rawPaymentParam.includes('cash') || rawPaymentParam.includes('สด')) {
-    activeMethod = 'cash';
-  } else if (
-    rawPaymentParam.includes('card') || 
-    rawPaymentParam.includes('credit') || 
-    rawPaymentParam.includes('debit') || 
-    rawPaymentParam.includes('stripe')
-  ) {
-    activeMethod = 'card';
-  } else {
-    activeMethod = 'bank';
-  }
 
   // 2. สร้างเอกสาร PDF
   const doc = new jsPDF({
@@ -74,7 +51,7 @@ export async function GET(req: NextRequest) {
   doc.setFont('helvetica', 'normal');
   doc.text('CONFIRMATION VOUCHER', startX, 27);
 
-  // Logo (รองรับทั้ง .jpeg, .jpg และ .png)
+  // Logo
   try {
     const publicDir = path.join(process.cwd(), 'public');
     const possibleLogos = ['logo.jpeg', 'logo.jpg', 'logo.png'];
@@ -144,7 +121,7 @@ export async function GET(req: NextRequest) {
 
   y += Math.max((splitRoom.length - 1) * 4.5, 0) + 5.5;
 
-  // Row 3: Service Date
+  // Row 3
   doc.setTextColor(80, 80, 80);
   doc.text('Service Date', col1LabelX, y);
   doc.setTextColor(0, 0, 0);
@@ -157,7 +134,7 @@ export async function GET(req: NextRequest) {
   doc.setFont('helvetica', 'bold');
   doc.text('PAID / CONFIRMED', col2ValX, y);
 
-  // Row 4: Service Time
+  // Row 4
   y += 5.5;
   doc.setTextColor(80, 80, 80);
   doc.setFont('helvetica', 'normal');
@@ -313,56 +290,24 @@ export async function GET(req: NextRequest) {
   doc.setLineWidth(0.3);
   doc.rect(startX, tableStartY, contentWidth, y - tableStartY);
 
-  // Payment Method & Terms Section
+  // Terms & Notes Section Only (ตัด Payment Method ออกแล้ว)
   y += 8;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('Payment Method', startX, y);
-
-  let radioY = y + 5.5;
-  const methods = [
-    { key: 'cash', label: 'Cash' },
-    { key: 'card', label: 'Credit / Debit Card' },
-    { key: 'bank', label: 'Bank Transfer' },
-  ];
-
-  doc.setFontSize(8.5);
-  methods.forEach((item) => {
-    const isSelected = item.key === activeMethod;
-
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.circle(startX + 2, radioY - 1, 1.6, 'S');
-
-    if (isSelected) {
-      doc.setFillColor(0, 0, 0);
-      doc.circle(startX + 2, radioY - 1, 0.8, 'F');
-    }
-
-    doc.setFont('helvetica', isSelected ? 'bold' : 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(item.label, startX + 6, radioY);
-    radioY += 5;
-  });
-
-  // Terms & Notes
-  const termsX = startX + 90;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Terms & Notes', termsX, y);
+  doc.text('Terms & Notes', startX, y);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
-  doc.text('• This receipt confirms payment completion for your service.', termsX, y + 5.5);
-  doc.text('• Non-refundable policy applies as per terms of service.', termsX, y + 10);
+  doc.text('• This receipt confirms payment completion for your service.', startX, y + 5.5);
+  doc.text('• Non-refundable policy applies as per terms of service.', startX, y + 10);
 
   // Bottom Line
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.4);
-  doc.line(startX, y + 22, rightX, y + 22);
+  doc.line(startX, y + 16, rightX, y + 16);
 
   // 3. แปลงเป็น Buffer และส่งตอบกลับ
   const pdfOutput = doc.output('arraybuffer');

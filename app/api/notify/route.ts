@@ -16,7 +16,7 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', (err) => reject(err));
 
-    // Black & White Palette
+    // Colors
     const COLOR_BLACK = '#000000';
     const COLOR_TEXT_DARK = '#1A1A1A';
     const COLOR_TEXT_MUTED = '#555555';
@@ -25,7 +25,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     // 1. Header Section
     doc.y = 30;
-    
     doc.fillColor(COLOR_BLACK).fontSize(20).font('Helvetica-Bold').text('Receipt', 30, 30);
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(8.5).font('Helvetica').text('CONFIRMATION VOUCHER', 30, 54);
 
@@ -44,80 +43,86 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     doc.moveTo(30, 75).lineTo(565, 75).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
-    // 2. Info Grid
-    const infoY = 85;
+    // 2. Info Section
+    let currentY = 88;
 
-    // Left Column: Customer
-    doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica');
-    doc.text('Customer Name', 30, infoY);
-    doc.text('Service Room', 30, infoY + 11);
-    doc.text('Service Date', 30, infoY + 22);
-    doc.text('Contact Support', 30, infoY + 33);
+    // Row 1: Customer Name & Receipt No.
+    doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica');
+    doc.text('Customer Name', 30, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold').text(data.customerName || 'Valued Customer', 115, currentY);
 
-    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold');
-    doc.text(data.customerName || 'Valued Customer', 110, infoY);
-    doc.font('Helvetica');
-    doc.text(data.room || 'Cleaning Service | Standard Package', 110, infoY + 11, { width: 180 });
-    doc.text(`${data.date || '-'} (${data.time || '-'})`, 110, infoY + 22);
-    doc.text('info@getaway-homes.com', 110, infoY + 33);
+    doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Receipt No.', 360, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold').text(data.bookingRef || data.refNumber || 'REF-487879', 425, currentY);
+    currentY += 18;
 
-    // Right Column: Metadata
-    const rightX = 360;
-    doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica');
-    doc.text('Receipt No.', rightX, infoY);
-    doc.text('Issued Date', rightX, infoY + 11);
-    doc.text('Status', rightX, infoY + 22);
-    doc.text('Reference', rightX, infoY + 33);
+    // Row 2: Service Room & Issued Date
+    doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Service Room', 30, currentY);
+    const roomTextY = currentY;
+    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.room || 'Cleaning Service | Standard Package', 115, currentY, { width: 220 });
 
-    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold');
-    doc.text(data.refNumber || 'REF-487879', rightX + 60, infoY);
-    doc.font('Helvetica');
-    doc.text(data.date || new Date().toISOString().split('T')[0], rightX + 60, infoY + 11);
-    doc.text('PAID / CONFIRMED', rightX + 60, infoY + 22);
-    doc.text(data.refNumber || 'CONFIRMED', rightX + 60, infoY + 33);
+    doc.fillColor(COLOR_TEXT_MUTED).text('Issued Date', 360, roomTextY);
+    doc.fillColor(COLOR_TEXT_DARK).text(data.date || new Date().toISOString().split('T')[0], 425, roomTextY);
+    
+    const roomHeight = doc.heightOfString(data.room || 'Cleaning Service | Standard Package', { width: 220 });
+    currentY += Math.max(18, roomHeight + 4);
 
-    doc.moveTo(30, infoY + 48).lineTo(565, infoY + 48).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
+    // Row 3: Service Date & Status
+    doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Service Date', 30, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text(`${data.date || '-'} (${data.time || '-'})`, 115, currentY);
+
+    doc.fillColor(COLOR_TEXT_MUTED).text('Status', 360, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold').text('PAID / CONFIRMED', 425, currentY);
+    currentY += 18;
+
+    // Row 4: Contact Support & Reference
+    doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Contact Support', 30, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('info@getaway-homes.com', 115, currentY);
+
+    doc.fillColor(COLOR_TEXT_MUTED).text('Reference', 360, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.bookingRef || data.refNumber || 'CONFIRMED', 425, currentY);
+    currentY += 24;
+
+    // Divider Line 1
+    doc.moveTo(30, currentY).lineTo(565, currentY).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
+    currentY += 10;
 
     // Issuer Info Block
-    const companyY = infoY + 54;
-    doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica');
-    doc.text('Issued By', 30, companyY);
-    doc.text('Address', 30, companyY + 11);
+    doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica').text('Issued By', 30, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('REALSOL CYPRUS LIMITED', 115, currentY);
 
-    doc.fillColor(COLOR_TEXT_DARK).font('Helvetica');
-    doc.text('REALSOL CYPRUS LIMITED', 110, companyY);
-    doc.text('Neofytou Nikolaidis 61, Saint Theodoros, 8011 Paphos, Cyprus', 110, companyY + 11, { width: 220 });
+    doc.fillColor(COLOR_TEXT_MUTED).text('VAT No.', 360, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('CY10437383C', 425, currentY);
+    currentY += 16;
 
-    doc.fillColor(COLOR_TEXT_MUTED);
-    doc.text('VAT No.', rightX, companyY);
-    doc.text('Phone', rightX, companyY + 11);
+    doc.fillColor(COLOR_TEXT_MUTED).text('Address', 30, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('Neofytou Nikolaidis 61, Saint Theodoros, 8011 Paphos, Cyprus', 115, currentY, { width: 220 });
 
-    doc.fillColor(COLOR_TEXT_DARK);
-    doc.text('CY10437383C', rightX + 60, companyY);
-    doc.text('+357 12 345 678', rightX + 60, companyY + 11);
+    doc.fillColor(COLOR_TEXT_MUTED).text('Phone', 360, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('+357 12 345 678', 425, currentY);
+    currentY += 28;
 
     // 3. Itemized Table
-    const tableTop = companyY + 30;
+    const tableTop = currentY;
     const tableLeft = 30;
     const tableWidth = 535;
-    const tableHeight = 170;
+    const tableHeight = 185;
 
-    doc.rect(tableLeft + 1, tableTop + 1, tableWidth - 2, 18).fill(COLOR_BG_HEADER);
-    doc.moveTo(tableLeft, tableTop + 19).lineTo(tableLeft + tableWidth, tableTop + 19).strokeColor(COLOR_BLACK).lineWidth(0.8).stroke();
+    doc.rect(tableLeft + 1, tableTop + 1, tableWidth - 2, 20).fill(COLOR_BG_HEADER);
+    doc.moveTo(tableLeft, tableTop + 21).lineTo(tableLeft + tableWidth, tableTop + 21).strokeColor(COLOR_BLACK).lineWidth(0.8).stroke();
 
     doc.fillColor(COLOR_BLACK).fontSize(8).font('Helvetica-Bold');
-    doc.text('No.', 40, tableTop + 5);
-    doc.text('Item Description', 85, tableTop + 5);
-    doc.text('Qty', 370, tableTop + 5, { width: 35, align: 'center' });
-    doc.text('Unit Price', 420, tableTop + 5, { width: 60, align: 'right' });
-    doc.text('Amount', 490, tableTop + 5, { width: 65, align: 'right' });
+    doc.text('No.', 40, tableTop + 6);
+    doc.text('Item Description', 85, tableTop + 6);
+    doc.text('Qty', 370, tableTop + 6, { width: 35, align: 'center' });
+    doc.text('Unit Price', 420, tableTop + 6, { width: 60, align: 'right' });
+    doc.text('Amount', 490, tableTop + 6, { width: 65, align: 'right' });
 
     const items = [
       { id: '1', name: `Cleaning Service: ${data.room || 'Standard Package'}`, qty: '1', price: `${data.amount || '0.00'} €`, total: `${data.amount || '0.00'} €` },
       { id: '2', name: 'Service Charge & Mandatory Taxes', qty: '1', price: '0.00 €', total: '0.00 €' }
     ];
 
-    let rowY = tableTop + 25;
+    let rowY = tableTop + 28;
     doc.font('Helvetica').fontSize(8).fillColor(COLOR_TEXT_DARK);
 
     items.forEach((item) => {
@@ -126,77 +131,50 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
       doc.text(item.qty, 370, rowY, { width: 35, align: 'center' });
       doc.text(item.price, 420, rowY, { width: 60, align: 'right' });
       doc.text(item.total, 490, rowY, { width: 65, align: 'right' });
-      rowY += 16;
+      rowY += 18;
     });
 
-    const summaryDividerY = tableTop + 115;
+    const summaryDividerY = tableTop + 105;
     doc.moveTo(tableLeft, summaryDividerY).lineTo(tableLeft + tableWidth, summaryDividerY).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
 
     // 4. Summary Section
-    const summaryY = summaryDividerY + 6;
+    const summaryY = summaryDividerY + 8;
     const sumLabelX = 370;
     const sumValX = 490;
 
     doc.fillColor(COLOR_BLACK).font('Helvetica-Bold').fontSize(8).text('Remarks', 40, summaryY);
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').fontSize(7.5)
-       .text('Thank you for choosing Getaway Cleaning. Present this receipt upon service.', 40, summaryY + 10, { width: 260 });
+       .text('Thank you for choosing Getaway Cleaning. Present this receipt upon service.', 40, summaryY + 12, { width: 260 });
 
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica');
     doc.text('Subtotal', sumLabelX, summaryY);
-    doc.text('VAT Inclusive', sumLabelX, summaryY + 10);
-    doc.text('Discount', sumLabelX, summaryY + 20);
+    doc.text('VAT Inclusive', sumLabelX, summaryY + 12);
+    doc.text('Discount', sumLabelX, summaryY + 24);
 
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica');
     doc.text(`${data.amount || '0.00'} €`, sumValX, summaryY, { width: 65, align: 'right' });
-    doc.text('0.00 €', sumValX, summaryY + 10, { width: 65, align: 'right' });
-    doc.text('0.00 €', sumValX, summaryY + 20, { width: 65, align: 'right' });
+    doc.text('0.00 €', sumValX, summaryY + 12, { width: 65, align: 'right' });
+    doc.text('0.00 €', sumValX, summaryY + 24, { width: 65, align: 'right' });
 
-    const grandTotalY = summaryY + 31;
+    const grandTotalY = tableTop + 158;
     doc.save();
-    doc.roundedRect(tableLeft + 1, grandTotalY, tableWidth - 2, 170 - (grandTotalY - tableTop) - 1, 3).fill('#E5E5E5');
+    doc.roundedRect(tableLeft + 1, grandTotalY, tableWidth - 2, 26, 0).fill('#E5E5E5');
     doc.restore();
 
     doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold');
-    doc.text('Total Amount Paid', 40, grandTotalY + 5);
-    doc.fontSize(9.5).text(`${data.amount || '0.00'} €`, sumValX, grandTotalY + 4, { width: 65, align: 'right' });
+    doc.text('Total Amount Paid', 40, grandTotalY + 8);
+    doc.fontSize(9.5).text(`${data.amount || '0.00'} €`, sumValX, grandTotalY + 7, { width: 65, align: 'right' });
 
     doc.roundedRect(tableLeft, tableTop, tableWidth, tableHeight, 4).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
-    // 5. Payment Method Section
-    const bottomY = tableTop + 185;
-    const rawMethod = String(data.paymentMethod || '').toLowerCase();
+    // 5. Terms & Notes Section
+    const bottomY = tableTop + tableHeight + 16;
 
-    let isBank = rawMethod.includes('bank') || rawMethod.includes('transfer') || rawMethod.includes('โอน') || rawMethod.includes('promptpay') || rawMethod.includes('qr');
-    let isCash = rawMethod.includes('cash') || rawMethod.includes('เงินสด');
-    let isCard = rawMethod.includes('card') || rawMethod.includes('credit') || rawMethod.includes('debit') || rawMethod.includes('stripe') || rawMethod.includes('visa') || rawMethod.includes('mastercard');
+    doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Terms & Notes', 30, bottomY);
+    doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica')
+       .text('• This receipt confirms payment completion for your service.\n• Non-refundable policy applies as per terms of service.', 30, bottomY + 14, { width: 535, lineGap: 3 });
 
-    if (!isBank && !isCash && !isCard) {
-      isCard = true;
-    }
-
-    doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Payment Method', 30, bottomY);
-
-    // Option 1: Cash
-    doc.circle(35, bottomY + 15, 3.5).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
-    if (isCash) doc.circle(35, bottomY + 15, 2).fill(COLOR_BLACK);
-    doc.fillColor(COLOR_TEXT_DARK).fontSize(7.5).font('Helvetica').text('Cash', 44, bottomY + 11);
-
-    // Option 2: Credit / Debit Card
-    doc.circle(35, bottomY + 27, 3.5).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
-    if (isCard) doc.circle(35, bottomY + 27, 2).fill(COLOR_BLACK);
-    doc.fillColor(COLOR_TEXT_DARK).fontSize(7.5).font('Helvetica').text('Credit / Debit Card', 44, bottomY + 23);
-
-    // Option 3: Bank Transfer
-    doc.circle(35, bottomY + 39, 3.5).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
-    if (isBank) doc.circle(35, bottomY + 39, 2).fill(COLOR_BLACK);
-    doc.fillColor(COLOR_TEXT_DARK).fontSize(7.5).font('Helvetica').text('Bank Transfer', 44, bottomY + 35);
-
-    // Notes Column
-    doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Terms & Notes', 200, bottomY);
-    doc.fillColor(COLOR_TEXT_MUTED).fontSize(7).font('Helvetica')
-       .text('• This receipt confirms payment completion for your service.\n• Non-refundable policy applies as per terms of service.', 200, bottomY + 12, { width: 365 });
-
-    doc.moveTo(30, bottomY + 55).lineTo(565, bottomY + 55).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
+    doc.moveTo(30, bottomY + 45).lineTo(565, bottomY + 45).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
     doc.end();
   });
@@ -207,8 +185,29 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 // ----------------------------------------------------------------------
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { to, customerName, room, date, time, amount, paymentMethod, refNumber } = body;
+    // 1. อ่าน Request Body แบบปลอดภัย ป้องกัน Error JSON Parsing Failure
+    const rawText = await request.text();
+    if (!rawText || rawText.trim() === '') {
+      return NextResponse.json({ error: 'Empty request body received' }, { status: 400 });
+    }
+
+    let body: any;
+    try {
+      body = JSON.parse(rawText);
+    } catch (pErr) {
+      return NextResponse.json({ error: 'Invalid JSON format in request body' }, { status: 400 });
+    }
+
+    // รองรับชื่อ Field ทั้งจาก confirmation page และแบบเดิม
+    const email = body.email || body.to;
+    const customerName = body.customerName || 'Valued Customer';
+    const room = body.room || 'Cleaning Package';
+    const date = body.date || '-';
+    const time = body.time || '-';
+    const amount = body.amount || body.price || '0';
+    const paymentMethod = body.paymentMethod || 'Credit/Debit Card';
+    const refNumber = body.bookingRef || body.refNumber || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+    const pdfBase64 = body.pdfBase64;
 
     const gmailUser = process.env.GMAIL_USER || 'sofiatohalem301103@gmail.com';
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
@@ -217,7 +216,7 @@ export async function POST(request: Request) {
     if (!gmailPass) {
       console.error('GMAIL_APP_PASSWORD is missing in environment variables');
       return NextResponse.json(
-        { error: 'GMAIL_APP_PASSWORD is missing in environment variables. Please check Vercel settings.' },
+        { error: 'GMAIL_APP_PASSWORD is missing in environment variables.' },
         { status: 500 }
       );
     }
@@ -238,11 +237,11 @@ export async function POST(request: Request) {
     let recipients: string[] = [];
 
     if (isOtpRequest) {
-      if (to) recipients.push(to);
+      if (email) recipients.push(email);
     } else {
       recipients.push(adminEmail);
-      if (to && to !== adminEmail) {
-        recipients.push(to);
+      if (email && email !== adminEmail) {
+        recipients.push(email);
       }
     }
 
@@ -277,15 +276,14 @@ export async function POST(request: Request) {
         </div>
         
         <div style="margin: 20px 0; color: #1a1a1a; font-size: 14px; line-height: 1.6;">
-          <p>Dear <strong>${customerName || 'Customer'}</strong>,</p>
-          <p>Your payment for booking reference <strong>${refNumber || 'REF-487879'}</strong> has been successfully processed.</p>
+          <p>Dear <strong>${customerName}</strong>,</p>
+          <p>Your payment for booking reference <strong>${refNumber}</strong> has been successfully processed.</p>
           
           <div style="background-color: #f9f9f9; padding: 12px 16px; border-radius: 6px; border-left: 4px solid #000000; margin: 16px 0;">
             <p style="margin: 0; font-weight: bold;">Booking Details:</p>
-            <p style="margin: 4px 0 0 0;">• Service: ${room || 'Cleaning Package'}</p>
-            <p style="margin: 2px 0 0 0;">• Date / Time: ${date || '-'} (${time || '-'})</p>
-            <p style="margin: 2px 0 0 0;">• Paid Amount: ${amount || '0'} €</p>
-            <p style="margin: 2px 0 0 0;">• Payment Method: ${paymentMethod || 'Card'}</p>
+            <p style="margin: 4px 0 0 0;">• Service: ${room}</p>
+            <p style="margin: 2px 0 0 0;">• Date / Time: ${date} (${time})</p>
+            <p style="margin: 2px 0 0 0;">• Paid Amount: ${amount}</p>
           </div>
 
           <p>📎 <strong>We have attached your Payment Receipt PDF to this email.</strong></p>
@@ -308,20 +306,27 @@ export async function POST(request: Request) {
       subject = `[${amount}] is your OTP verification code - Getaway Cleaning`;
       htmlContent = otpHtml;
     } else {
-      subject = `🔔 [New Booking] Receipt & Voucher [${refNumber || 'REF-487879'}] - ${customerName || 'Customer'}`;
+      subject = `🔔 [New Booking] Receipt & Voucher [${refNumber}] - ${customerName}`;
       
-      const pdfBuffer = await generateVoucherPDF({ 
-        customerName, 
-        room, 
-        date, 
-        time, 
-        amount, 
-        paymentMethod,
-        refNumber
-      });
+      let pdfBuffer: Buffer;
+
+      // 2. ถ้าฝั่ง Client ส่ง pdfBase64 มา ให้แปลงใช้งาน แต่หากไม่มี ให้สร้างใหม่ด้วย PDFKit
+      if (pdfBase64) {
+        pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      } else {
+        pdfBuffer = await generateVoucherPDF({ 
+          customerName, 
+          room, 
+          date, 
+          time, 
+          amount, 
+          paymentMethod,
+          bookingRef: refNumber
+        });
+      }
       
       attachments.push({
-        filename: `Getaway_Cleaning_Receipt_${refNumber || 'Confirmed'}.pdf`,
+        filename: `Getaway_Cleaning_Receipt_${refNumber}.pdf`,
         content: pdfBuffer,
       });
     }

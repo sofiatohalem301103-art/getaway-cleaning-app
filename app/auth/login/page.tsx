@@ -18,23 +18,19 @@ export default function LoginPage() {
     const cleanEmail = email.trim();
     
     if (cleanEmail) {
-      // 1. เคลียร์และล้างคีย์อีเมลเก่าทิ้งเพื่อป้องกันการดึงค่าค้าง
       localStorage.removeItem('user_email');
-      
-      // 2. บันทึกอีเมลใหม่ลง localStorage ทั้งสองชื่อที่ระบบอาจเรียกใช้
       localStorage.setItem('temp_email', cleanEmail);
       localStorage.setItem('user_email', cleanEmail);
-      
-      // 3. แนบ Query Parameter ไปยังหน้า verify-otp ด้วยเพื่อความแม่นยำ 100%
       router.push(`/auth/verify-otp?email=${encodeURIComponent(cleanEmail)}`);
     }
   };
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
+    // ปรับพื้นหลังเป็นสีขาวในมือถือ และใช้ slate-50 ในจอใหญ่ (sm:)
+    <main className="w-full min-h-[100dvh] bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
       
-      {/* Container หลัก */}
-      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center my-auto">
+      {/* Container: ในมือถือจะเต็มจอพอดี (w-full p-6) / ในจอใหญ่จะเป็นการ์ดมน (sm:max-w-md sm:rounded-3xl) */}
+      <div className="w-full max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-slate-100 flex flex-col items-center justify-center my-auto">
         
         {/* Header & Logo */}
         <div className="w-full flex flex-col items-center mb-6">

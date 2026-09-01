@@ -250,13 +250,13 @@ function CardPaymentContent() {
   };
 
   return (
-    <div className="w-full max-w-md min-h-[620px] bg-white p-5 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between items-center relative shrink-0 my-auto">
+    <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-6 rounded-none sm:rounded-[32px] shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto my-auto">
       
       {/* Header Section */}
-      <div className="w-full relative">
+      <div className="w-full relative shrink-0">
         
         {/* Profile Badge */}
-        <div className="absolute top-[-12px] left-0 z-10">
+        <div className="absolute top-0 left-0 z-10">
           <button
             type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -322,7 +322,7 @@ function CardPaymentContent() {
         </div>
 
         {/* Logo Section */}
-        <div className="w-full flex justify-center pt-5 pb-1">
+        <div className="w-full flex justify-center pt-8 sm:pt-4 pb-1">
           <Image
             src="/logo.jpeg"
             alt="Getaway Cleaning"
@@ -335,82 +335,84 @@ function CardPaymentContent() {
       </div>
 
       {/* Form Body */}
-      <form onSubmit={handleNext} className="w-full my-auto py-4 space-y-4 text-left">
-        <h2 className="text-base font-bold text-slate-800 text-center">
-          Credit / Debit Card Payment
-        </h2>
+      <form onSubmit={handleNext} className="w-full my-auto py-4 space-y-4 text-left flex-1 flex flex-col justify-between shrink-0">
+        <div className="space-y-4 my-auto">
+          <h2 className="text-base font-bold text-slate-800 text-center">
+            Credit / Debit Card Payment
+          </h2>
 
-        {errorMessage && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
-            {errorMessage}
-          </div>
-        )}
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+              {errorMessage}
+            </div>
+          )}
 
-        <div className="w-full space-y-3">
-          {/* 1. Card Number */}
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Card Number
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              required
-              placeholder="1234 5678 9012 3456"
-              value={cardNumber}
-              onChange={handleCardNumberChange}
-              className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation tracking-wider"
-            />
-          </div>
-
-          {/* 2. Cardholder Name */}
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Cardholder Name
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="NAME ON CARD"
-              value={cardHolder}
-              onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck="false"
-              className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation uppercase"
-            />
-          </div>
-
-          {/* 3. Expiry & CVV/CVC */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="w-full space-y-3">
+            {/* 1. Card Number */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                Expiry (MM/YY)
+                Card Number
               </label>
               <input
                 type="text"
                 inputMode="numeric"
                 required
-                placeholder="MM/YY"
-                value={expiryDate}
-                onChange={handleExpiryChange}
-                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                placeholder="1234 5678 9012 3456"
+                value={cardNumber}
+                onChange={handleCardNumberChange}
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation tracking-wider"
               />
             </div>
+
+            {/* 2. Cardholder Name */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                CVV/CVC
+                Cardholder Name
               </label>
               <input
-                type="password"
-                inputMode="numeric"
+                type="text"
                 required
-                maxLength={4}
-                placeholder="123"
-                value={cvv}
-                onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                placeholder="NAME ON CARD"
+                value={cardHolder}
+                onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck="false"
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation uppercase"
               />
+            </div>
+
+            {/* 3. Expiry & CVV/CVC */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Expiry (MM/YY)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  placeholder="MM/YY"
+                  value={expiryDate}
+                  onChange={handleExpiryChange}
+                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  CVV/CVC
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  required
+                  maxLength={4}
+                  placeholder="123"
+                  value={cvv}
+                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -435,7 +437,7 @@ function CardPaymentContent() {
       </form>
 
       {/* Footer */}
-      <div className="w-full pt-1 text-center shrink-0">
+      <div className="w-full pt-2 pb-1 text-center shrink-0">
         <p className="text-[11px] text-slate-400">
           © Getaway Cleaning Service
         </p>
@@ -447,8 +449,8 @@ function CardPaymentContent() {
 
 export default function CardPaymentPage() {
   return (
-    <main className="min-h-[100dvh] bg-[#f8fafc] flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
-      <Suspense fallback={<div className="text-xs text-slate-500">Loading card payment...</div>}>
+    <main className="w-full min-h-[100dvh] bg-white sm:bg-[#f8fafc] flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans overflow-x-hidden">
+      <Suspense fallback={<div className="text-xs text-slate-500 p-4">Loading card payment...</div>}>
         <CardPaymentContent />
       </Suspense>
     </main>

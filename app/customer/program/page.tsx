@@ -157,13 +157,13 @@ function SelectProgramContent() {
   };
 
   return (
-    <div className="w-full max-w-md min-h-[620px] bg-white p-5 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between items-center relative shrink-0 my-auto">
+    <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-6 rounded-none sm:rounded-[32px] shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto my-auto">
       
       {/* Header Section */}
-      <div className="w-full relative">
+      <div className="w-full relative shrink-0">
         
-        {/* Profile Badge (ดึงขึ้นด้านบนให้ชิดขอบการ์ดมากยิ่งขึ้นด้วย top-[-12px]) */}
-        <div className="absolute top-[-12px] left-0 z-10">
+        {/* Profile Badge */}
+        <div className="absolute top-0 left-0 z-10">
           <button
             type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -223,7 +223,7 @@ function SelectProgramContent() {
         </div>
 
         {/* Logo Section */}
-        <div className="w-full flex justify-center pt-5 pb-1">
+        <div className="w-full flex justify-center pt-8 sm:pt-4 pb-1">
           <Image
             src="/logo.jpeg"
             alt="Getaway Cleaning"
@@ -241,7 +241,7 @@ function SelectProgramContent() {
       </div>
 
       {/* Form & Actions */}
-      <form onSubmit={handleNext} className="w-full flex-1 flex flex-col justify-between py-5 space-y-4">
+      <form onSubmit={handleNext} className="w-full flex-1 flex flex-col justify-between py-5 space-y-4 my-auto shrink-0">
         
         <div className="space-y-3.5 my-auto">
           {programs.map((item) => {
@@ -292,7 +292,7 @@ function SelectProgramContent() {
       </form>
 
       {/* Footer */}
-      <div className="w-full pt-1 text-center shrink-0">
+      <div className="w-full pt-2 pb-1 text-center shrink-0">
         <p className="text-[11px] text-slate-400">
           © Getaway Cleaning Service
         </p>
@@ -304,8 +304,8 @@ function SelectProgramContent() {
 
 export default function SelectProgramPage() {
   return (
-    <main className="min-h-[100dvh] bg-[#f8fafc] flex flex-col items-center justify-center p-4 text-slate-800 font-sans">
-      <Suspense fallback={<div className="text-xs text-slate-500">Loading...</div>}>
+    <main className="w-full min-h-[100dvh] bg-white sm:bg-[#f8fafc] flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans overflow-x-hidden">
+      <Suspense fallback={<div className="text-xs text-slate-500 p-4">Loading...</div>}>
         <SelectProgramContent />
       </Suspense>
     </main>

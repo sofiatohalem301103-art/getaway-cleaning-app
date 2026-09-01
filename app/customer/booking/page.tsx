@@ -179,6 +179,7 @@ const RAW_TIME_SLOTS = [
   '15:00 - 16:00',
 ];
 
+// ย้าย Helper Functions ไว้ด้านบนสุดก่อนถูกเรียกใช้งาน
 const formatDateToLocalString = (date: Date | null) => {
   if (!date) return '';
   const year = date.getFullYear();
@@ -374,7 +375,6 @@ function BookingForm() {
     fetchBookedSlots();
   }, [formattedDateString]);
 
-  // Logout Functionality
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -502,7 +502,7 @@ function BookingForm() {
       onClick={onClick}
       ref={ref}
       aria-label="Select booking date"
-      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 cursor-pointer select-none flex items-center justify-between"
+      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 cursor-pointer select-none flex items-center justify-between"
     >
       <span className={!value ? 'text-slate-400' : 'text-slate-800'}>
         {value || 'Select booking date'}
@@ -526,7 +526,7 @@ function BookingForm() {
   CustomDateInput.displayName = 'CustomDateInput';
 
   return (
-    <div className="w-full h-full sm:max-w-md bg-white p-5 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto">
+    <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto my-auto">
       {/* Profile Button / Badge */}
       <button
         type="button"
@@ -575,7 +575,7 @@ function BookingForm() {
                 value={selectedRoom}
                 onChange={(e) => setSelectedRoom(e.target.value)}
                 required
-                className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 truncate cursor-pointer ${
+                className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 truncate cursor-pointer ${
                   !selectedRoom ? 'text-slate-400' : 'text-slate-800'
                 }`}
               >
@@ -602,7 +602,7 @@ function BookingForm() {
                   placeholder="Enter your property name or address"
                   value={customRoomName}
                   onChange={(e) => setCustomRoomName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
                 />
               </div>
             )}
@@ -695,7 +695,7 @@ function BookingForm() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+                className="text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -719,7 +719,7 @@ function BookingForm() {
                   placeholder="Enter your full name"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
                 />
               </div>
 
@@ -733,7 +733,7 @@ function BookingForm() {
                   placeholder="Enter your email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
                 />
               </div>
 
@@ -749,7 +749,7 @@ function BookingForm() {
                       setEditCountryCode(newCode);
                       setEditPhone(formatPhoneNumber(editPhone, newCode));
                     }}
-                    className="w-32 px-2 py-2.5 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 font-medium cursor-pointer shrink-0"
+                    className="w-32 px-2 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 font-medium cursor-pointer shrink-0"
                   >
                     {COUNTRY_CODES.map((item, idx) => (
                       <option key={`${item.code}-${idx}`} value={item.code}>
@@ -765,7 +765,7 @@ function BookingForm() {
                     onChange={(e) => {
                       setEditPhone(formatPhoneNumber(e.target.value, editCountryCode));
                     }}
-                    className="flex-1 px-3.5 py-2.5 border border-slate-200 rounded-2xl text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 min-w-0"
+                    className="flex-1 px-3.5 py-2.5 border border-slate-200 rounded-2xl text-base sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 min-w-0"
                   />
                 </div>
               </div>
@@ -775,14 +775,14 @@ function BookingForm() {
                   type="button"
                   onClick={() => setIsProfileModalOpen(false)}
                   disabled={isSavingProfile}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingProfile}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingProfile ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -797,7 +797,7 @@ function BookingForm() {
 
 export default function BookingPage() {
   return (
-    <main className="fixed inset-0 sm:relative sm:min-h-[100dvh] bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans overflow-hidden">
+    <main className="w-full min-h-[100dvh] bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans overflow-x-hidden">
       <style jsx global>{`
         .react-datepicker-wrapper {
           width: 100%;
