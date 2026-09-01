@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function VerifyOtpPage() {
+function VerifyOtpContent() {
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const searchParams = useSearchParams();
 
   // ฟังก์ชันกรองอีเมลมหาลัยค้างเก่าออก
   const sanitizeEmail = (inputEmail: string | null | undefined): string => {
@@ -45,7 +48,6 @@ export default function VerifyOtpPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // บันทึก OTP และอีเมลที่ถูกส่งล่าสุดลง session
         sessionStorage.setItem('sent_otp', generatedOtp);
         sessionStorage.setItem('sent_otp_email', validEmail);
         sessionStorage.setItem('otp_expires_at', (Date.now() + 5 * 60 * 1000).toString());
@@ -72,10 +74,15 @@ export default function VerifyOtpPage() {
       }
     });
 
-    const params = new URLSearchParams(window.location.search);
-    const urlEmail = sanitizeEmail(params.get('email'));
+    // 2. ลำดับความสำคัญในการเลือกใช้อีเมล (ให้ความสำคัญกับค่าใหม่ก่อน):
+    // อันดับ 1: จาก URL Parameter (?email=...)
+    // อันดับ 2: จาก temp_email (ที่เพิ่งเซ็ตมาจากหน้า Login)
+    // อันดับ 3: จาก user_email
+    // อันดับ 4: จาก object 'user' ใน localStorage
+    const urlEmail = sanitizeEmail(searchParams.get('email'));
+    const tempEmail = sanitizeEmail(localStorage.getItem('temp_email'));
+    const userEmailKey = sanitizeEmail(localStorage.getItem('user_email'));
 
-    // ดึงค่า user จาก localStorage
     let parsedUserEmail = '';
     const localUser = localStorage.getItem('user');
     if (localUser) {
@@ -87,12 +94,7 @@ export default function VerifyOtpPage() {
       }
     }
 
-    const savedEmail =
-      urlEmail ||
-      parsedUserEmail ||
-      sanitizeEmail(localStorage.getItem('user_email')) ||
-      sanitizeEmail(localStorage.getItem('temp_email')) ||
-      '';
+    const savedEmail = urlEmail || tempEmail || userEmailKey || parsedUserEmail || '';
 
     setEmail(savedEmail);
 
@@ -103,7 +105,7 @@ export default function VerifyOtpPage() {
       sessionStorage.removeItem('otp_expires_at');
       handleSendOtp(savedEmail);
     }
-  }, [handleSendOtp]);
+  }, [searchParams, handleSendOtp]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -176,8 +178,6 @@ export default function VerifyOtpPage() {
 
   return (
     <main className="h-screen h-[100dvh] w-full bg-white sm:bg-slate-50 flex flex-col items-center justify-center font-sans text-slate-800">
-      
-      {/* Full Screen Layout Container สำหรับมือถือ */}
       <div className="w-full h-full sm:h-auto sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-slate-100 flex flex-col justify-between items-center">
         
         {/* Header Section */}
@@ -194,7 +194,7 @@ export default function VerifyOtpPage() {
           </p>
         </div>
 
-        {/* Form Inputs & Main Action Section */}
+        {/* Form Inputs */}
         <div className="w-full space-y-5 my-auto py-4">
           <form onSubmit={handleVerify} className="space-y-6">
             <div className="flex justify-between items-center gap-1.5 sm:gap-2 px-1" onPaste={handlePaste}>
@@ -223,7 +223,7 @@ export default function VerifyOtpPage() {
             </button>
           </form>
 
-          {/* Resend OTP & Spam Check Section */}
+          {/* Resend OTP */}
           <div className="pt-4 border-t border-slate-100 space-y-1.5 px-1">
             <div className="text-xs text-slate-400 flex justify-between items-center">
               <span>Didn't receive code?</span>
@@ -250,7 +250,7 @@ export default function VerifyOtpPage() {
           </div>
         </div>
 
-        {/* Footer Section */}
+        {/* Footer */}
         <div className="w-full pb-4 sm:pb-0 text-center">
           <p className="text-[11px] text-slate-400">
             © Getaway Cleaning Service
@@ -259,5 +259,13 @@ export default function VerifyOtpPage() {
 
       </div>
     </main>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+      <VerifyOtpContent />
+    </Suspense>
   );
 }

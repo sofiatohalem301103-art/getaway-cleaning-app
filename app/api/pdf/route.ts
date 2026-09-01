@@ -3,173 +3,379 @@ import jsPDF from 'jspdf';
 import path from 'path';
 import fs from 'fs';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  
-  const customerName = searchParams.get('customerName') || 'Customer';
-  const program = searchParams.get('program') || 'Cleaning Program';
-  const room = searchParams.get('room') || '';
-  const date = searchParams.get('date') || '';
-  const time = searchParams.get('time') || '';
-  const price = searchParams.get('price') || '90€';
-  const bookingRef = searchParams.get('bookingRef') || 'REF-456347';
 
-  // 1. กำหนดขนาดกระดาษ A4
+  // 1. ดึงค่า Data จาก Query String (รองรับทุก key ที่เป็นไปได้)
+  const customerName = searchParams.get('customerName') || searchParams.get('name') || 'sofia tohalem';
+  const program = searchParams.get('program') || searchParams.get('service') || 'Cleaning Service';
+  const room = searchParams.get('room') || searchParams.get('roomName') || 'Beautiful Apartment in Harbour Paphos | Central';
+  const price = searchParams.get('price') || searchParams.get('amount') || '90 €';
+  const bookingRef = searchParams.get('bookingRef') || searchParams.get('ref') || searchParams.get('receiptNo') || 'REF-655827';
+
+  // แยก Date และ Time
+  let rawDate = searchParams.get('date') || searchParams.get('serviceDate') || '2026-09-02';
+  let rawTime = searchParams.get('time') || searchParams.get('serviceTime') || '';
+
+  if (rawDate.includes('(')) {
+    const parts = rawDate.split('(');
+    rawDate = parts[0].trim();
+    if (!rawTime && parts[1]) {
+      rawTime = parts[1].replace(')', '').trim();
+    }
+  }
+  if (!rawTime) rawTime = '09:00 - 10:00';
+
+  // ตรวจจับวิธีชำระเงิน (ตั้งค่าเริ่มต้นเป็น bank)
+  const rawPaymentParam = (
+    searchParams.get('paymentMethod') || 
+    searchParams.get('payment_method') || 
+    searchParams.get('payment') || 
+    'bank'
+  ).toLowerCase();
+
+  let activeMethod: 'cash' | 'card' | 'bank' = 'bank';
+
+  if (rawPaymentParam.includes('cash') || rawPaymentParam.includes('สด')) {
+    activeMethod = 'cash';
+  } else if (
+    rawPaymentParam.includes('card') || 
+    rawPaymentParam.includes('credit') || 
+    rawPaymentParam.includes('debit') || 
+    rawPaymentParam.includes('stripe')
+  ) {
+    activeMethod = 'card';
+  } else {
+    activeMethod = 'bank';
+  }
+
+  // 2. สร้างเอกสาร PDF
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const startX = 15;
+  const contentWidth = 180;
+  const rightX = startX + contentWidth;
 
-  // 2. โหลด Logo
+  // Header
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Receipt', startX, 22);
+
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CONFIRMATION VOUCHER', startX, 27);
+
+  // Logo (รองรับทั้ง .jpeg, .jpg และ .png)
   try {
-    const logoPath = path.join(process.cwd(), 'public', 'logo.jpeg');
-    if (fs.existsSync(logoPath)) {
+    const publicDir = path.join(process.cwd(), 'public');
+    const possibleLogos = ['logo.jpeg', 'logo.jpg', 'logo.png'];
+    let logoPath = '';
+    
+    for (const logoName of possibleLogos) {
+      const fullPath = path.join(publicDir, logoName);
+      if (fs.existsSync(fullPath)) {
+        logoPath = fullPath;
+        break;
+      }
+    }
+
+    if (logoPath) {
       const logoBuffer = fs.readFileSync(logoPath);
-      const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
-      
-      // แสดงโลโก้ขนาดใหญ่พอดี
-      doc.addImage(logoBase64, 'JPEG', (pageWidth - 60) / 2, 20, 60, 25);
+      const ext = path.extname(logoPath).substring(1).toUpperCase();
+      const format = ext === 'JPG' ? 'JPEG' : ext;
+      const logoBase64 = `data:image/${ext.toLowerCase()};base64,${logoBuffer.toString('base64')}`;
+      doc.addImage(logoBase64, format, rightX - 50, 10, 50, 20);
     }
   } catch (err) {
-    console.error('Failed to load logo image:', err);
+    console.error('Logo error:', err);
   }
 
-  // 3. วาดไอคอนเครื่องหมายถูก (Draw Checkmark Vector)
-  const circleX = pageWidth / 2;
-  const circleY = 58;
+  // Line Header
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.line(startX, 32, rightX, 32);
 
-  // วงกลมสีเขียวอ่อน
-  doc.setFillColor(209, 250, 229); // emerald-100
-  doc.circle(circleX, circleY, 9, 'F');
+  // Top Info Section
+  let y = 39;
+  const col1LabelX = startX;
+  const col1ValX = startX + 32;
+  const col2LabelX = startX + 115;
+  const col2ValX = startX + 140;
 
-  // วาดเส้นเครื่องหมายถูก (Checkmark Line) สีเขียวเข้ม
-  doc.setDrawColor(5, 150, 105); // emerald-600
-  doc.setLineWidth(1.5);
-  doc.line(circleX - 4, circleY, circleX - 1, circleY + 3);
-  doc.line(circleX - 1, circleY + 3, circleX + 4, circleY - 3);
+  doc.setFontSize(8.5);
 
-  // 4. Header Text
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Payment Successful!', pageWidth / 2, 75, { align: 'center' });
-
-  doc.setTextColor(100, 116, 139); // slate-500
-  doc.setFontSize(10);
+  // Row 1
+  doc.setTextColor(80, 80, 80);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Thank you. Your booking has been confirmed, ${customerName}.`, pageWidth / 2, 82, { align: 'center' });
-
-  // 5. กรอบสี่เหลี่ยมรายละเอียด (Card Box)
-  const cardX = 30;
-  const cardY = 90;
-  const cardWidth = 150;
-  const cardHeight = 85;
-
-  doc.setFillColor(248, 250, 252); // slate-50
-  doc.setDrawColor(241, 245, 249); // slate-100
-  doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 5, 5, 'FD');
-
-  let currentY = cardY + 12;
-  const leftX = cardX + 10;
-  const rightX = cardX + cardWidth - 10;
-
-  // Booking Ref
-  doc.setFontSize(10);
-  doc.setTextColor(100, 116, 139);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Booking Ref', leftX, currentY);
-  
-  doc.setTextColor(15, 23, 42);
+  doc.text('Customer Name', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
-  doc.text(bookingRef, rightX, currentY, { align: 'right' });
+  doc.text(customerName, col1ValX, y);
 
-  // เส้นคั่นที่ 1
-  currentY += 5;
-  doc.setDrawColor(226, 232, 240);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Receipt No.', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(bookingRef, col2ValX, y);
+
+  // Row 2
+  y += 5.5;
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Service Room', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  const splitRoom = doc.splitTextToSize(room, 75);
+  doc.text(splitRoom, col1ValX, y);
+
+  doc.setTextColor(80, 80, 80);
+  doc.text('Issued Date', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text(rawDate, col2ValX, y);
+
+  y += Math.max((splitRoom.length - 1) * 4.5, 0) + 5.5;
+
+  // Row 3: Service Date
+  doc.setTextColor(80, 80, 80);
+  doc.text('Service Date', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.text(rawDate, col1ValX, y);
+
+  doc.setTextColor(80, 80, 80);
+  doc.text('Status', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PAID / CONFIRMED', col2ValX, y);
+
+  // Row 4: Service Time
+  y += 5.5;
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Service Time', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text(rawTime, col1ValX, y);
+
+  doc.setTextColor(80, 80, 80);
+  doc.text('Reference', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text(bookingRef, col2ValX, y);
+
+  // Row 5
+  y += 5.5;
+  doc.setTextColor(80, 80, 80);
+  doc.text('Contact Support', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('info@getaway-homes.com', col1ValX, y);
+
+  // Divider Line
+  y += 5;
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.line(startX, y, rightX, y);
+
+  // Company Info
+  y += 5.5;
+  doc.setTextColor(80, 80, 80);
+  doc.text('Issued By', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('REALSOL CYPRUS LIMITED', col1ValX, y);
+
+  doc.setTextColor(80, 80, 80);
+  doc.text('VAT No.', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('CY10437383C', col2ValX, y);
+
+  y += 5.5;
+  doc.setTextColor(80, 80, 80);
+  doc.text('Address', col1LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Neofytou Nikolaidis 61, Saint Theodoros, 8011 Paphos, Cyprus', col1ValX, y);
+
+  doc.setTextColor(80, 80, 80);
+  doc.text('Phone', col2LabelX, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('+357 12 345 678', col2ValX, y);
+
+  // Items Table Section
+  y += 8;
+  const tableStartY = y;
+
+  // Header Table Background & Text
+  doc.setFillColor(245, 245, 245);
+  doc.rect(startX, y, contentWidth, 7, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
+
+  doc.text('No.', startX + 4, y + 5);
+  doc.text('Item Description', startX + 18, y + 5);
+  doc.text('Qty', startX + 122, y + 5, { align: 'center' });
+  doc.text('Unit Price', startX + 152, y + 5, { align: 'right' });
+  doc.text('Amount', rightX - 4, y + 5, { align: 'right' });
+
+  y += 7;
+  doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
-  doc.line(leftX, currentY, rightX, currentY);
+  doc.line(startX, y, rightX, y);
 
-  // Location / Room
-  if (room) {
-    currentY += 9;
-    doc.setTextColor(100, 116, 139);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Location', leftX, currentY);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    const splitRoom = doc.splitTextToSize(room, 90);
-    doc.text(splitRoom, rightX, currentY, { align: 'right' });
-    currentY += (splitRoom.length - 1) * 5;
-  }
-
-  // Date
-  if (date) {
-    currentY += 9;
-    doc.setTextColor(100, 116, 139);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Date', leftX, currentY);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.text(date, rightX, currentY, { align: 'right' });
-  }
-
-  // Time
-  if (time) {
-    currentY += 9;
-    doc.setTextColor(100, 116, 139);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Time', leftX, currentY);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.text(time, rightX, currentY, { align: 'right' });
-  }
-
-  // Program
-  if (program) {
-    currentY += 9;
-    doc.setTextColor(100, 116, 139);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Program', leftX, currentY);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.text(program, rightX, currentY, { align: 'right' });
-  }
-
-  // เส้นคั่นที่ 2
-  currentY += 6;
-  doc.setDrawColor(226, 232, 240);
-  doc.line(leftX, currentY, rightX, currentY);
-
-  // Total Paid
-  currentY += 10;
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total Paid', leftX, currentY);
-
-  doc.setTextColor(5, 150, 105); // emerald-600
-  doc.setFontSize(14);
-  doc.text(price, rightX, currentY, { align: 'right' });
-
-  // 6. Footer Text
-  doc.setTextColor(148, 163, 184);
-  doc.setFontSize(9);
+  // Item 1
+  y += 6;
   doc.setFont('helvetica', 'normal');
-  doc.text('© Getaway Cleaning Service', pageWidth / 2, 190, { align: 'center' });
+  doc.text('1', startX + 4, y);
 
-  const pdfBuffer = doc.output('arraybuffer');
+  const itemDescText = `${program}: ${room}`;
+  const splitItemDesc = doc.splitTextToSize(itemDescText, 95);
+  doc.text(splitItemDesc, startX + 18, y);
 
-  return new NextResponse(pdfBuffer, {
+  doc.text('1', startX + 122, y, { align: 'center' });
+  doc.text(price, startX + 152, y, { align: 'right' });
+  doc.text(price, rightX - 4, y, { align: 'right' });
+
+  y += Math.max((splitItemDesc.length - 1) * 4.5, 0) + 6;
+
+  // Item 2
+  doc.text('2', startX + 4, y);
+  doc.text('Service Charge & Mandatory Taxes', startX + 18, y);
+  doc.text('1', startX + 122, y, { align: 'center' });
+  doc.text('0.00 €', startX + 152, y, { align: 'right' });
+  doc.text('0.00 €', rightX - 4, y, { align: 'right' });
+
+  y += 10;
+
+  // Remarks & Summary Line
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.line(startX, y, rightX, y);
+
+  const summaryStartY = y;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Remarks', startX + 4, summaryStartY + 5.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text('Thank you for choosing Getaway Cleaning.', startX + 4, summaryStartY + 10.5);
+  doc.text('Present this receipt upon service.', startX + 4, summaryStartY + 14.5);
+
+  let subtotalY = summaryStartY + 5.5;
+  const labelX = startX + 152;
+
+  doc.setTextColor(100, 100, 100);
+  doc.text('Subtotal', labelX, subtotalY, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+  doc.text(price, rightX - 4, subtotalY, { align: 'right' });
+
+  subtotalY += 4.5;
+  doc.setTextColor(100, 100, 100);
+  doc.text('VAT Inclusive', labelX, subtotalY, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+  doc.text('0.00 €', rightX - 4, subtotalY, { align: 'right' });
+
+  subtotalY += 4.5;
+  doc.setTextColor(100, 100, 100);
+  doc.text('Discount', labelX, subtotalY, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+  doc.text('0.00 €', rightX - 4, subtotalY, { align: 'right' });
+
+  y = summaryStartY + 20;
+
+  // Total Amount Paid Banner
+  doc.setFillColor(238, 238, 238);
+  doc.rect(startX, y, contentWidth, 9, 'F');
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.line(startX, y, rightX, y);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Total Amount Paid', startX + 4, y + 6);
+  doc.setFontSize(11);
+  doc.text(price, rightX - 4, y + 6, { align: 'right' });
+
+  y += 9;
+
+  // Border Box สำหรับตาราง
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(startX, tableStartY, contentWidth, y - tableStartY);
+
+  // Payment Method & Terms Section
+  y += 8;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Payment Method', startX, y);
+
+  let radioY = y + 5.5;
+  const methods = [
+    { key: 'cash', label: 'Cash' },
+    { key: 'card', label: 'Credit / Debit Card' },
+    { key: 'bank', label: 'Bank Transfer' },
+  ];
+
+  doc.setFontSize(8.5);
+  methods.forEach((item) => {
+    const isSelected = item.key === activeMethod;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.circle(startX + 2, radioY - 1, 1.6, 'S');
+
+    if (isSelected) {
+      doc.setFillColor(0, 0, 0);
+      doc.circle(startX + 2, radioY - 1, 0.8, 'F');
+    }
+
+    doc.setFont('helvetica', isSelected ? 'bold' : 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(item.label, startX + 6, radioY);
+    radioY += 5;
+  });
+
+  // Terms & Notes
+  const termsX = startX + 90;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Terms & Notes', termsX, y);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text('• This receipt confirms payment completion for your service.', termsX, y + 5.5);
+  doc.text('• Non-refundable policy applies as per terms of service.', termsX, y + 10);
+
+  // Bottom Line
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.line(startX, y + 22, rightX, y + 22);
+
+  // 3. แปลงเป็น Buffer และส่งตอบกลับ
+  const pdfOutput = doc.output('arraybuffer');
+  const buffer = Buffer.from(pdfOutput);
+
+  return new NextResponse(buffer, {
+    status: 200,
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="receipt_${bookingRef}.pdf"`,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     },
   });
 }

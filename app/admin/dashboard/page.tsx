@@ -41,7 +41,7 @@ const getLocalDateString = () => {
 export default function AdminDashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
-  
+
   const [adminUser, setAdminUser] = useState<string>('Sam');
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -212,9 +212,19 @@ export default function AdminDashboardPage() {
   // ----------------------------------------------------------------------
 
   const handleConfirmPayment = async (task: any) => {
-    const targetEmail = task.customer_email || task.email || (typeof window !== 'undefined' ? localStorage.getItem('user_email') || localStorage.getItem('temp_email') : '');
+    const targetEmail =
+      task.customer_email ||
+      task.email ||
+      (typeof window !== 'undefined'
+        ? localStorage.getItem('user_email') || localStorage.getItem('temp_email')
+        : '');
 
-    if (!window.confirm(`Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`)) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`
+      )
+    )
+      return;
 
     setLoadingId(task.id);
     try {
@@ -310,21 +320,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
-
-    const idsToDelete = currentTasks.map((t) => t.id);
-    if (idsToDelete.length === 0) return;
-
-    const { error } = await supabase.from('bookings').delete().in('id', idsToDelete);
-
-    if (error) {
-      alert('❌ Error clearing tasks: ' + error.message);
-    } else {
-      loadBookings();
-    }
-  };
-
   // ----------------------------------------------------------------------
   // 6. คำนวณ สถานะพนักงาน และ การกรองข้อมูล Tab
   // ----------------------------------------------------------------------
@@ -376,6 +371,21 @@ export default function AdminDashboardPage() {
       : activeTab === 'upcoming'
       ? upcomingTasks
       : historyTasks;
+
+  const handleClearAll = async () => {
+    if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
+
+    const idsToDelete = currentTasks.map((t) => t.id);
+    if (idsToDelete.length === 0) return;
+
+    const { error } = await supabase.from('bookings').delete().in('id', idsToDelete);
+
+    if (error) {
+      alert('❌ Error clearing tasks: ' + error.message);
+    } else {
+      loadBookings();
+    }
+  };
 
   const groupByDate = (taskList: any[]) => {
     return taskList.reduce((acc: { [key: string]: any[] }, task) => {
@@ -559,6 +569,15 @@ function TaskCard({
   const isPaid = task.payment_status === 'Paid / Verified';
   const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
+  // ดึงชื่อโปรแกรม/แพ็กเกจที่เลือกจาก Supabase
+  const selectedProgram = 
+    task.service_package || 
+    task.package_name || 
+    task.service_name || 
+    task.program || 
+    task.package || 
+    'Standard Cleaning';
+
   // ดึงค่า Email
   const displayEmail =
     task.customer_email ||
@@ -568,7 +587,7 @@ function TaskCard({
       : '') ||
     '';
 
-  // 🛠️ เพิ่ม: ดึงค่า Phone Number จาก Supabase หรือ LocalStorage
+  // ดึงค่า Phone Number
   const displayPhone =
     task.customer_phone ||
     task.phone ||
@@ -602,11 +621,18 @@ function TaskCard({
 
       {/* Card Body */}
       <div className="flex justify-between items-start gap-4">
-        <div className="space-y-1 flex-1">
+        <div className="space-y-1.5 flex-1">
+          {/* ชื่อสถานที่ / ห้องพัก */}
           <p className="font-bold text-slate-800 text-sm">
-            {task.room_type || task.program || 'Cleaning Service'}
+            {task.room_type || task.address || 'Cleaning Service'}
           </p>
-          <p className="text-gray-600">
+
+          {/* ป้ายแสดงชื่อโปรแกรม/แพ็กเกจบริการที่เลือก */}
+          <div className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2.5 py-0.5 rounded-md text-[11px]">
+            Program: {selectedProgram}
+          </div>
+
+          <p className="text-gray-600 pt-1">
             Customer: <span className="font-semibold text-gray-800">{task.customer_name || 'N/A'}</span>
           </p>
 
@@ -614,7 +640,6 @@ function TaskCard({
             Email: <span className="font-medium text-slate-700">{displayEmail || 'N/A'}</span>
           </p>
 
-          {/* 🛠️ เพิ่ม: แสดงผลเบอร์โทรศัพท์ พร้อมปุ่มกดโทรออก */}
           <p className="text-gray-500 text-[11px]">
             Phone:{' '}
             {displayPhone ? (
@@ -634,7 +659,7 @@ function TaskCard({
           </p>
 
           {(task.price || task.amount) && (
-            <p className="font-bold text-emerald-600">
+            <p className="font-bold text-emerald-600 pt-1">
               Amount: {String(task.price || task.amount).replace(/€/g, '').trim()}€
             </p>
           )}
