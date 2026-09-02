@@ -32,8 +32,7 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.jpeg');
       if (fs.existsSync(logoPath)) {
-        const logoBuffer = fs.readFileSync(logoPath);
-        doc.image(logoBuffer, 370, 20, { fit: [180, 50], align: 'right' });
+        doc.image(logoPath, 370, 20, { fit: [180, 50], align: 'right' });
       } else {
         doc.fillColor(COLOR_BLACK).fontSize(14).font('Helvetica-Bold').text('Getaway Cleaning', 380, 30, { align: 'right', width: 185 });
       }
@@ -76,7 +75,7 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     // Row 4: Contact Support & Reference
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Contact Support', 30, currentY);
-    doc.fillColor(COLOR_TEXT_DARK).text('info@getaway-homes.com', 115, currentY);
+    doc.fillColor(COLOR_TEXT_DARK).text('getawaycleaning.paphos@gmail.com', 115, currentY);
 
     doc.fillColor(COLOR_TEXT_MUTED).text('Reference', 360, currentY);
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.bookingRef || data.refNumber || 'CONFIRMED', 425, currentY);
@@ -185,7 +184,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 // ----------------------------------------------------------------------
 export async function POST(request: Request) {
   try {
-    // 1. อ่าน Request Body แบบปลอดภัย ป้องกัน Error JSON Parsing Failure
     const rawText = await request.text();
     if (!rawText || rawText.trim() === '') {
       return NextResponse.json({ error: 'Empty request body received' }, { status: 400 });
@@ -198,7 +196,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON format in request body' }, { status: 400 });
     }
 
-    // รองรับชื่อ Field ทั้งจาก confirmation page และแบบเดิม
     const email = body.email || body.to;
     const customerName = body.customerName || 'Valued Customer';
     const room = body.room || 'Cleaning Package';
@@ -209,14 +206,14 @@ export async function POST(request: Request) {
     const refNumber = body.bookingRef || body.refNumber || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
     const pdfBase64 = body.pdfBase64;
 
-    const gmailUser = process.env.GMAIL_USER || 'sofiatohalem301103@gmail.com';
+    const targetEmail = 'getawaycleaning.paphos@gmail.com';
+    const gmailUser = process.env.GMAIL_USER || targetEmail;
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    const adminEmail = 'info@getaway-homes.com';
 
     if (!gmailPass) {
       console.error('GMAIL_APP_PASSWORD is missing in environment variables');
       return NextResponse.json(
-        { error: 'GMAIL_APP_PASSWORD is missing in environment variables.' },
+        { error: 'GMAIL_APP_PASSWORD missing in environment variables.' },
         { status: 500 }
       );
     }
@@ -234,20 +231,8 @@ export async function POST(request: Request) {
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
 
-    let recipients: string[] = [];
-
-    if (isOtpRequest) {
-      if (email) recipients.push(email);
-    } else {
-      recipients.push(adminEmail);
-      if (email && email !== adminEmail) {
-        recipients.push(email);
-      }
-    }
-
-    if (recipients.length === 0) {
-      return NextResponse.json({ error: 'No recipient email specified' }, { status: 400 });
-    }
+    // ส่งเข้าเฉพาะ getawaycleaning.paphos@gmail.com อย่างเดียวเท่านั้น
+    const recipients: string[] = [targetEmail];
 
     const otpHtml = `
       <div style="font-family: Arial, sans-serif; padding: 32px 24px; border: 1px solid #1a1a1a; border-radius: 12px; max-width: 480px; margin: 0 auto; background-color: #ffffff; text-align: center;">
@@ -293,7 +278,7 @@ export async function POST(request: Request) {
           <strong style="color: #000000;">REALSOL CYPRUS LIMITED</strong><br />
           VAT No.: CY10437383C<br />
           Office Address: Neofytou Nikolaidis 61, Saint Theodoros, 8011 Paphos, Cyprus<br />
-          Contact: info@getaway-homes.com | +357 12 345 678
+          Contact: getawaycleaning.paphos@gmail.com | +357 12 345 678
         </div>
       </div>
     `;
@@ -310,7 +295,6 @@ export async function POST(request: Request) {
       
       let pdfBuffer: Buffer;
 
-      // 2. ถ้าฝั่ง Client ส่ง pdfBase64 มา ให้แปลงใช้งาน แต่หากไม่มี ให้สร้างใหม่ด้วย PDFKit
       if (pdfBase64) {
         pdfBuffer = Buffer.from(pdfBase64, 'base64');
       } else {
