@@ -5,102 +5,112 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('info@getaway-homes.com');
+  const [email, setEmail] = useState('getawaycleaning.paphos@gmail.com');
   const [password, setPassword] = useState('Paphos2026');
   const [selectedAdmin, setSelectedAdmin] = useState('Zaza');
   const router = useRouter();
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // บันทึกชื่อ Admin และเปลี่ยนหน้าไปยัง Dashboard ทันทีโดยไม่ต้องตรวจรหัส
     localStorage.setItem('admin_user', selectedAdmin);
     router.push('/admin/dashboard');
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 text-black">
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-indigo-900 mb-2 text-center">Admin Login</h1>
-        <p className="text-xs text-gray-500 mb-6 text-center">Sign in to manage bookings</p>
+    <main className="min-h-[100dvh] bg-[#EAF3F9] flex flex-col items-center justify-center p-0 sm:p-4 text-[#1E2B37] font-sans">
+      
+      {/* Container หลัก */}
+      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-[#FFFFFF] p-6 sm:p-8 sm:rounded-[32px] shadow-none sm:shadow-xl border-none sm:border border-[#D9D9D9] flex flex-col justify-between sm:justify-center items-center space-y-6">
+        
+        {/* Header Section */}
+        <div className="w-full flex flex-col items-center pt-8 sm:pt-0">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight text-center">
+            Admin Login
+          </h1>
+          <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1.5 text-center font-medium">
+            Sign in to manage bookings
+          </p>
+        </div>
 
-        <form onSubmit={handleAdminLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Select Admin Profile</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedAdmin('Zaza')}
-                className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'Zaza'
-                    ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                👱‍♀️ Zaza
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedAdmin('Sam')}
-                className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'Sam'
-                    ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                👨‍💼 Sam
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedAdmin('Sylvia')}
-                className={`py-2 px-2 text-xs font-bold rounded-lg border transition flex items-center justify-center gap-1 cursor-pointer ${
-                  selectedAdmin === 'Sylvia'
-                    ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                👩‍💼 Sylvia
-              </button>
+        {/* Form Section */}
+        <form onSubmit={handleAdminLogin} className="w-full space-y-5 my-auto sm:my-0">
+          
+          {/* Select Admin Profile */}
+          <div className="text-left">
+            <label className="block text-xs font-bold text-[#1E2B37] mb-2">
+              Select Admin Profile
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { name: 'Zaza', label: 'Zaza' },
+                { name: 'Sam', label: 'Sam' },
+                { name: 'Sylvia', label: 'Sylvia' },
+              ].map((admin) => (
+                <button
+                  key={admin.name}
+                  type="button"
+                  onClick={() => setSelectedAdmin(admin.name)}
+                  className={`py-2.5 px-3 text-xs font-bold rounded-full border transition-all duration-150 cursor-pointer flex items-center justify-center select-none ${
+                    selectedAdmin === admin.name
+                      ? 'bg-[#EAF3F9] border-[#2563EB] text-[#2563EB] shadow-xs'
+                      : 'bg-[#EAF3F9]/50 border-[#93C5FD]/60 text-[#1E2B37]/70 hover:bg-[#EAF3F9]'
+                  }`}
+                >
+                  {admin.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Admin Email</label>
+          {/* Admin Email */}
+          <div className="text-left">
+            <label className="block text-xs font-bold text-[#1E2B37] mb-1.5">
+              Admin Email
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm text-black focus:outline-indigo-600"
+              className="w-full px-4 py-3 border border-[#1E2B37]/40 rounded-2xl text-sm bg-[#FFFFFF] text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
             />
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Password</label>
+          {/* Password */}
+          <div className="text-left">
+            <label className="block text-xs font-bold text-[#1E2B37] mb-1.5">
+              Password
+            </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm text-black focus:outline-indigo-600"
+              className="w-full px-4 py-3 border border-[#1E2B37]/40 rounded-2xl text-sm bg-[#FFFFFF] text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-xl hover:bg-indigo-700 transition text-sm cursor-pointer"
-          >
-            Sign In as Admin
-          </button>
+          {/* Submit Button */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full min-h-[50px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-3 rounded-full text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none"
+            >
+              Sign In as Admin
+            </button>
+          </div>
         </form>
 
-        <div className="mt-4 text-center">
-          <Link href="/admin" className="text-xs text-gray-500 hover:underline">
-            ← Back to Portal Selection
+        {/* Footer Link */}
+        <div className="w-full pb-4 sm:pb-0 text-center">
+          <Link 
+            href="/admin" 
+            className="text-xs text-[#1E2B37]/70 hover:text-[#1E2B37] underline font-medium transition"
+          >
+            ← Back to Customer Site
           </Link>
         </div>
+
       </div>
     </main>
   );

@@ -26,18 +26,18 @@ export default function LoginPage() {
   };
 
   return (
-    // ปรับพื้นหลังเป็นสีขาวในมือถือ และใช้ slate-50 ในจอใหญ่ (sm:)
-    <main className="w-full min-h-[100dvh] bg-white sm:bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <main className="w-full min-h-[100dvh] bg-white sm:bg-[#EAF3F9] flex flex-col items-center justify-center p-0 sm:p-4 text-[#1E1E1E] font-sans">
       
-      {/* Container: ในมือถือจะเต็มจอพอดี (w-full p-6) / ในจอใหญ่จะเป็นการ์ดมน (sm:max-w-md sm:rounded-3xl) */}
-      <div className="w-full max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-slate-100 flex flex-col items-center justify-center my-auto">
+      {/* Container Card */}
+      <div className="w-full max-w-md bg-[#FFFFFF] p-6 sm:p-8 sm:rounded-3xl sm:shadow-sm sm:border sm:border-[#D9D9D9] flex flex-col items-center justify-center my-auto">
         
         {/* Header & Logo */}
-        <div className="w-full flex flex-col items-center mb-6">
-          <div className="mb-3">
+        <div className="w-full flex flex-col items-center mb-6 text-center">
+          {/* Logo แบบไม่มีกรอบ */}
+          <div className="mb-4 flex items-center justify-center">
             <Image 
               src="/logo.jpeg" 
-              alt="Company Logo" 
+              alt="Getaway Cleaning Logo" 
               width={140} 
               height={140} 
               className="object-contain"
@@ -46,11 +46,11 @@ export default function LoginPage() {
             />
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-            Sign In
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1E1E1E] tracking-tight">
+            Cleaning Service Booking
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 text-center">
-            Enter your email address to continue
+          <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1">
+            Book professional cleaning service in just a few clicks
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="w-full">
           <form onSubmit={handleNext} className="space-y-4">
             <div className="text-left">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label className="block text-xs font-semibold text-[#1E1E1E]/80 mb-1.5">
                 Email Address
               </label>
               <input 
@@ -67,23 +67,23 @@ export default function LoginPage() {
                 placeholder="name@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-150 text-slate-800 placeholder:text-slate-400"
+                className="w-full px-4 py-3 border border-[#D9D9D9] rounded-2xl text-base bg-[#EAF3F9]/30 focus:bg-[#FFFFFF] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition duration-150 text-[#1E1E1E] placeholder:text-[#1E1E1E]/40"
               />
             </div>
 
-            {/* ปุ่ม Next */}
+            {/* ปุ่ม Get Start / Sign in - ใช้โทนสี Palette #2563EB -> #006AFF */}
             <button 
               type="submit" 
-              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+              className="w-full h-12 bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-[#FFFFFF] font-semibold rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
             >
-              Next
+              Get Start / Sign in
             </button>
           </form>
         </div>
 
         {/* Footer */}
         <div className="w-full pt-6 text-center">
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-[#1E1E1E]/40">
             © Getaway Cleaning Service
           </p>
         </div>

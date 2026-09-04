@@ -14,7 +14,7 @@ function CardPaymentContent() {
   const date = searchParams.get('date') || '';
   const time = searchParams.get('time') || '';
   const program = searchParams.get('program') || '';
-  const price = searchParams.get('price') || '90€';
+  const price = searchParams.get('price') || '70€';
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -22,8 +22,6 @@ function CardPaymentContent() {
     email: string;
     phone: string;
   } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // State สำหรับช่องกรอกบัตร
   const [cardNumber, setCardNumber] = useState('');
@@ -36,8 +34,6 @@ function CardPaymentContent() {
   // ดึงข้อมูล User
   const loadUserData = async () => {
     try {
-      setIsLoadingUser(true);
-
       const nameParam = searchParams.get('customerName') || searchParams.get('name');
       const emailParam = searchParams.get('email');
       const phoneParam = searchParams.get('phone');
@@ -110,8 +106,6 @@ function CardPaymentContent() {
     } catch (err) {
       console.error('Failed to load user:', err);
       setCurrentUser(null);
-    } finally {
-      setIsLoadingUser(false);
     }
   };
 
@@ -159,7 +153,6 @@ function CardPaymentContent() {
         }),
       });
 
-      // ดักจับ Content-Type เพื่อป้องกัน JSON Parse Error จาก HTML 404/500
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error('API route /api/process-card-payment not found or server error. Please restart the dev server.');
@@ -238,91 +231,13 @@ function CardPaymentContent() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('user');
-    localStorage.removeItem('sb-user');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('temp_email');
-    setCurrentUser(null);
-    setShowProfileMenu(false);
-    router.push('/login');
-  };
-
   return (
     <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-5 sm:p-6 rounded-none sm:rounded-[32px] shadow-none sm:shadow-sm border-0 sm:border border-slate-100 flex flex-col justify-between items-center relative overflow-y-auto my-auto">
       
       {/* Header Section */}
       <div className="w-full relative shrink-0">
-        
-        {/* Profile Badge */}
-        <div className="absolute top-0 left-0 z-10">
-          <button
-            type="button"
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-full py-1 px-2.5 shadow-2xs transition active:scale-95 cursor-pointer touch-manipulation"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#00875A] text-white flex items-center justify-center text-xs font-bold shrink-0">
-              {isLoadingUser
-                ? '...'
-                : currentUser?.name
-                ? currentUser.name.charAt(0).toUpperCase()
-                : 'U'}
-            </div>
-            <div className="flex flex-col text-left pr-0.5 overflow-hidden">
-              <span className="text-[11px] font-semibold text-slate-700 leading-tight truncate max-w-[80px] sm:max-w-[95px]">
-                {isLoadingUser ? '...' : currentUser?.name || 'Guest'}
-              </span>
-              {currentUser?.phone && (
-                <span className="text-[9px] text-slate-400 leading-tight truncate max-w-[80px] sm:max-w-[95px]">
-                  {isLoadingUser ? '...' : currentUser.phone}
-                </span>
-              )}
-            </div>
-          </button>
-
-          {/* Profile Popup */}
-          {showProfileMenu && (
-            <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-left z-30">
-              <div className="border-b border-slate-100 pb-2 mb-2">
-                <p className="text-xs font-bold text-slate-800">
-                  {isLoadingUser ? 'Loading...' : currentUser?.name || 'Guest'}
-                </p>
-                {currentUser?.email && (
-                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                    {currentUser.email}
-                  </p>
-                )}
-                {currentUser?.phone && (
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {currentUser.phone}
-                  </p>
-                )}
-              </div>
-
-              {currentUser ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full text-left text-xs font-medium text-red-600 hover:bg-red-50 p-1.5 rounded-xl transition cursor-pointer"
-                >
-                  Log out
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => router.push('/login')}
-                  className="w-full text-left text-xs font-medium text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-xl transition cursor-pointer"
-                >
-                  Log in
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Logo Section */}
-        <div className="w-full flex justify-center pt-8 sm:pt-4 pb-1">
+        <div className="w-full flex justify-center pt-6 sm:pt-4 pb-1">
           <Image
             src="/logo.jpeg"
             alt="Getaway Cleaning"
@@ -332,14 +247,16 @@ function CardPaymentContent() {
             priority
           />
         </div>
+
+        {/* Title */}
+        <h2 className="text-base font-bold text-[#1E2B37] text-center mt-3">
+          Credit / Debit Card Payment
+        </h2>
       </div>
 
       {/* Form Body */}
       <form onSubmit={handleNext} className="w-full my-auto py-4 space-y-4 text-left flex-1 flex flex-col justify-between shrink-0">
         <div className="space-y-4 my-auto">
-          <h2 className="text-base font-bold text-slate-800 text-center">
-            Credit / Debit Card Payment
-          </h2>
 
           {errorMessage && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
@@ -357,10 +274,10 @@ function CardPaymentContent() {
                 type="text"
                 inputMode="numeric"
                 required
-                placeholder="1234 5678 9012 3456"
+                placeholder="xxxx xxxx xxxx xxxx"
                 value={cardNumber}
                 onChange={handleCardNumberChange}
-                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation tracking-wider"
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-300 focus:border-[#1E2B37] focus:ring-1 focus:ring-[#1E2B37] text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation tracking-wider"
               />
             </div>
 
@@ -378,7 +295,7 @@ function CardPaymentContent() {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck="false"
-                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation uppercase"
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-300 focus:border-[#1E2B37] focus:ring-1 focus:ring-[#1E2B37] text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation uppercase"
               />
             </div>
 
@@ -392,10 +309,10 @@ function CardPaymentContent() {
                   type="text"
                   inputMode="numeric"
                   required
-                  placeholder="MM/YY"
+                  placeholder="MM / YY"
                   value={expiryDate}
                   onChange={handleExpiryChange}
-                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-300 focus:border-[#1E2B37] focus:ring-1 focus:ring-[#1E2B37] text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
                 />
               </div>
               <div>
@@ -407,10 +324,10 @@ function CardPaymentContent() {
                   inputMode="numeric"
                   required
                   maxLength={4}
-                  placeholder="123"
+                  placeholder="xxx"
                   value={cvv}
                   onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
+                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-300 focus:border-[#1E2B37] focus:ring-1 focus:ring-[#1E2B37] text-base text-slate-700 placeholder-slate-400 outline-none transition touch-manipulation text-center"
                 />
               </div>
             </div>
@@ -418,20 +335,20 @@ function CardPaymentContent() {
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-2 flex items-center gap-3">
+        <div className="pt-2 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => router.back()}
-            className="w-1/3 py-2.5 min-h-[44px] bg-[#edf2f7] hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation text-center"
+            className="px-6 py-2.5 min-h-[44px] bg-[#D9D9D9] hover:bg-slate-300 active:bg-slate-400 text-[#1E2B37] font-semibold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation text-center"
           >
             ← Back
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-2/3 py-2.5 min-h-[44px] bg-[#00a66c] hover:bg-[#008f5d] active:bg-[#00784e] text-white font-bold rounded-2xl text-sm transition duration-150 shadow-sm cursor-pointer touch-manipulation disabled:opacity-50 text-center"
+            className="flex-1 py-2.5 min-h-[44px] bg-[#1E2B37] hover:bg-slate-800 active:bg-slate-900 text-white font-bold rounded-2xl text-sm transition duration-150 cursor-pointer touch-manipulation disabled:opacity-50 text-center"
           >
-            {isSubmitting ? 'Processing...' : `Pay ${price} Now`}
+            {isSubmitting ? 'Processing...' : 'Pay Now'}
           </button>
         </div>
       </form>

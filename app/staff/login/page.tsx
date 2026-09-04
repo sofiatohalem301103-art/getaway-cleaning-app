@@ -37,7 +37,6 @@ export default function StaffLoginPage() {
       setPassword('');
       return;
     }
-    // ตัวแรกพิมพ์ใหญ่ + ตัวถัดๆ ไปเป็นตัวพิมพ์เล็ก
     const formattedPassword = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
     setPassword(formattedPassword);
   };
@@ -62,29 +61,27 @@ export default function StaffLoginPage() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 text-slate-800 font-sans">
+    <main className="min-h-[100dvh] bg-[#EAF3F9] flex flex-col items-center justify-center p-0 sm:p-4 text-[#1E2B37] font-sans">
       
-      {/* Container หลัก: ฟูลสกรีนบนมือถือ */}
-      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-white p-6 sm:p-8 sm:rounded-3xl shadow-none sm:shadow-sm border-none sm:border border-slate-100 flex flex-col justify-between sm:justify-center items-center">
+      {/* Container หลัก */}
+      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-[#FFFFFF] p-6 sm:p-8 sm:rounded-[32px] shadow-none sm:shadow-xl border-none sm:border border-[#D9D9D9] flex flex-col justify-between sm:justify-center items-center">
         
         {/* Header & Logo */}
         <div className="w-full flex flex-col items-center pt-8 sm:pt-0">
-          <div className="mb-6">
+          <div className="mb-6 relative w-48 h-20">
             <Image 
               src="/logo.jpeg" 
               alt="Getaway Cleaning Logo" 
-              width={160} 
-              height={180} 
+              fill
               className="object-contain"
-              style={{ width: 'auto', height: 'auto' }}
               priority 
             />
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight text-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight text-center">
             Staff Log In
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 text-center">
+          <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1 text-center">
             Sign in to access your work schedule
           </p>
         </div>
@@ -92,15 +89,17 @@ export default function StaffLoginPage() {
         {/* Form Input Section */}
         <div className="w-full my-auto sm:my-6">
           {errorMessage && (
-            <div className="w-full bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-2xl mb-4 text-center">
+            /* กล่อง Error แบบเข้ม ชัดเจนขึ้น */
+            <div className="w-full bg-[#EF8B8D]/25 border-2 border-[#C94A4E] text-[#C94A4E] text-xs py-2.5 px-4 rounded-full mb-4 text-center font-bold shadow-xs">
               {errorMessage}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="w-full space-y-4">
-            {/* Staff ID (เติมขีด - อัตโนมัติ & พิมพ์ใหญ่ทั้งหมด) */}
+            
+            {/* Staff ID */}
             <div className="text-left">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label className="block text-xs font-semibold text-[#1E2B37] mb-1.5">
                 Staff ID
               </label>
               <input
@@ -110,13 +109,13 @@ export default function StaffLoginPage() {
                 placeholder="GW-S1"
                 value={staffId}
                 onChange={handleStaffIdChange}
-                className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition duration-150 text-slate-800 placeholder:text-slate-400 uppercase"
+                className="w-full px-4 py-3 border border-[#D9D9D9] rounded-2xl text-base bg-[#FFFFFF] focus:outline-none focus:border-[#93C5FD] focus:ring-2 focus:ring-[#93C5FD]/50 transition duration-150 text-[#1E2B37] placeholder-[#1E1E1E]/40 font-medium uppercase"
               />
             </div>
 
-            {/* Password (ตัวอักษรแรกพิมพ์ใหญ่อัตโนมัติ) */}
+            {/* Password */}
             <div className="text-left">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label className="block text-xs font-semibold text-[#1E2B37] mb-1.5">
                 Password
               </label>
               <div className="relative w-full flex items-center">
@@ -126,12 +125,12 @@ export default function StaffLoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={handlePasswordChange}
-                  className="w-full px-4 py-3 pr-11 border border-slate-200 rounded-2xl text-base bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition duration-150 text-slate-800 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 pr-11 border border-[#D9D9D9] rounded-2xl text-base bg-[#FFFFFF] focus:outline-none focus:border-[#93C5FD] focus:ring-2 focus:ring-[#93C5FD]/50 transition duration-150 text-[#1E2B37] placeholder-[#1E1E1E]/40 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  className="absolute right-3.5 text-[#1E1E1E]/50 hover:text-[#1E2B37] p-1 cursor-pointer transition-colors"
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -146,9 +145,9 @@ export default function StaffLoginPage() {
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full min-h-[50px] bg-slate-800 hover:bg-slate-900 active:bg-black active:scale-[0.98] text-white font-semibold py-3 rounded-2xl text-sm transition duration-150 shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
+                className="w-full min-h-[50px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-[#FFFFFF] font-bold py-3 rounded-2xl text-sm transition duration-150 shadow-md touch-manipulation cursor-pointer flex items-center justify-center select-none"
               >
-                Log in
+                Log In
               </button>
             </div>
           </form>
@@ -156,7 +155,7 @@ export default function StaffLoginPage() {
 
         {/* Footer */}
         <div className="w-full pb-4 sm:pb-0 text-center">
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-[#1E1E1E]/50 font-medium">
             © Getaway Cleaning Service — Staff Only
           </p>
         </div>

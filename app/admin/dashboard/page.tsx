@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----------------------------------------------------------------------
-// 1. กำหนดรายชื่อพนักงาน และ รายชื่อ Admin
+// 1. รายชื่อพนักงาน และ Admin
 // ----------------------------------------------------------------------
 const STAFF_LIST = [
   { id: 'GW-S1', name: 'Staff 01' },
@@ -17,7 +17,7 @@ const STAFF_LIST = [
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
 // ----------------------------------------------------------------------
-// 2. ฟังก์ชันจัดการ Path ของรูปภาพสลิป
+// 2. ฟังก์ชันจัดการ Path และ Format วันที่
 // ----------------------------------------------------------------------
 const getValidSlipUrl = (task: any): string | null => {
   if (!task) return null;
@@ -29,13 +29,17 @@ const getValidSlipUrl = (task: any): string | null => {
   return rawUrl;
 };
 
-// ฟังก์ชันแปลงวันเป็น Format YYYY-MM-DD ตาม Local Timezone
-const getLocalDateString = () => {
+const getLocalDateString = (): string => {
   const d = new Date();
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const getCleanDate = (dateVal: any): string => {
+  if (!dateVal) return '';
+  return String(dateVal).split('T')[0];
 };
 
 export default function AdminDashboardPage() {
@@ -49,7 +53,6 @@ export default function AdminDashboardPage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const todayStr = getLocalDateString();
 
-  // โหลดค่า Admin Profile จาก localStorage ตอนเปิดหน้าเว็บ
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedAdmin = localStorage.getItem('admin_user');
@@ -66,9 +69,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ----------------------------------------------------------------------
-  // 3. ระบบเสียงแจ้งเตือนอัตโนมัติ (Web Audio API)
-  // ----------------------------------------------------------------------
   useEffect(() => {
     const unlockAudio = () => {
       if (!audioCtxRef.current) {
@@ -136,9 +136,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ----------------------------------------------------------------------
-  // 4. ดึงข้อมูลรายการจาก Supabase + Realtime Subscription
-  // ----------------------------------------------------------------------
   const loadBookings = useCallback(async () => {
     const { data, error } = await supabase
       .from('bookings')
@@ -178,10 +175,12 @@ export default function AdminDashboardPage() {
         (payload: any) => {
           playAdminSound('new_booking');
           const newBooking = payload.new;
+          const currentToday = getLocalDateString();
+          const cleanBookingDate = getCleanDate(newBooking.booking_date);
 
-          if (newBooking.booking_date === todayStr) {
+          if (cleanBookingDate === currentToday) {
             setActiveTab('today');
-          } else if (newBooking.booking_date > todayStr) {
+          } else if (cleanBookingDate > currentToday) {
             setActiveTab('upcoming');
           }
 
@@ -191,14 +190,20 @@ export default function AdminDashboardPage() {
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'bookings' },
-        () => loadBookings()
+        () => {
+          loadBookings();
+        }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime feed connected');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [todayStr, loadBookings]);
+  }, [loadBookings]);
 
   const handleSelectStaffLocal = (taskId: any, staffName: string) => {
     setSelectedStaffMap((prev) => ({
@@ -206,10 +211,6 @@ export default function AdminDashboardPage() {
       [taskId]: staffName,
     }));
   };
-
-  // ----------------------------------------------------------------------
-  // 5. ฟังก์ชันการทำงานต่างๆ
-  // ----------------------------------------------------------------------
 
   const handleConfirmPayment = async (task: any) => {
     const targetEmail =
@@ -243,7 +244,7 @@ export default function AdminDashboardPage() {
             to: targetEmail,
             customerName: task.customer_name || 'Valued Customer',
             room: task.room_type || task.program || 'Cleaning Service',
-            date: task.booking_date,
+            date: getCleanDate(task.booking_date),
             time: task.booking_time,
             amount: String(task.price || task.amount || '0').replace(/€/g, '').trim(),
             refNumber: task.booking_code || `REF-${task.id}`,
@@ -320,9 +321,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ----------------------------------------------------------------------
-  // 6. คำนวณ สถานะพนักงาน และ การกรองข้อมูล Tab
-  // ----------------------------------------------------------------------
   const getStaffStatus = (staffId: string) => {
     const activeTask = tasks.find(
       (b) => b.assigned_staff === staffId && b.status === 'In Progress'
@@ -356,11 +354,11 @@ export default function AdminDashboardPage() {
   };
 
   const todayTasks = tasks.filter(
-    (t) => t.booking_date === todayStr && t.status !== 'Completed'
+    (t) => getCleanDate(t.booking_date) === todayStr && t.status !== 'Completed'
   );
 
   const upcomingTasks = tasks.filter(
-    (t) => t.booking_date > todayStr && t.status !== 'Completed'
+    (t) => getCleanDate(t.booking_date) > todayStr && t.status !== 'Completed'
   );
 
   const historyTasks = tasks.filter((t) => t.status === 'Completed');
@@ -389,7 +387,7 @@ export default function AdminDashboardPage() {
 
   const groupByDate = (taskList: any[]) => {
     return taskList.reduce((acc: { [key: string]: any[] }, task) => {
-      const dateKey = task.booking_date || 'Unknown Date';
+      const dateKey = getCleanDate(task.booking_date) || 'Unknown Date';
       if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(task);
       return acc;
@@ -398,17 +396,14 @@ export default function AdminDashboardPage() {
 
   const groupedTasks = groupByDate(currentTasks);
 
-  // ----------------------------------------------------------------------
-  // 7. ส่วนแสดงผลหลัก (UI)
-  // ----------------------------------------------------------------------
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-6 text-black">
-      <div className="max-w-5xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto space-y-4">
         
-        {/* Header ส่วนบนสุด */}
+        {/* Header */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center flex-wrap gap-2">
           <div>
-            <h1 className="text-lg font-bold text-slate-800">
+            <h1 className="text-xl font-bold text-slate-800">
               Getaway Admin Dashboard
             </h1>
             <p className="text-xs text-gray-400">
@@ -419,18 +414,17 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleClearAll}
-              className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              className="bg-red-400 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
             >
               Clear All
             </button>
 
-            {/* ส่วนเลือกชื่อ Admin */}
-            <div className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
-              <span className="text-xs font-bold text-indigo-700">Admin:</span>
+            <div className="flex items-center gap-1 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg">
+              <span className="text-xs font-bold text-slate-700">Admin:</span>
               <select
                 value={adminUser}
                 onChange={(e) => handleAdminChange(e.target.value)}
-                className="bg-transparent font-bold text-xs text-indigo-800 focus:outline-none cursor-pointer"
+                className="bg-transparent font-bold text-xs text-slate-800 focus:outline-none cursor-pointer"
               >
                 {ADMIN_LIST.map((name) => (
                   <option key={name} value={name}>
@@ -442,27 +436,30 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Staff Monitor */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-            Staff Monitor (Realtime)
+        {/* Staff Monitor Panel */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+          <h2 className="text-xs font-bold text-slate-800">
+            Task Management & Dispatch System (Realtime)
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
             {STAFF_LIST.map((staff) => {
               const info = getStaffStatus(staff.id);
+              const formattedId = staff.id.replace('GW-S', 'GW - S');
               return (
                 <div
                   key={staff.id}
-                  className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 text-xs"
+                  className="bg-sky-50/60 p-2.5 rounded-xl border border-sky-200 space-y-1 text-xs flex flex-col justify-between"
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-800">{staff.id}</span>
-                    <span className={`w-2 h-2 rounded-full ${info.color} animate-pulse`}></span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800 text-xs">{formattedId}</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${info.color}`}></span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 truncate">{info.text}</p>
                   </div>
-                  <p className="text-[10px] text-gray-500 truncate">{info.text}</p>
-                  <div className="text-[9px] text-gray-400 pt-1 border-t border-gray-200/60 flex justify-between">
-                    <span>Done:</span>
-                    <span className="font-bold text-slate-600">{info.completedCount}</span>
+                  <div className="text-[11px] text-slate-600 pt-1.5 border-t border-slate-200/80 flex justify-between items-center">
+                    <span>Done :</span>
+                    <span className="font-semibold text-slate-700">{info.completedCount}</span>
                   </div>
                 </div>
               );
@@ -471,33 +468,33 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-gray-200/60 p-1 rounded-xl flex gap-1 text-xs font-semibold">
+        <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex gap-3 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2 rounded-lg transition ${
+            className={`flex-1 py-2 rounded-lg border transition ${
               activeTab === 'history'
-                ? 'bg-white text-slate-800 shadow-sm font-bold'
-                : 'text-gray-500 hover:text-slate-800'
+                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
+                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
             }`}
           >
             History ({historyTasks.length})
           </button>
           <button
             onClick={() => setActiveTab('today')}
-            className={`flex-1 py-2 rounded-lg transition ${
+            className={`flex-1 py-2 rounded-lg border transition ${
               activeTab === 'today'
-                ? 'bg-white text-slate-800 shadow-sm font-bold'
-                : 'text-gray-500 hover:text-slate-800'
+                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
+                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
             }`}
           >
             Today ({todayTasks.length})
           </button>
           <button
             onClick={() => setActiveTab('upcoming')}
-            className={`flex-1 py-2 rounded-lg transition ${
+            className={`flex-1 py-2 rounded-lg border transition ${
               activeTab === 'upcoming'
-                ? 'bg-white text-slate-800 shadow-sm font-bold'
-                : 'text-gray-500 hover:text-slate-800'
+                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
+                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
             }`}
           >
             Upcoming ({upcomingTasks.length})
@@ -506,7 +503,7 @@ export default function AdminDashboardPage() {
 
         {/* Task List */}
         {Object.keys(groupedTasks).length === 0 ? (
-          <div className="bg-white p-12 rounded-2xl text-center border border-dashed border-gray-200 text-gray-400 text-xs">
+          <div className="bg-sky-50/50 p-16 rounded-2xl text-center border border-sky-200 text-slate-700 font-medium text-xs">
             No tasks found for this view.
           </div>
         ) : (
@@ -543,7 +540,7 @@ export default function AdminDashboardPage() {
 }
 
 // ----------------------------------------------------------------------
-// 8. คอมโพเนนต์แสดงผลการ์ดงานเดี่ยว (TaskCard Component)
+// TaskCard Component
 // ----------------------------------------------------------------------
 function TaskCard({
   task,
@@ -569,7 +566,6 @@ function TaskCard({
   const isPaid = task.payment_status === 'Paid / Verified';
   const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
-  // ดึงชื่อโปรแกรม/แพ็กเกจที่เลือกจาก Supabase
   const selectedProgram = 
     task.service_package || 
     task.package_name || 
@@ -578,7 +574,6 @@ function TaskCard({
     task.package || 
     'Standard Cleaning';
 
-  // ดึงค่า Email
   const displayEmail =
     task.customer_email ||
     task.email ||
@@ -587,7 +582,6 @@ function TaskCard({
       : '') ||
     '';
 
-  // ดึงค่า Phone Number
   const displayPhone =
     task.customer_phone ||
     task.phone ||
@@ -596,6 +590,8 @@ function TaskCard({
       ? localStorage.getItem('user_phone') || localStorage.getItem('temp_phone')
       : '') ||
     '';
+
+  const cleanDateDisplay = getCleanDate(task.booking_date);
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs relative group">
@@ -607,7 +603,7 @@ function TaskCard({
 
         <div className="flex items-center gap-2">
           <span className="text-gray-500 font-medium">
-            {task.booking_date} | {task.booking_time}
+            {cleanDateDisplay} | {task.booking_time}
           </span>
           <button
             onClick={() => handleDeleteTask(task.id)}
@@ -622,12 +618,10 @@ function TaskCard({
       {/* Card Body */}
       <div className="flex justify-between items-start gap-4">
         <div className="space-y-1.5 flex-1">
-          {/* ชื่อสถานที่ / ห้องพัก */}
           <p className="font-bold text-slate-800 text-sm">
             {task.room_type || task.address || 'Cleaning Service'}
           </p>
 
-          {/* ป้ายแสดงชื่อโปรแกรม/แพ็กเกจบริการที่เลือก */}
           <div className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2.5 py-0.5 rounded-md text-[11px]">
             Program: {selectedProgram}
           </div>

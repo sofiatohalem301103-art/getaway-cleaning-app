@@ -8,108 +8,153 @@ function ConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ตัวแปรเช็คว่าเริ่ม Render บน Browser หรือยัง (แก้ Hydration Mismatch)
   const [isMounted, setIsMounted] = useState(false);
-
-  // ตัวแปรล็อกป้องกันการส่งอีเมลซ้ำซ้อนใน React StrictMode
   const hasSentEmail = useRef(false);
 
-  // ข้ามหน้า Confirm ไปหน้า Success ทันที
-  const [step] = useState<'success'>('success');
+  const getParam = (key: string) => {
+    const val = searchParams.get(key);
+    if (!val) return '';
+    try {
+      return decodeURIComponent(val);
+    } catch {
+      return val;
+    }
+  };
 
   // Query Parameters / Booking Data
-  const room = searchParams.get('room') || searchParams.get('location') || 'Beautiful Apartment in Harbour Paphos | Central';
-  const rawDate = searchParams.get('date') || '27 Aug 2026';
-  const time = searchParams.get('time') || searchParams.get('serviceTime') || '10:00 - 11:00';
-  const program = searchParams.get('program') || 'General cleaning';
-  const price = searchParams.get('price') || searchParams.get('amount') || '90€';
-  const rawPaymentMethod = searchParams.get('paymentMethod') || searchParams.get('method') || 'Bank Transfer';
+  const room = getParam('room') || getParam('location') || 'Beautiful Apartment in Harbour Paphos | Central';
+  const rawDate = getParam('date') || '28 Aug 2026';
+  const time = getParam('time') || getParam('serviceTime') || '10:00 - 11:00';
+  const program = getParam('program') || 'General cleaning';
+  const price = getParam('price') || getParam('amount') || '70€';
+  const rawPaymentMethod = getParam('paymentMethod') || getParam('method') || 'Bank Transfer';
   
-  const [bookingRef, setBookingRef] = useState(
-    searchParams.get('bookingRef') || searchParams.get('ref') || ''
-  );
+  const [bookingRef, setBookingRef] = useState('');
 
   const [customerInfo, setCustomerInfo] = useState({
-    name: searchParams.get('customerName') || searchParams.get('name') || 'Customer',
-    email: searchParams.get('email') || '',
-    phone: searchParams.get('phone') || '',
+    name: '',
+    email: '',
+    phone: '',
   });
 
-  // ตั้งค่า isMounted เป็น true เมื่อ Client โหลดเสร็จแล้วเท่านั้น
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    const initialRef = getParam('bookingRef') || getParam('ref');
+    setBookingRef(initialRef || `REF-${Math.floor(100000 + Math.random() * 900000)}`);
+    
+    setCustomerInfo({
+      name: getParam('customerName') || getParam('name') || '',
+      email: getParam('email') || '',
+      phone: getParam('phone') || '',
+    });
+  }, [searchParams]);
 
-  // สร้าง Booking Ref สุ่มเมื่อโหลดหน้า (ถ้าไม่มี)
+  // ระบบดึงข้อมูล Profile จาก Supabase & LocalStorage
   useEffect(() => {
-    if (!bookingRef) {
-      setBookingRef(`REF-${Math.floor(100000 + Math.random() * 900000)}`);
-    }
-  }, [bookingRef]);
+    if (!isMounted) return;
 
-  // ดึงข้อมูล User เพิ่มเติมจาก Supabase / LocalStorage
-  useEffect(() => {
-    const loadUserData = async () => {
-      let currentName = customerInfo.name;
-      let currentEmail = customerInfo.email;
-      let currentPhone = customerInfo.phone;
+    const fetchUserProfile = async () => {
+      let fetchedName = customerInfo.name;
+      let fetchedEmail = customerInfo.email;
+      let fetchedPhone = customerInfo.phone;
 
       try {
-        if (supabase && (!currentEmail || currentName === 'Customer')) {
-          const { data: { session } } = await supabase.auth.getSession();
-          const user = session?.user;
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+
           if (user) {
+            if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
+              fetchedName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || '';
+            }
+            if (!fetchedEmail) {
+              fetchedEmail = user.email || user.user_metadata?.email || '';
+            }
+            if (!fetchedPhone) {
+              fetchedPhone = user.phone || user.user_metadata?.phone || user.user_metadata?.mobile || '';
+            }
+
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
               .maybeSingle();
 
-            if (currentName === 'Customer') currentName = profile?.full_name || profile?.name || user.user_metadata?.full_name || 'Customer';
-            if (!currentEmail) currentEmail = profile?.email || user.email || '';
-            if (!currentPhone) currentPhone = profile?.phone || profile?.mobile || '';
+            if (profile) {
+              if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
+                fetchedName = profile.full_name || profile.name || profile.display_name || profile.username || fetchedName;
+              }
+              if (!fetchedEmail) {
+                fetchedEmail = profile.email || fetchedEmail;
+              }
+              if (!fetchedPhone) {
+                fetchedPhone = profile.phone || profile.mobile || profile.phone_number || profile.tel || fetchedPhone;
+              }
+            }
           }
         }
-      } catch (e) {
-        console.error('Supabase load error:', e);
+      } catch (err) {
+        console.error('Error fetching profile from Supabase:', err);
       }
 
-      if (!currentEmail || currentName === 'Customer') {
+      if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest' || !fetchedEmail || !fetchedPhone) {
         try {
-          const localUser = localStorage.getItem('user') || localStorage.getItem('booking_customer');
-          if (localUser) {
-            const parsed = JSON.parse(localUser);
-            if (currentName === 'Customer') currentName = parsed.name || parsed.full_name || 'Customer';
-            if (!currentEmail) currentEmail = parsed.email || '';
-            if (!currentPhone) currentPhone = parsed.phone || '';
+          const keys = ['user', 'booking_customer', 'profile', 'customer_info', 'userData', 'sb-user'];
+          for (const key of keys) {
+            const rawData = localStorage.getItem(key);
+            if (rawData) {
+              try {
+                const parsed = JSON.parse(rawData);
+                if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
+                  fetchedName = parsed.name || parsed.full_name || parsed.customerName || parsed.displayName || fetchedName;
+                }
+                if (!fetchedEmail) {
+                  fetchedEmail = parsed.email || parsed.customerEmail || fetchedEmail;
+                }
+                if (!fetchedPhone) {
+                  fetchedPhone = parsed.phone || parsed.mobile || parsed.phone_number || parsed.tel || fetchedPhone;
+                }
+              } catch {
+                if (key === 'user' && !fetchedName) fetchedName = rawData;
+              }
+            }
           }
-        } catch (e) {
-          console.error('LocalStorage load error:', e);
+        } catch (err) {
+          console.error('Error reading LocalStorage:', err);
         }
       }
 
-      setCustomerInfo({ name: currentName, email: currentEmail, phone: currentPhone });
+      setCustomerInfo({
+        name: fetchedName || 'Customer',
+        email: fetchedEmail || '',
+        phone: fetchedPhone || '',
+      });
     };
 
-    loadUserData();
-  }, []);
+    fetchUserProfile();
+  }, [isMounted]);
 
-  // ส่งอีเมลยืนยันอัตโนมัติพร้อมแนบ PDF ทางอีเมล
+  // ส่งอีเมลอัตโนมัติ
   useEffect(() => {
+    if (!isMounted || !customerInfo.email || !bookingRef || hasSentEmail.current) {
+      return;
+    }
+
+    const controller = new AbortController();
+    hasSentEmail.current = true;
+
     const sendEmailAuto = async () => {
-      if (!customerInfo.email || !bookingRef || hasSentEmail.current) {
-        return;
-      }
-
-      hasSentEmail.current = true; // ล็อกทันทีไม่ให้ยิงซ้ำ
-
       try {
         const res = await fetch('/api/notify', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          signal: controller.signal,
           body: JSON.stringify({
             email: customerInfo.email,
             customerName: customerInfo.name,
+            phone: customerInfo.phone,
             bookingRef,
             room,
             program,
@@ -124,17 +169,21 @@ function ConfirmationContent() {
           throw new Error(`Server status: ${res.status}`);
         }
 
-        console.log('✅ Auto confirmation email sent!');
+        console.log('✅ Confirmation email sent successfully to:', customerInfo.email);
       } catch (err: any) {
+        if (err.name === 'AbortError') return;
         console.error('❌ Auto email sending error:', err?.message || err);
-        hasSentEmail.current = false; // ปลดล็อกหากเกิด error เพื่อให้ทำงานใหม่ได้
+        hasSentEmail.current = false;
       }
     };
 
     sendEmailAuto();
-  }, [customerInfo.email, bookingRef, room, program, price, rawDate, time, rawPaymentMethod, customerInfo.name]);
 
-  // ฟังก์ชันจัดฟอร์แมตวันที่แบบคงที่
+    return () => {
+      controller.abort();
+    };
+  }, [isMounted, customerInfo.email, customerInfo.name, customerInfo.phone, bookingRef, room, program, price, rawDate, time, rawPaymentMethod]);
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     try {
@@ -153,100 +202,118 @@ function ConfirmationContent() {
   };
 
   if (!isMounted) {
-    return <div className="text-xs text-slate-400 my-auto p-4">Loading confirmation...</div>;
+    return <div className="text-xs text-[#8E9B9E] my-auto p-4">Loading confirmation...</div>;
   }
 
   return (
     <div className="w-full sm:max-w-md mx-auto flex flex-col justify-center flex-1 my-auto px-4 sm:px-0 py-6 sm:py-0">
-      {step === 'success' && (
-        <div 
-          className="bg-white p-0 sm:p-7 rounded-none sm:rounded-[32px] sm:shadow-sm sm:border sm:border-slate-100 w-full flex flex-col items-center"
-        >
-          {/* Icon */}
-          <div 
-            style={{ backgroundColor: '#d1fae5', color: '#059669' }}
-            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-3xl font-bold shrink-0"
-          >
-            ✓
+      <div className="bg-white p-0 sm:p-7 rounded-none sm:rounded-[32px] sm:shadow-sm sm:border sm:border-slate-100 w-full flex flex-col items-center">
+        
+        {/* Checkmark Icon */}
+        <div className="w-20 h-20 rounded-full bg-[#EAF3F9] border-2 border-[#B8D7ED] flex items-center justify-center mb-5 shrink-0 shadow-xs">
+          <svg className="w-10 h-10 text-[#1E2B37]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-2xl font-bold text-[#1E2B37] mb-1.5 text-center">
+          Payment Successful!
+        </h2>
+        <p className="text-xs text-slate-500 mb-4 text-center font-medium">
+          Thank you. Your booking has been confirmed.
+        </p>
+
+        {/* Notification Badge */}
+        <div className="w-full bg-[#EAF3F9] border border-[#B8D7ED] rounded-full py-2.5 px-4 mb-6 flex items-center justify-center gap-2 overflow-hidden">
+          <span className="text-xs shrink-0">✉️</span>
+          <span className="text-[11px] font-medium text-[#1E2B37] whitespace-nowrap truncate sm:whitespace-normal">
+            A receipt & voucher PDF has been sent to your email
+          </span>
+        </div>
+
+        {/* Details Box */}
+        <div className="w-full bg-white border-2 border-[#8E9B9E]/60 rounded-2xl p-4 sm:p-5 mb-6 space-y-3.5 text-[#1E2B37]">
+          <div className="flex justify-between items-center border-b border-[#8E9B9E]/30 pb-3">
+            <span className="text-xs font-semibold text-slate-700">Booking Ref</span>
+            <span className="text-xs font-bold font-mono">{bookingRef}</span>
           </div>
 
-          {/* Title */}
-          <h2 style={{ color: '#1e293b' }} className="text-2xl font-bold mb-1 text-center">
-            Payment Successful!
-          </h2>
-          <p style={{ color: '#64748b' }} className="text-xs mb-3 text-center font-medium">
-            Thank you. Your booking has been confirmed.
-          </p>
-          <p style={{ color: '#059669' }} className="text-[11px] mb-6 text-center font-medium bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-100">
-            ✉️ A receipt & voucher PDF has been sent to your email.
-          </p>
-
-          {/* Info Box */}
-          <div 
-            style={{ backgroundColor: '#f8fafc', borderColor: '#f1f5f9' }}
-            className="w-full border rounded-2xl p-4 sm:p-5 mb-5 space-y-3"
-          >
-            <div style={{ borderColor: '#e2e8f0' }} className="flex justify-between items-center border-b pb-3">
-              <span style={{ color: '#94a3b8' }} className="text-xs font-medium">Booking Ref</span>
-              <span style={{ color: '#1e293b' }} className="text-xs font-bold">{bookingRef}</span>
+          {/* Customer Info */}
+          <div className="space-y-3 pt-0.5">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-slate-700">Customer Name</span>
+              <span className="text-xs font-bold">{customerInfo.name || 'Customer'}</span>
             </div>
-            
-            <div className="space-y-2.5 pt-0.5">
-              <div className="flex justify-between items-start">
-                <span style={{ color: '#94a3b8' }} className="text-xs font-medium shrink-0">Location</span>
-                <span style={{ color: '#334155' }} className="text-xs font-semibold text-right max-w-[65%] leading-relaxed">{room}</span>
-              </div>
+            {customerInfo.email && (
               <div className="flex justify-between items-center">
-                <span style={{ color: '#94a3b8' }} className="text-xs font-medium">Date</span>
-                <span style={{ color: '#334155' }} className="text-xs font-semibold">{rawDate.includes('-') ? formatDate(rawDate) : rawDate}</span>
+                <span className="text-xs font-semibold text-slate-700">Email</span>
+                <span className="text-xs font-bold truncate max-w-[60%]">{customerInfo.email}</span>
               </div>
+            )}
+            {customerInfo.phone && (
               <div className="flex justify-between items-center">
-                <span style={{ color: '#94a3b8' }} className="text-xs font-medium">Time</span>
-                <span style={{ color: '#334155' }} className="text-xs font-semibold">{time}</span>
+                <span className="text-xs font-semibold text-slate-700">Phone</span>
+                <span className="text-xs font-bold">{customerInfo.phone}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span style={{ color: '#94a3b8' }} className="text-xs font-medium">Program</span>
-                <span style={{ color: '#334155' }} className="text-xs font-semibold">{program}</span>
-              </div>
-            </div>
+            )}
 
-            <div style={{ borderColor: '#e2e8f0' }} className="flex justify-between items-center border-t pt-3 mt-2">
-              <span style={{ color: '#1e293b' }} className="text-xs sm:text-sm font-bold">Total Paid</span>
-              <span style={{ color: '#059669' }} className="text-base sm:text-lg font-bold">{price}</span>
+            <div className="border-t border-[#8E9B9E]/20 pt-2 my-1" />
+
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-semibold text-slate-700 shrink-0">Location</span>
+              <span className="text-xs font-bold text-right max-w-[65%] leading-relaxed">{room}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-slate-700">Date</span>
+              <span className="text-xs font-bold">{rawDate.includes('-') ? formatDate(rawDate) : rawDate}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-slate-700">Time</span>
+              <span className="text-xs font-bold">{time}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-slate-700">Program</span>
+              <span className="text-xs font-bold">{program}</span>
             </div>
           </div>
 
-          {/* Button */}
-          <button
-            type="button"
-            onClick={() => router.push('/customer/booking')}
-            className="w-full py-3.5 bg-[#2c3e50] hover:bg-[#1a252f] active:bg-black text-white font-semibold rounded-2xl text-xs transition cursor-pointer touch-manipulation shadow-sm mb-5"
-          >
-            Back to Home
-          </button>
-
-          {/* Logo */}
-          <div className="flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src="/logo.jpeg" 
-              alt="Getaway Cleaning Logo" 
-              className="h-9 w-auto object-contain opacity-90"
-            />
+          <div className="flex justify-between items-center border-t border-[#8E9B9E]/30 pt-3 mt-2">
+            <span className="text-sm font-bold">Total Paid</span>
+            <span className="text-lg font-bold">{price.includes('€') ? price : `${price} €`}</span>
           </div>
         </div>
-      )}
+
+        {/* Back to Home Button */}
+        <button
+          type="button"
+          onClick={() => router.push('/customer/booking')}
+          className="w-full py-3.5 bg-[#B8B8B8] hover:bg-[#a3a3a3] active:bg-[#8e8e8e] text-[#1E2B37] font-bold rounded-2xl text-xs transition cursor-pointer touch-manipulation mb-6 text-center"
+        >
+          Back To Home
+        </button>
+
+        {/* Logo */}
+        <div className="flex justify-center mb-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src="/logo.jpeg" 
+            alt="Getaway Cleaning Logo" 
+            className="h-10 w-auto object-contain"
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function ConfirmationPage() {
   return (
-    <main className="min-h-screen bg-white sm:bg-slate-50 flex flex-col items-center justify-between text-slate-800 font-sans p-0 sm:p-4">
+    <main className="min-h-screen bg-white sm:bg-[#EAF3F9] flex flex-col items-center justify-between text-[#1E2B37] font-sans p-0 sm:p-4">
       <Suspense fallback={<div className="text-xs text-slate-500 my-auto p-4">Loading...</div>}>
         <ConfirmationContent />
       </Suspense>
-      <footer className="py-3 text-center text-[11px] text-slate-400 shrink-0 bg-white sm:bg-transparent w-full">
+      <footer className="py-4 text-center text-[11px] text-slate-500 shrink-0 bg-white sm:bg-transparent w-full font-medium">
         © Getaway Cleaning Service
       </footer>
     </main>
