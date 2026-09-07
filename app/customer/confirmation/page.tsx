@@ -4,6 +4,46 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
+// ฟังก์ชันจัดรูปแบบเบอร์โทรศัพท์ให้เว้นวรรคสวยงามอ่านง่าย (+357 00 000 000)
+const formatPhoneNumberDisplay = (phoneStr: string) => {
+  if (!phoneStr) return '';
+
+  // ลบช่องว่างเดิมออกทั้งหมดเพื่อจัดรูปแบบใหม่
+  const cleaned = phoneStr.trim().replace(/\s+/g, '');
+
+  // 1. รูปแบบไซปรัส (+357 XX XXX XXX)
+  if (cleaned.startsWith('+357')) {
+    const num = cleaned.slice(4);
+    if (num.length === 8) {
+      return `+357 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
+    }
+  }
+
+  // 2. รูปแบบไทย (+66 XX XXX XXXX)
+  if (cleaned.startsWith('+66')) {
+    const num = cleaned.slice(3);
+    if (num.length >= 9) {
+      return `+66 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
+    }
+  }
+
+  // 3. รูปแบบสากลทั่วไป (+XXX XX XXX XXX)
+  if (cleaned.startsWith('+')) {
+    const countryCodeMatch = cleaned.match(/^(\+\d{1,3})(\d+)$/);
+    if (countryCodeMatch) {
+      const code = countryCodeMatch[1];
+      const rest = countryCodeMatch[2];
+      
+      // แบ่งกลุ่มตัวเลขให้เว้นวรรคอย่างเหมาะสม
+      const formattedRest = rest.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
+      return `${code} ${formattedRest}`;
+    }
+  }
+
+  // หากไม่มีรหัสประเทศ ให้เว้นวรรคตามความเหมาะสม
+  return cleaned.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
+};
+
 function ConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,99 +81,101 @@ function ConfirmationContent() {
     setIsMounted(true);
     const initialRef = getParam('bookingRef') || getParam('ref');
     setBookingRef(initialRef || `REF-${Math.floor(100000 + Math.random() * 900000)}`);
-    
-    setCustomerInfo({
-      name: getParam('customerName') || getParam('name') || '',
-      email: getParam('email') || '',
-      phone: getParam('phone') || '',
-    });
   }, [searchParams]);
 
-  // ระบบดึงข้อมูล Profile จาก Supabase & LocalStorage
+  // ระบบดึงข้อมูล Profile จาก URL Query -> Supabase -> LocalStorage
   useEffect(() => {
     if (!isMounted) return;
 
     const fetchUserProfile = async () => {
-      let fetchedName = customerInfo.name;
-      let fetchedEmail = customerInfo.email;
-      let fetchedPhone = customerInfo.phone;
+      // 1. ดึงจาก Query Parameters เป็นอันดับแรก
+      let paramName = getParam('customerName') || getParam('name');
+      let paramEmail = getParam('email');
+      let paramPhone = getParam('phone');
 
-      try {
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser();
+      // กรองคำว่า Guest / Customer ออกจาก Query Param หากส่งมาผิด
+      if (paramName === 'Guest' || paramName === 'Customer') {
+        paramName = '';
+      }
 
-          if (user) {
-            if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
-              fetchedName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || '';
-            }
-            if (!fetchedEmail) {
-              fetchedEmail = user.email || user.user_metadata?.email || '';
-            }
-            if (!fetchedPhone) {
-              fetchedPhone = user.phone || user.user_metadata?.phone || user.user_metadata?.mobile || '';
-            }
+      let fetchedName = paramName;
+      let fetchedEmail = paramEmail;
+      let fetchedPhone = paramPhone;
 
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', user.id)
-              .maybeSingle();
+      // 2. ถ้า Query Params ไม่ครบ ให้ไปดึงจาก Supabase Profile
+      if (!fetchedName || !fetchedEmail || !fetchedPhone) {
+        try {
+          if (supabase) {
+            const { data: { user } } = await supabase.auth.getUser();
 
-            if (profile) {
-              if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
-                fetchedName = profile.full_name || profile.name || profile.display_name || profile.username || fetchedName;
+            if (user) {
+              if (!fetchedName) {
+                fetchedName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || '';
               }
               if (!fetchedEmail) {
-                fetchedEmail = profile.email || fetchedEmail;
+                fetchedEmail = user.email || user.user_metadata?.email || '';
               }
               if (!fetchedPhone) {
-                fetchedPhone = profile.phone || profile.mobile || profile.phone_number || profile.tel || fetchedPhone;
+                fetchedPhone = user.phone || user.user_metadata?.phone || user.user_metadata?.mobile || '';
+              }
+
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
+
+              if (profile) {
+                if (!fetchedName) {
+                  fetchedName = profile.full_name || profile.name || profile.display_name || profile.username || '';
+                }
+                if (!fetchedEmail) {
+                  fetchedEmail = profile.email || '';
+                }
+                if (!fetchedPhone) {
+                  fetchedPhone = profile.phone || profile.mobile || profile.phone_number || profile.tel || '';
+                }
               }
             }
           }
+        } catch (err) {
+          console.error('Error fetching profile from Supabase:', err);
         }
-      } catch (err) {
-        console.error('Error fetching profile from Supabase:', err);
       }
 
-      if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest' || !fetchedEmail || !fetchedPhone) {
+      // 3. ถ้ายังไม่ครบอีก ให้ลองดึงจาก LocalStorage
+      if (!fetchedName || !fetchedEmail || !fetchedPhone) {
         try {
-          const keys = ['user', 'booking_customer', 'profile', 'customer_info', 'userData', 'sb-user'];
-          for (const key of keys) {
-            const rawData = localStorage.getItem(key);
-            if (rawData) {
-              try {
-                const parsed = JSON.parse(rawData);
-                if (!fetchedName || fetchedName === 'Customer' || fetchedName === 'Guest') {
-                  fetchedName = parsed.name || parsed.full_name || parsed.customerName || parsed.displayName || fetchedName;
-                }
-                if (!fetchedEmail) {
-                  fetchedEmail = parsed.email || parsed.customerEmail || fetchedEmail;
-                }
-                if (!fetchedPhone) {
-                  fetchedPhone = parsed.phone || parsed.mobile || parsed.phone_number || parsed.tel || fetchedPhone;
-                }
-              } catch {
-                if (key === 'user' && !fetchedName) fetchedName = rawData;
-              }
-            }
+          const localName = localStorage.getItem('user_name');
+          const localEmail = localStorage.getItem('user_email');
+          const localPhone = localStorage.getItem('user_phone');
+
+          if (!fetchedName && localName && localName !== 'Guest' && localName !== 'Customer') {
+            fetchedName = localName;
+          }
+          if (!fetchedEmail && localEmail) {
+            fetchedEmail = localEmail;
+          }
+          if (!fetchedPhone && localPhone) {
+            fetchedPhone = localPhone;
           }
         } catch (err) {
           console.error('Error reading LocalStorage:', err);
         }
       }
 
+      // อัปเดตข้อมูลลง State
       setCustomerInfo({
-        name: fetchedName || 'Customer',
+        name: fetchedName && fetchedName !== 'Guest' ? fetchedName : 'Customer',
         email: fetchedEmail || '',
         phone: fetchedPhone || '',
       });
     };
 
     fetchUserProfile();
-  }, [isMounted]);
+  }, [isMounted, searchParams]);
 
-  // ส่งอีเมลอัตโนมัติ
+  // ส่งอีเมลแจ้งเตือนอัตโนมัติ
   useEffect(() => {
     if (!isMounted || !customerInfo.email || !bookingRef || hasSentEmail.current) {
       return;
@@ -243,7 +285,7 @@ function ConfirmationContent() {
           <div className="space-y-3 pt-0.5">
             <div className="flex justify-between items-center">
               <span className="text-xs font-semibold text-slate-700">Customer Name</span>
-              <span className="text-xs font-bold">{customerInfo.name || 'Customer'}</span>
+              <span className="text-xs font-bold capitalize">{customerInfo.name || 'Customer'}</span>
             </div>
             {customerInfo.email && (
               <div className="flex justify-between items-center">
@@ -254,7 +296,10 @@ function ConfirmationContent() {
             {customerInfo.phone && (
               <div className="flex justify-between items-center">
                 <span className="text-xs font-semibold text-slate-700">Phone</span>
-                <span className="text-xs font-bold">{customerInfo.phone}</span>
+                {/* เว้นวรรคเบอร์โทรศัพท์อย่างสวยงาม */}
+                <span className="text-xs font-bold tracking-wide">
+                  {formatPhoneNumberDisplay(customerInfo.phone)}
+                </span>
               </div>
             )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----------------------------------------------------------------------
@@ -17,8 +18,39 @@ const STAFF_LIST = [
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
 // ----------------------------------------------------------------------
-// 2. ฟังก์ชันจัดการ Path และ Format วันที่
+// 2. ฟังก์ชันจัดการ Path, Format วันที่ และ Format เบอร์โทรศัพท์
 // ----------------------------------------------------------------------
+const formatPhoneNumberDisplay = (phoneStr: string) => {
+  if (!phoneStr) return '';
+  const cleaned = phoneStr.trim().replace(/\s+/g, '');
+
+  if (cleaned.startsWith('+357')) {
+    const num = cleaned.slice(4);
+    if (num.length === 8) {
+      return `+357 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
+    }
+  }
+
+  if (cleaned.startsWith('+66')) {
+    const num = cleaned.slice(3);
+    if (num.length >= 9) {
+      return `+66 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
+    }
+  }
+
+  if (cleaned.startsWith('+')) {
+    const countryCodeMatch = cleaned.match(/^(\+\d{1,3})(\d+)$/);
+    if (countryCodeMatch) {
+      const code = countryCodeMatch[1];
+      const rest = countryCodeMatch[2];
+      const formattedRest = rest.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
+      return `${code} ${formattedRest}`;
+    }
+  }
+
+  return cleaned.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
+};
+
 const getValidSlipUrl = (task: any): string | null => {
   if (!task) return null;
   let rawUrl = task.slip_url || task.slipUrl || task.payment_slip || task.slip;
@@ -43,6 +75,7 @@ const getCleanDate = (dateVal: any): string => {
 };
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
 
@@ -62,10 +95,32 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  const handleAdminChange = (newName: string) => {
-    setAdminUser(newName);
+  // ฟังก์ชัน Log Out กลับไปหน้าแรก
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Logout error:', err);
+      } finally {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('admin_user');
+          localStorage.removeItem('user_email');
+        }
+        router.push('/');
+      }
+    }
+  };
+
+  // จัดการการเปลี่ยนชื่อ Admin หรือเลือก Log Out จาก Dropdown
+  const handleAdminChange = (value: string) => {
+    if (value === 'logout') {
+      handleLogout();
+      return;
+    }
+    setAdminUser(value);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('admin_user', newName);
+      localStorage.setItem('admin_user', value);
     }
   };
 
@@ -137,14 +192,73 @@ export default function AdminDashboardPage() {
   };
 
   const loadBookings = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('booking_date', { ascending: true })
-      .order('booking_time', { ascending: true });
+    try {
+      const { data: bookingData, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('booking_date', { ascending: true })
+        .order('booking_time', { ascending: true });
 
-    if (!error && data) {
-      setTasks(data);
+      if (error) throw error;
+
+      if (bookingData) {
+        const userIdsToFetch = Array.from(
+          new Set(
+            bookingData
+              .filter(
+                (b) =>
+                  b.user_id &&
+                  (!b.customer_name ||
+                    b.customer_name === 'Guest' ||
+                    !b.customer_email ||
+                    !b.customer_phone)
+              )
+              .map((b) => b.user_id)
+          )
+        );
+
+        let profilesMap: { [key: string]: any } = {};
+
+        if (userIdsToFetch.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userIdsToFetch);
+
+          if (profiles) {
+            profilesMap = profiles.reduce((acc, prof) => {
+              acc[prof.id] = prof;
+              return acc;
+            }, {});
+          }
+        }
+
+        const enrichedTasks = bookingData.map((task) => {
+          const profile = profilesMap[task.user_id] || {};
+
+          const resolvedName =
+            task.customer_name && task.customer_name !== 'Guest'
+              ? task.customer_name
+              : task.name || profile.full_name || profile.name || profile.display_name || 'Customer';
+
+          const resolvedEmail =
+            task.customer_email || task.email || profile.email || '';
+
+          const resolvedPhone =
+            task.customer_phone || task.phone || task.phone_number || profile.phone || profile.mobile || '';
+
+          return {
+            ...task,
+            customer_name: resolvedName,
+            customer_email: resolvedEmail,
+            customer_phone: resolvedPhone,
+          };
+        });
+
+        setTasks(enrichedTasks);
+      }
+    } catch (err) {
+      console.error('Error loading bookings:', err);
     }
   }, []);
 
@@ -243,6 +357,7 @@ export default function AdminDashboardPage() {
           body: JSON.stringify({
             to: targetEmail,
             customerName: task.customer_name || 'Valued Customer',
+            phone: task.customer_phone || '',
             room: task.room_type || task.program || 'Cleaning Service',
             date: getCleanDate(task.booking_date),
             time: task.booking_time,
@@ -412,13 +527,15 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* ปุ่ม Clear All */}
             <button
               onClick={handleClearAll}
-              className="bg-red-400 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              className="bg-[#1E2B37] hover:bg-[#131B23] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-sm"
             >
               Clear All
             </button>
 
+            {/* Dropdown Admin รวมตัวเลือก Log Out ไว้ข้างใน */}
             <div className="flex items-center gap-1 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg">
               <span className="text-xs font-bold text-slate-700">Admin:</span>
               <select
@@ -431,6 +548,9 @@ export default function AdminDashboardPage() {
                     {name}
                   </option>
                 ))}
+                <option value="logout" className="text-red-600 font-semibold">
+                   Log Out
+                </option>
               </select>
             </div>
           </div>
@@ -574,23 +694,8 @@ function TaskCard({
     task.package || 
     'Standard Cleaning';
 
-  const displayEmail =
-    task.customer_email ||
-    task.email ||
-    (typeof window !== 'undefined'
-      ? localStorage.getItem('user_email') || localStorage.getItem('temp_email')
-      : '') ||
-    '';
-
-  const displayPhone =
-    task.customer_phone ||
-    task.phone ||
-    task.phone_number ||
-    (typeof window !== 'undefined'
-      ? localStorage.getItem('user_phone') || localStorage.getItem('temp_phone')
-      : '') ||
-    '';
-
+  const displayEmail = task.customer_email || task.email || '';
+  const displayPhone = task.customer_phone || task.phone || task.phone_number || '';
   const cleanDateDisplay = getCleanDate(task.booking_date);
 
   return (
@@ -607,7 +712,7 @@ function TaskCard({
           </span>
           <button
             onClick={() => handleDeleteTask(task.id)}
-            className="text-gray-400 hover:text-red-600 px-2 py-1 hover:bg-red-50 rounded transition cursor-pointer text-[11px] font-medium"
+            className="text-gray-400 hover:text-white px-2.5 py-1 rounded-lg transition-colors duration-200 cursor-pointer text-[11px] font-medium hover:bg-[#1E2B37]"
             title="Delete Task"
           >
             Delete
@@ -638,10 +743,10 @@ function TaskCard({
             Phone:{' '}
             {displayPhone ? (
               <a
-                href={`tel:${displayPhone}`}
+                href={`tel:${displayPhone.replace(/\s+/g, '')}`}
                 className="font-medium text-indigo-600 hover:underline cursor-pointer"
               >
-                {displayPhone}
+                {formatPhoneNumberDisplay(displayPhone)}
               </a>
             ) : (
               <span className="font-medium text-slate-700">N/A</span>
