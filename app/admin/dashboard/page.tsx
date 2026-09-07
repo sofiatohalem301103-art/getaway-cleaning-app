@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----------------------------------------------------------------------
-// 1. รายชื่อพนักงาน และ Admin
+// 1. Constants
 // ----------------------------------------------------------------------
 const STAFF_LIST = [
   { id: 'GW-S1', name: 'Staff 01' },
@@ -18,7 +18,7 @@ const STAFF_LIST = [
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
 // ----------------------------------------------------------------------
-// 2. ฟังก์ชันจัดการ Path, Format วันที่ และ Format เบอร์โทรศัพท์
+// 2. Helper Functions
 // ----------------------------------------------------------------------
 const formatPhoneNumberDisplay = (phoneStr: string) => {
   if (!phoneStr) return '';
@@ -95,7 +95,6 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // ฟังก์ชัน Log Out กลับไปหน้าแรก
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to log out?')) {
       try {
@@ -112,7 +111,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // จัดการการเปลี่ยนชื่อ Admin หรือเลือก Log Out จาก Dropdown
   const handleAdminChange = (value: string) => {
     if (value === 'logout') {
       handleLogout();
@@ -143,6 +141,9 @@ export default function AdminDashboardPage() {
     return () => {
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close();
+      }
     };
   }, []);
 
@@ -278,7 +279,7 @@ export default function AdminDashboardPage() {
             playAdminSound('job_completed');
             const code = payload.new.booking_code || `REF-${payload.new.id}`;
             const staff = payload.new.assigned_staff || 'Staff';
-            alert(`🎉 TASK COMPLETED!\n\nTask: ${code}\nCompleted by: ${staff}`);
+            alert(`TASK COMPLETED!\n\nTask: ${code}\nCompleted by: ${staff}`);
           }
           loadBookings();
         }
@@ -370,20 +371,20 @@ export default function AdminDashboardPage() {
         const emailResultData = await emailRes.json();
 
         if (!emailRes.ok) {
-          alert('⚠️ Payment verified in database, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
+          alert('Payment verified in database, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
           loadBookings();
           return;
         }
       } else {
-        alert('⚠️ Payment verified, but no email address was found for this customer.');
+        alert('Payment verified, but no email address was found for this customer.');
         loadBookings();
         return;
       }
 
-      alert('✅ Payment verified and Confirmation Voucher Email sent successfully!');
+      alert('Payment verified and Confirmation Voucher Email sent successfully!');
       loadBookings();
     } catch (err: any) {
-      alert('❌ Error: ' + err.message);
+      alert('Error: ' + err.message);
     } finally {
       setLoadingId(null);
     }
@@ -391,7 +392,7 @@ export default function AdminDashboardPage() {
 
   const handleDispatchTask = async (task: any, staffName: string) => {
     if (!staffName) {
-      alert('⚠️ Please select a staff member first!');
+      alert('Please select a staff member first!');
       return;
     }
 
@@ -410,7 +411,7 @@ export default function AdminDashboardPage() {
 
       if (error) throw error;
 
-      alert(`✅ Task successfully assigned to ${staffName}!`);
+      alert(`Task successfully assigned to ${staffName}!`);
       setSelectedStaffMap((prev) => {
         const updated = { ...prev };
         delete updated[task.id];
@@ -418,7 +419,7 @@ export default function AdminDashboardPage() {
       });
       loadBookings();
     } catch (err: any) {
-      alert('❌ Error assigning task: ' + err.message);
+      alert('Error assigning task: ' + err.message);
     } finally {
       setLoadingId(null);
     }
@@ -430,7 +431,7 @@ export default function AdminDashboardPage() {
     const { error } = await supabase.from('bookings').delete().eq('id', taskId);
 
     if (error) {
-      alert('❌ Error deleting task: ' + error.message);
+      alert('Error deleting task: ' + error.message);
     } else {
       loadBookings();
     }
@@ -438,19 +439,19 @@ export default function AdminDashboardPage() {
 
   const getStaffStatus = (staffId: string) => {
     const activeTask = tasks.find(
-      (b) => b.assigned_staff === staffId && b.status === 'In Progress'
+      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'In Progress'
     );
     const assignedTask = tasks.find(
-      (b) => b.assigned_staff === staffId && b.status === 'Assigned'
+      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'Assigned'
     );
     const completedCount = tasks.filter(
-      (b) => b.assigned_staff === staffId && b.status === 'Completed'
+      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'Completed'
     ).length;
 
     if (activeTask) {
       return {
         color: 'bg-amber-500',
-        text: `🧹 Working on ${activeTask.booking_code || `REF-${activeTask.id}`}`,
+        text: `Working on ${activeTask.booking_code || `REF-${activeTask.id}`}`,
         completedCount,
       };
     }
@@ -468,15 +469,20 @@ export default function AdminDashboardPage() {
     };
   };
 
-  const todayTasks = tasks.filter(
-    (t) => getCleanDate(t.booking_date) === todayStr && t.status !== 'Completed'
+  const todayTasks = useMemo(
+    () => tasks.filter((t) => getCleanDate(t.booking_date) === todayStr && t.status !== 'Completed'),
+    [tasks, todayStr]
   );
 
-  const upcomingTasks = tasks.filter(
-    (t) => getCleanDate(t.booking_date) > todayStr && t.status !== 'Completed'
+  const upcomingTasks = useMemo(
+    () => tasks.filter((t) => getCleanDate(t.booking_date) > todayStr && t.status !== 'Completed'),
+    [tasks, todayStr]
   );
 
-  const historyTasks = tasks.filter((t) => t.status === 'Completed');
+  const historyTasks = useMemo(
+    () => tasks.filter((t) => t.status === 'Completed'),
+    [tasks]
+  );
 
   const currentTasks =
     activeTab === 'today'
@@ -494,22 +500,20 @@ export default function AdminDashboardPage() {
     const { error } = await supabase.from('bookings').delete().in('id', idsToDelete);
 
     if (error) {
-      alert('❌ Error clearing tasks: ' + error.message);
+      alert('Error clearing tasks: ' + error.message);
     } else {
       loadBookings();
     }
   };
 
-  const groupByDate = (taskList: any[]) => {
-    return taskList.reduce((acc: { [key: string]: any[] }, task) => {
+  const groupedTasks = useMemo(() => {
+    return currentTasks.reduce((acc: { [key: string]: any[] }, task) => {
       const dateKey = getCleanDate(task.booking_date) || 'Unknown Date';
       if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(task);
       return acc;
     }, {});
-  };
-
-  const groupedTasks = groupByDate(currentTasks);
+  }, [currentTasks]);
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-6 text-black">
@@ -527,7 +531,6 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* ปุ่ม Clear All */}
             <button
               onClick={handleClearAll}
               className="bg-[#1E2B37] hover:bg-[#131B23] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-sm"
@@ -535,7 +538,6 @@ export default function AdminDashboardPage() {
               Clear All
             </button>
 
-            {/* Dropdown Admin รวมตัวเลือก Log Out ไว้ข้างใน */}
             <div className="flex items-center gap-1 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg">
               <span className="text-xs font-bold text-slate-700">Admin:</span>
               <select
@@ -549,7 +551,7 @@ export default function AdminDashboardPage() {
                   </option>
                 ))}
                 <option value="logout" className="text-red-600 font-semibold">
-                   Log Out
+                  Log Out
                 </option>
               </select>
             </div>
@@ -680,7 +682,7 @@ function TaskCard({
   handleDeleteTask: (id: any) => void;
 }) {
   const slipImage = getValidSlipUrl(task);
-  const currentAssigned = task.assigned_staff || '';
+  const currentAssigned = task.assigned_staff || task.staff_id || '';
   const activeStaffChoice = selectedStaff || currentAssigned;
 
   const isPaid = task.payment_status === 'Paid / Verified';
@@ -786,7 +788,7 @@ function TaskCard({
 
           {isPaid ? (
             <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2 py-1 rounded-lg block text-center">
-              ✓ Paid Verified
+              Paid Verified
             </span>
           ) : (
             <button
@@ -794,7 +796,7 @@ function TaskCard({
               disabled={isLoading}
               className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition active:scale-95 shadow-sm cursor-pointer whitespace-nowrap flex items-center gap-1"
             >
-              💳 {isLoading ? 'Sending Email...' : 'Confirm Payment'}
+              {isLoading ? 'Sending Email...' : 'Confirm Payment'}
             </button>
           )}
         </div>
@@ -827,11 +829,11 @@ function TaskCard({
 
           {task.status === 'Completed' ? (
             <span className="bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1">
-              ✅ Completed
+              Completed
             </span>
           ) : task.status === 'In Progress' ? (
             <span className="bg-amber-100 text-amber-800 border border-amber-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1 animate-pulse">
-              🧹 In Progress
+              In Progress
             </span>
           ) : isAlreadyAssigned ? (
             <button
@@ -852,7 +854,7 @@ function TaskCard({
                   : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              📤 Assign Task
+              Assign Task
             </button>
           )}
         </div>
