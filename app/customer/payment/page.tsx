@@ -8,23 +8,32 @@ function PaymentOptionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ดึงค่าจาก Query String
+  // 1. ดึงค่าจาก Query String ทั้งหมด (รวมข้อมูลลูกค้า)
   const room = searchParams.get('room') || '';
   const date = searchParams.get('date') || '';
   const time = searchParams.get('time') || '';
   const program = searchParams.get('program') || '';
   const price = searchParams.get('price') || '70€';
+  const customerName = searchParams.get('customerName') || searchParams.get('name') || '';
+  const email = searchParams.get('email') || '';
+  const phone = searchParams.get('phone') || '';
+  const userId = searchParams.get('userId') || '';
 
   // เก็บค่าช่องทางที่ผู้ใช้เลือก ('card' หรือ 'bank')
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'bank'>('card');
 
   const handleNext = () => {
+    // 2. ส่งข้อมูลทั้งหมด (รวมถึงข้อมูลลูกค้า) ไปยังหน้าชำระเงินถัดไป
     const query = new URLSearchParams({
+      userId,
       room,
       date,
       time,
       program,
       price,
+      customerName,
+      email,
+      phone,
     }).toString();
 
     if (selectedMethod === 'card') {
@@ -60,13 +69,13 @@ function PaymentOptionsContent() {
       {/* Form Body */}
       <div className="w-full flex-1 flex flex-col justify-between py-5 space-y-4 my-auto shrink-0">
         <div className="space-y-4 my-auto">
-          {/* Total Amount Summary - ปรับเป็นสีเทาอ่อน */}
+          {/* Total Amount Summary */}
           <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl p-3.5 text-center">
             <span className="text-xs text-[#1E2B37] font-medium">Total Amount: </span>
             <span className="text-base font-bold text-[#1E2B37]">{price}</span>
           </div>
 
-          {/* Payment Options Selection - สีฟ้าอ่อน */}
+          {/* Payment Options Selection */}
           <div className="w-full space-y-3">
             {/* Option 1: Credit / Debit Card */}
             <label

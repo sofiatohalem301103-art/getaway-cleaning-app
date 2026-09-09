@@ -83,6 +83,9 @@ export default function AdminDashboardPage() {
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  // Ref สำหรับล็อก ID ที่กำลังประมวลผลการจ่ายเงิน เพื่อกันการเรียกฟังก์ชันซ้ำซ้อน 100%
+  const processingPaymentRef = useRef<{ [key: string]: boolean }>({});
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const todayStr = getLocalDateString();
 
@@ -203,17 +206,26 @@ export default function AdminDashboardPage() {
       if (error) throw error;
 
       if (bookingData) {
+        // 1. สร้าง Map เพื่อใช้ดึงเบอร์โทรศัพท์ข้ามรายการของลูกค้ารายเดียวกัน
+        const phoneByEmailMap: { [key: string]: string } = {};
+        const phoneByUserIdMap: { [key: string]: string } = {};
+
+        bookingData.forEach((task) => {
+          const phone = task.customer_phone || task.phone || task.phone_number || task.mobile;
+          const email = task.customer_email || task.email || task.user_email;
+          const userId = task.user_id;
+
+          if (phone && phone !== 'N/A') {
+            if (email) phoneByEmailMap[email.toLowerCase().trim()] = phone;
+            if (userId) phoneByUserIdMap[userId] = phone;
+          }
+        });
+
+        // 2. ดึงข้อมูลจากตาราง profiles
         const userIdsToFetch = Array.from(
           new Set(
             bookingData
-              .filter(
-                (b) =>
-                  b.user_id &&
-                  (!b.customer_name ||
-                    b.customer_name === 'Guest' ||
-                    !b.customer_email ||
-                    !b.customer_phone)
-              )
+              .filter((b) => b.user_id)
               .map((b) => b.user_id)
           )
         );
@@ -234,19 +246,42 @@ export default function AdminDashboardPage() {
           }
         }
 
+        // 3. ผสานข้อมูลรายการจอง
         const enrichedTasks = bookingData.map((task) => {
           const profile = profilesMap[task.user_id] || {};
+          const taskEmail = (task.customer_email || task.email || task.user_email || profile.email || '').toLowerCase().trim();
+
+          const rawName =
+            task.customer_name ||
+            task.name ||
+            task.full_name ||
+            profile.full_name ||
+            profile.name ||
+            profile.display_name;
 
           const resolvedName =
-            task.customer_name && task.customer_name !== 'Guest'
-              ? task.customer_name
-              : task.name || profile.full_name || profile.name || profile.display_name || 'Customer';
+            rawName && rawName !== 'Guest' && rawName !== 'Customer'
+              ? rawName
+              : 'Customer';
 
           const resolvedEmail =
-            task.customer_email || task.email || profile.email || '';
+            task.customer_email ||
+            task.email ||
+            task.user_email ||
+            profile.email ||
+            '';
 
           const resolvedPhone =
-            task.customer_phone || task.phone || task.phone_number || profile.phone || profile.mobile || '';
+            task.customer_phone ||
+            task.phone ||
+            task.phone_number ||
+            task.mobile ||
+            profile.phone ||
+            profile.phone_number ||
+            profile.mobile ||
+            phoneByEmailMap[taskEmail] ||
+            phoneByUserIdMap[task.user_id] ||
+            '';
 
           return {
             ...task,
@@ -327,7 +362,12 @@ export default function AdminDashboardPage() {
     }));
   };
 
+  // ปรับปรุงฟังก์ชันยืนยันการจ่ายเงิน ป้องกันการกดย้ำ/ยิงดับเบิ้ล 100%
   const handleConfirmPayment = async (task: any) => {
+    if (processingPaymentRef.current[task.id] || loadingId === task.id || task.payment_status === 'Paid / Verified') {
+      return;
+    }
+
     const targetEmail =
       task.customer_email ||
       task.email ||
@@ -342,7 +382,10 @@ export default function AdminDashboardPage() {
     )
       return;
 
+    // ล็อกตัวแปรป้องกันการทำงานซ้ำ
+    processingPaymentRef.current[task.id] = true;
     setLoadingId(task.id);
+
     try {
       const { error } = await supabase
         .from('bookings')
@@ -371,7 +414,7 @@ export default function AdminDashboardPage() {
         const emailResultData = await emailRes.json();
 
         if (!emailRes.ok) {
-          alert('Payment verified in database, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
+          alert('Payment verified, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
           loadBookings();
           return;
         }
@@ -381,11 +424,12 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      alert('Payment verified and Confirmation Voucher Email sent successfully!');
+      alert('Payment verified and Confirmation Email sent successfully!');
       loadBookings();
     } catch (err: any) {
       alert('Error: ' + err.message);
     } finally {
+      delete processingPaymentRef.current[task.id];
       setLoadingId(null);
     }
   };
@@ -688,6 +732,14 @@ function TaskCard({
   const isPaid = task.payment_status === 'Paid / Verified';
   const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
 
+  // ตรวจสอบเงื่อนไขว่าเป็นการจ่ายผ่านบัตร
+  const isCardPayment =
+    task.payment_method === 'Card' ||
+    task.payment_method === 'Credit / Debit Card' ||
+    task.paymentMethod === 'Card' ||
+    task.paymentMethod === 'Credit / Debit Card' ||
+    (!slipImage && (task.stripe_payment_id || task.card_brand || task.payment_intent));
+
   const selectedProgram = 
     task.service_package || 
     task.package_name || 
@@ -696,8 +748,29 @@ function TaskCard({
     task.package || 
     'Standard Cleaning';
 
-  const displayEmail = task.customer_email || task.email || '';
-  const displayPhone = task.customer_phone || task.phone || task.phone_number || '';
+  const rawCustomerName =
+    task.customer_name ||
+    task.name ||
+    task.full_name;
+
+  const displayCustomerName =
+    rawCustomerName && rawCustomerName !== 'Guest' && rawCustomerName !== 'Customer'
+      ? rawCustomerName
+      : 'Customer';
+
+  const displayEmail =
+    task.customer_email ||
+    task.email ||
+    task.user_email ||
+    '';
+
+  const displayPhone =
+    task.customer_phone ||
+    task.phone ||
+    task.phone_number ||
+    task.mobile ||
+    '';
+
   const cleanDateDisplay = getCleanDate(task.booking_date);
 
   return (
@@ -734,7 +807,7 @@ function TaskCard({
           </div>
 
           <p className="text-gray-600 pt-1">
-            Customer: <span className="font-semibold text-gray-800">{task.customer_name || 'N/A'}</span>
+            Customer: <span className="font-semibold text-gray-800">{displayCustomerName}</span>
           </p>
 
           <p className="text-gray-500 text-[11px]">
@@ -766,37 +839,60 @@ function TaskCard({
           )}
         </div>
 
-        {/* Payment Slip */}
-        <div className="flex flex-col items-end space-y-1.5">
-          <span className="text-[10px] text-gray-400">Payment Slip:</span>
+        {/* Payment Area Section */}
+        <div className="flex flex-col items-end space-y-2">
           {slipImage ? (
-            <a href={slipImage} target="_blank" rel="noreferrer" title="Click to view full image">
-              <img
-                src={slipImage}
-                alt="Payment Slip"
-                className="w-[60px] h-[75px] rounded-lg border object-cover shadow-sm hover:scale-105 transition cursor-pointer"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            </a>
+            /* กรณีจ่ายโอนผ่านธนาคาร และมีรูปสลิป */
+            <div className="flex flex-col items-end space-y-1">
+              <span className="text-[10px] text-gray-400">Payment Slip:</span>
+              <a href={slipImage} target="_blank" rel="noreferrer" title="Click to view full image">
+                <img
+                  src={slipImage}
+                  alt="Payment Slip"
+                  className="w-[60px] h-[75px] rounded-lg border object-cover shadow-sm hover:scale-105 transition cursor-pointer"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </a>
+            </div>
           ) : (
-            <div className="w-14 h-16 bg-gray-100 border border-dashed rounded-lg flex items-center justify-center text-[10px] text-gray-400">
-              No Slip
+            /* กรณีจ่ายผ่านบัตร / หรือไม่มีสลิป - แสดงป้าย Card Payment แทนกรอบ No Slip */
+            <div className="bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs">
+              <svg className="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-[11px] font-bold text-blue-700">
+                {isCardPayment ? 'Card Payment' : 'Bank Transfer'}
+              </span>
             </div>
           )}
 
+          {/* ปุ่มตรวจสอบและยืนยันสถานะเงินเข้า */}
           {isPaid ? (
-            <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2 py-1 rounded-lg block text-center">
-              Paid Verified
+            <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-lg block text-center">
+              ✓ Paid Verified
             </span>
           ) : (
             <button
               onClick={() => handleConfirmPayment(task)}
               disabled={isLoading}
-              className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition active:scale-95 shadow-sm cursor-pointer whitespace-nowrap flex items-center gap-1"
+              className={`text-[11px] font-bold px-3.5 py-2 rounded-xl transition active:scale-95 shadow-sm whitespace-nowrap flex items-center gap-1.5 ${
+                isLoading
+                  ? 'bg-amber-300 text-white cursor-not-allowed opacity-75'
+                  : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white cursor-pointer'
+              }`}
             >
-              {isLoading ? 'Sending Email...' : 'Confirm Payment'}
+              {isLoading ? (
+                'Checking...'
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Check & Confirm Payment</span>
+                </>
+              )}
             </button>
           )}
         </div>

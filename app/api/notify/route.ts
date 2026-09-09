@@ -4,11 +4,35 @@ import PDFDocument from 'pdfkit';
 import path from 'path';
 import fs from 'fs';
 
-// เรียกใช้งาน Resend SDK ผ่าน API Key จาก env
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ----------------------------------------------------------------------
-// 1. PDF Generation Function (ฟังก์ชันสร้างใบเสร็จ PDF)
+// Idempotency / Cache Prevent Duplicate Requests (บล็อก Request ซ้ำในระยะเวลา 30 วิ)
+// ----------------------------------------------------------------------
+const recentSentRequests = new Map<string, number>();
+
+function isDuplicateRequest(key: string): boolean {
+  const now = Date.now();
+  const lastSent = recentSentRequests.get(key);
+
+  if (lastSent && now - lastSent < 30000) { // 30 seconds debounce
+    return true;
+  }
+
+  recentSentRequests.set(key, now);
+  
+  // ล้าง Cache เก่าเพื่อประหยัด RAM
+  if (recentSentRequests.size > 1000) {
+    for (const [k, timestamp] of recentSentRequests.entries()) {
+      if (now - timestamp > 60000) recentSentRequests.delete(k);
+    }
+  }
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+// 1. PDF Generation Function
 // ----------------------------------------------------------------------
 async function generateVoucherPDF(data: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -48,7 +72,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     // Info Section
     let currentY = 88;
 
-    // Customer Name
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica').text('Customer Name', 30, currentY);
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold').text(data.customerName || 'Valued Customer', 115, currentY);
 
@@ -56,7 +79,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica-Bold').text(data.bookingRef || data.refNumber || 'REF-487879', 425, currentY);
     currentY += 18;
 
-    // Customer Phone (เพิ่มเบอร์โทรตรงนี้)
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Contact Phone', 30, currentY);
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.phone || '-', 115, currentY);
 
@@ -64,7 +86,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.date || new Date().toISOString().split('T')[0], 425, currentY);
     currentY += 18;
 
-    // Service Room
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Service Room', 30, currentY);
     const roomTextY = currentY;
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.room || 'Cleaning Service | Standard Package', 115, currentY, { width: 220 });
@@ -75,7 +96,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     const roomHeight = doc.heightOfString(data.room || 'Cleaning Service | Standard Package', { width: 220 });
     currentY += Math.max(18, roomHeight + 4);
 
-    // Service Date
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Service Date', 30, currentY);
     doc.fillColor(COLOR_TEXT_DARK).text(`${data.date || '-'} (${data.time || '-'})`, 115, currentY);
 
@@ -83,7 +103,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.fillColor(COLOR_TEXT_DARK).font('Helvetica').text(data.bookingRef || data.refNumber || 'CONFIRMED', 425, currentY);
     currentY += 18;
 
-    // Support Email
     doc.fillColor(COLOR_TEXT_MUTED).font('Helvetica').text('Support Email', 30, currentY);
     doc.fillColor(COLOR_TEXT_DARK).text('getawaycleaning.paphos@gmail.com', 115, currentY);
     currentY += 24;
@@ -91,7 +110,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     doc.moveTo(30, currentY).lineTo(565, currentY).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
     currentY += 10;
 
-    // Issuer Info Block
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(8).font('Helvetica').text('Issued By', 30, currentY);
     doc.fillColor(COLOR_TEXT_DARK).text('REALSOL CYPRUS LIMITED', 115, currentY);
 
@@ -142,7 +160,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
     const summaryDividerY = tableTop + 105;
     doc.moveTo(tableLeft, summaryDividerY).lineTo(tableLeft + tableWidth, summaryDividerY).strokeColor(COLOR_BORDER).lineWidth(0.5).stroke();
 
-    // Summary Section
     const summaryY = summaryDividerY + 8;
     const sumLabelX = 370;
     const sumValX = 490;
@@ -172,7 +189,6 @@ async function generateVoucherPDF(data: any): Promise<Buffer> {
 
     doc.roundedRect(tableLeft, tableTop, tableWidth, tableHeight, 4).strokeColor(COLOR_BLACK).lineWidth(1).stroke();
 
-    // Footer Terms
     const bottomY = tableTop + tableHeight + 16;
     doc.fillColor(COLOR_BLACK).fontSize(8.5).font('Helvetica-Bold').text('Terms & Notes', 30, bottomY);
     doc.fillColor(COLOR_TEXT_MUTED).fontSize(7.5).font('Helvetica')
@@ -201,7 +217,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON format in request body' }, { status: 400 });
     }
 
-    // ดึงและแปลงค่าข้อมูลลูกค้า
     const recipientEmail = body.email || body.to;
     const customerName = body.customerName || body.name || 'Valued Customer';
     const phone = body.phone || body.mobile || body.phoneNumber || '-';
@@ -214,7 +229,6 @@ export async function POST(request: Request) {
     const pdfBase64 = body.pdfBase64;
     const otpCode = body.otp || body.code || amount;
 
-    // ตรวจสอบ Resend API Key
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
         { error: 'RESEND_API_KEY missing in environment variables.' },
@@ -222,11 +236,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // ตรวจสอบว่าเป็น OTP Request หรือไม่
     const isOtpRequest = 
       paymentMethod === 'Email OTP Service' || 
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
+
+    // *** ตรวจสอบการส่งซ้ำ (Duplicate Request Check) ***
+    const requestKey = isOtpRequest ? `OTP_${recipientEmail}_${otpCode}` : `RECEIPT_${refNumber}`;
+    if (isDuplicateRequest(requestKey)) {
+      console.warn(`[Blocked Duplicate Email Request]: ${requestKey}`);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Request already processed (Duplicate prevented)' 
+      }, { status: 200 });
+    }
 
     // Template อีเมล OTP
     const otpHtml = `
@@ -248,7 +271,7 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    // Template อีเมลส่งใบเสร็จ (แสดง Customer Name และ Phone)
+    // Template อีเมลส่งใบเสร็จ
     const voucherHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 2px solid #000000; border-radius: 12px; background-color: #ffffff;">
         <div style="text-align: center; border-bottom: 2px dashed #cccccc; padding-bottom: 16px;">

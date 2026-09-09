@@ -8,10 +8,14 @@ function SelectProgramContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Query Parameters
+  // 1. ดึง Query Parameters ทั้งหมด (รวมถึงข้อมูลลูกค้า)
   const room = searchParams.get('room') || '';
   const date = searchParams.get('date') || '';
   const time = searchParams.get('time') || '';
+  const customerName = searchParams.get('customerName') || searchParams.get('name') || '';
+  const email = searchParams.get('email') || '';
+  const phone = searchParams.get('phone') || '';
+  const userId = searchParams.get('userId') || '';
 
   const [selectedProgram, setSelectedProgram] = useState<string>('general');
 
@@ -29,11 +33,15 @@ function SelectProgramContent() {
     e.preventDefault();
     const programObj = programs.find((p) => p.id === selectedProgram);
 
-    // ส่งเฉพาะข้อมูลที่จำเป็นเพื่อนำไปยืนยันในหน้าสุดท้าย
+    // 2. ส่งข้อมูลทั้งหมด (รวมข้อมูลลูกค้า) ต่อไปยังหน้า /customer/payment
     const query = new URLSearchParams({
+      userId,
       room,
       date,
       time,
+      customerName,
+      email,
+      phone,
       program: programObj?.title || 'General cleaning',
       price: programObj?.price || '70€',
     }).toString();

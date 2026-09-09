@@ -18,6 +18,7 @@ function BankTransferContent() {
   const customerName = searchParams.get('customerName') || searchParams.get('name') || 'Guest';
   const email = searchParams.get('email') || '';
   const phone = searchParams.get('phone') || '';
+  const userId = searchParams.get('userId') || null;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,17 +63,21 @@ function BankTransferContent() {
       const slipUrl = publicUrlData.publicUrl;
       const bookingRef = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
 
+      // บันทึกข้อมูลการจอง โดยใส่ customer_phone
       const { error: insertError } = await supabase.from('bookings').insert([
         {
           booking_code: bookingRef,
+          ...(userId ? { user_id: userId } : {}),
           customer_name: customerName,
           customer_email: email,
+          customer_phone: phone, // เพิ่มคอลัมน์ customer_phone กลับเข้ามา
           room_type: room,
           address: room,
           booking_date: rawDate,
           booking_time: time,
           program: program,
           amount: price,
+          price: price,
           payment_slip: slipUrl,
           status: 'Pending',
         },
@@ -149,7 +154,7 @@ function BankTransferContent() {
       {/* Main Body */}
       <div className="w-full space-y-4 flex-1 flex flex-col justify-center">
         
-        {/* Bank Account Info Card (เปลี่ยนพื้นหลังการ์ดหลักเป็นสีขาว bg-white) */}
+        {/* Bank Account Info Card */}
         <div className="space-y-1.5">
           <h3 className="text-xs font-bold text-[#1E2B37]">
             Bank Account Info
@@ -164,19 +169,19 @@ function BankTransferContent() {
               <span className="font-bold text-xs">{bankDetails.accountName}</span>
             </div>
 
-            {/* ช่อง Account No. (ปรับเป็นสีฟ้าอ่อน bg-[#EAF3F9]) */}
+            {/* ช่อง Account No. */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">Account No.</span>
               <span className="font-mono font-bold text-xs">{bankDetails.accountNo}</span>
             </div>
 
-            {/* ช่อง IBAN (ปรับเป็นสีฟ้าอ่อน bg-[#EAF3F9]) */}
+            {/* ช่อง IBAN */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">IBAN</span>
               <span className="font-mono font-bold break-all text-[11px]">{bankDetails.iban}</span>
             </div>
 
-            {/* ช่อง BIC (ปรับเป็นสีฟ้าอ่อน bg-[#EAF3F9]) */}
+            {/* ช่อง BIC */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">BIC</span>
               <span className="font-mono font-bold text-xs">{bankDetails.bic}</span>
