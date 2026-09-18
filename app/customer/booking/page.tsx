@@ -813,13 +813,15 @@ function BookingForm() {
                   </div>
 
                   <input
-                    type="text"
-                    placeholder="XX XXX XXXX"
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(formatPhoneNumber(e.target.value, editCountryCode))}
-                    required
-                    className="flex-1 px-4 sm:px-5 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium min-w-0 shadow-sm"
-                  />
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9 ]*"
+                      placeholder="XX XXX XXXX"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(formatPhoneNumber(e.target.value, editCountryCode))}
+                      required
+                      className="flex-1 px-4 sm:px-5 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium min-w-0 shadow-sm"
+                    />
                 </div>
               </div>
 
