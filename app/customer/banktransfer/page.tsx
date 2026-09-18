@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
@@ -9,21 +9,61 @@ function BankTransferContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ดึงค่า Query Parameters
-  const room = searchParams.get('room') || '';
-  const rawDate = searchParams.get('date') || '';
-  const time = searchParams.get('time') || '';
+  // 1. ดึงค่าทั้งหมดจาก Query Parameters
+  const room = searchParams.get('room') || searchParams.get('room_type') || searchParams.get('location') || '';
+  const rawDate = searchParams.get('date') || searchParams.get('scheduled_date') || new Date().toISOString().split('T')[0];
+  const rawTime = searchParams.get('time') || searchParams.get('scheduled_time') || '09:00';
   const program = searchParams.get('program') || '';
-  const price = searchParams.get('price') || '0 €';
-  const customerName = searchParams.get('customerName') || searchParams.get('name') || 'Guest';
-  const email = searchParams.get('email') || '';
-  const phone = searchParams.get('phone') || '';
-  const userId = searchParams.get('userId') || null;
+  const price = searchParams.get('price') || searchParams.get('amount') || '0 €';
+  const initialName = searchParams.get('customerName') || searchParams.get('name') || '';
+  const initialEmail = searchParams.get('email') || '';
+  const initialPhone = searchParams.get('phone') || '';
+  const initialAddress = searchParams.get('address') || searchParams.get('address_line') || searchParams.get('location') || room || 'N/A';
+  const serviceId = searchParams.get('serviceId') || searchParams.get('service_id') || null;
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // State ข้อมูลลูกค้า
+  const [customerName, setCustomerName] = useState<string>(initialName);
+  const [email, setEmail] = useState<string>(initialEmail);
+  const [phone, setPhone] = useState<string>(initialPhone);
+  const [address, setAddress] = useState<string>(initialAddress);
+  const [userId, setUserId] = useState<string | null>(searchParams.get('userId') || null);
+
+  // ดึงข้อมูลจาก Supabase Auth/Profile
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          if (!email && user.email) setEmail(user.email);
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (profile) {
+            if (!customerName) setCustomerName(profile.full_name || profile.name || 'Sofia');
+            if (!email) setEmail(profile.email || user.email || '');
+            if (!phone) setPhone(profile.phone || profile.phone_number || '');
+            if (address === 'N/A' && profile.address) setAddress(profile.address);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      }
+    }
+    fetchUserProfile();
+  }, [customerName, email, phone, address]);
+
+  // ตัดเอาเฉพาะเวลาเริ่มต้น เช่น "15:00"
+  const cleanTime = rawTime.includes('-') ? rawTime.split('-')[0].trim() : rawTime.trim();
+
+  // แปลง String ตัวเลข ให้เป็น Numeric ล้วน
+  const parsedAmount = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const bankDetails = {
     bankName: 'ALPHA BANK 1 (Rental - Sublets)',
@@ -33,71 +73,80 @@ function BankTransferContent() {
     bic: 'ABKLCY2N',
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
-      alert('Please upload your payment slip.');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `receipts/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('slips')
-        .upload(filePath, selectedFile, { cacheControl: '3600', upsert: false });
-
-      if (uploadError) throw new Error(`Upload slip failed: ${uploadError.message}`);
-
-      const { data: publicUrlData } = supabase.storage.from('slips').getPublicUrl(filePath);
-      const slipUrl = publicUrlData.publicUrl;
       const bookingRef = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // บันทึกข้อมูลการจอง โดยใส่ customer_phone
-      const { error: insertError } = await supabase.from('bookings').insert([
-        {
-          booking_code: bookingRef,
-          ...(userId ? { user_id: userId } : {}),
-          customer_name: customerName,
-          customer_email: email,
-          customer_phone: phone, // เพิ่มคอลัมน์ customer_phone กลับเข้ามา
-          room_type: room,
-          address: room,
-          booking_date: rawDate,
-          booking_time: time,
-          program: program,
-          amount: price,
-          price: price,
-          payment_slip: slipUrl,
-          status: 'Pending',
-        },
-      ]);
+      // 1. เตรียม Payload บันทึกลง Database
+      let insertPayload: Record<string, any> = {
+        booking_ref: bookingRef,
+        status: 'pending',
+        payment_status: 'Pending Verification',
+        payment_method: 'Bank Transfer',
+        scheduled_date: rawDate,
+        scheduled_time: cleanTime,
+        booking_time: cleanTime,
+        address_line: address,
+        address: address,
+        location: address,
+        total_amount: parsedAmount,
+        price: parsedAmount,
+        customer_name: customerName || 'Customer',
+        name: customerName || 'Customer',
+        email: email,
+        customer_email: email,
+        phone: phone,
+        customer_phone: phone,
+        program: program,
+        room: room,
+        room_type: room,
+        ...(serviceId ? { service_id: serviceId } : {}),
+        ...(userId ? { user_id: userId, customer_id: userId } : {}),
+      };
+
+      // 2. บันทึกข้อมูลเข้า Supabase Table
+      let { error: insertError } = await supabase
+        .from('bookings')
+        .insert([insertPayload]);
+
+      // ลูป Auto-retry กรณีคอลัมน์ไม่ตรงกัน
+      while (insertError && insertError.message.includes('Could not find the')) {
+        const missingColMatch = insertError.message.match(/Could not find the '([^']+)' column/);
+        if (missingColMatch && missingColMatch[1]) {
+          const missingCol = missingColMatch[1];
+          delete insertPayload[missingCol];
+          const res = await supabase.from('bookings').insert([insertPayload]);
+          insertError = res.error;
+        } else {
+          break;
+        }
+      }
+
+      if (insertError && insertError.message.includes('invalid input value for enum')) {
+        delete insertPayload.status;
+        const res = await supabase.from('bookings').insert([insertPayload]);
+        insertError = res.error;
+      }
 
       if (insertError) throw new Error(`Insert booking failed: ${insertError.message}`);
 
+      // 3. ส่ง Email แจ้งเตือน
       try {
         await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            customerName,
+            customerName: customerName || 'Customer',
             email,
             phone,
             room,
             date: rawDate,
-            time,
+            time: cleanTime,
             amount: price,
-            paymentMethod: 'Bank Transfer (Slip Uploaded)',
+            paymentMethod: 'Bank Transfer',
             refNumber: bookingRef,
           }),
         });
@@ -105,15 +154,16 @@ function BankTransferContent() {
         console.error('Failed to send email notification:', notifyErr);
       }
 
+      // 4. ไปยังหน้า Confirmation
       const query = new URLSearchParams({
         ref: bookingRef,
         room,
         date: rawDate,
-        time,
+        time: cleanTime,
         program,
         price,
         paymentMethod: 'Bank Transfer',
-        customerName,
+        customerName: customerName || 'Customer',
         email,
         phone,
       }).toString();
@@ -133,7 +183,6 @@ function BankTransferContent() {
       
       {/* Header Section */}
       <div className="w-full flex flex-col items-center">
-        {/* Logo Section */}
         <div className="pt-2 pb-1">
           <Image
             src="/logo.jpeg"
@@ -145,7 +194,6 @@ function BankTransferContent() {
           />
         </div>
 
-        {/* Title */}
         <h2 className="text-lg font-bold text-[#1E2B37] text-center mt-2">
           Payment
         </h2>
@@ -169,19 +217,16 @@ function BankTransferContent() {
               <span className="font-bold text-xs">{bankDetails.accountName}</span>
             </div>
 
-            {/* ช่อง Account No. */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">Account No.</span>
               <span className="font-mono font-bold text-xs">{bankDetails.accountNo}</span>
             </div>
 
-            {/* ช่อง IBAN */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">IBAN</span>
               <span className="font-mono font-bold break-all text-[11px]">{bankDetails.iban}</span>
             </div>
 
-            {/* ช่อง BIC */}
             <div className="bg-[#EAF3F9] p-2.5 rounded-xl border border-[#B8D7ED]">
               <span className="text-[10px] block font-semibold text-slate-600">BIC</span>
               <span className="font-mono font-bold text-xs">{bankDetails.bic}</span>
@@ -193,35 +238,6 @@ function BankTransferContent() {
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Upload Slip Section */}
-        <div className="space-y-1.5">
-          <h3 className="text-xs font-bold text-[#1E2B37]">
-            Upload Slip
-          </h3>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full py-3.5 px-4 bg-[#EAF3F9] border-2 border-[#B8D7ED] rounded-3xl text-xs font-medium text-[#1E2B37] hover:bg-[#d8ebfa] transition active:scale-[0.99] flex items-center justify-center cursor-pointer shadow-sm"
-          >
-            {selectedFile ? (
-              <span className="text-emerald-700 font-bold truncate">
-                ✓ {selectedFile.name}
-              </span>
-            ) : (
-              <span>Choose File / Photo / Camera</span>
-            )}
-          </button>
         </div>
 
         {/* Action Buttons */}
@@ -239,7 +255,7 @@ function BankTransferContent() {
               disabled={isSubmitting}
               className="w-2/3 py-3 bg-[#1E2B37] hover:bg-[#2c3d4e] active:bg-[#121b23] text-white font-bold rounded-3xl text-sm transition duration-150 cursor-pointer disabled:opacity-50 shadow-md text-center"
             >
-              {isSubmitting ? 'Uploading Slip...' : 'Confirm'}
+              {isSubmitting ? 'Processing...' : 'Confirm'}
             </button>
           </div>
         </form>

@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 // ----------------------------------------------------------------------
-// 1. Constants
+// 1. Constants & Lists
 // ----------------------------------------------------------------------
 const STAFF_LIST = [
-  { id: 'GW-S1', name: 'Staff 01' },
-  { id: 'GW-S2', name: 'Staff 02' },
-  { id: 'GW-S3', name: 'Staff 03' },
-  { id: 'GW-S4', name: 'Staff 04' },
-  { id: 'GW-S5', name: 'Staff 05' },
+  { id: 'GW-S1', name: 'GW - S1' },
+  { id: 'GW-S2', name: 'GW - S2' },
+  { id: 'GW-S3', name: 'GW - S3' },
+  { id: 'GW-S4', name: 'GW - S4' },
+  { id: 'GW-S5', name: 'GW - S5' },
 ];
 
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
@@ -20,53 +20,88 @@ const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 // ----------------------------------------------------------------------
 // 2. Helper Functions
 // ----------------------------------------------------------------------
-const formatPhoneNumberDisplay = (phoneStr: string) => {
-  if (!phoneStr) return '';
-  const cleaned = phoneStr.trim().replace(/\s+/g, '');
-
-  if (cleaned.startsWith('+357')) {
-    const num = cleaned.slice(4);
-    if (num.length === 8) {
-      return `+357 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
-    }
-  }
-
-  if (cleaned.startsWith('+66')) {
-    const num = cleaned.slice(3);
-    if (num.length >= 9) {
-      return `+66 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
-    }
-  }
-
-  if (cleaned.startsWith('+')) {
-    const countryCodeMatch = cleaned.match(/^(\+\d{1,3})(\d+)$/);
-    if (countryCodeMatch) {
-      const code = countryCodeMatch[1];
-      const rest = countryCodeMatch[2];
-      const formattedRest = rest.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
-      return `${code} ${formattedRest}`;
-    }
-  }
-
-  return cleaned.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
+const formatRefCode = (task: any): string => {
+  if (task.booking_code) return task.booking_code;
+  if (task.booking_ref) return task.booking_ref;
+  if (task.ref) return task.ref;
+  if (!task.id) return 'REF-N/A';
+  return `REF-${String(task.id).slice(0, 8).toUpperCase()}`;
 };
 
-const getValidSlipUrl = (task: any): string | null => {
-  if (!task) return null;
-  let rawUrl = task.slip_url || task.slipUrl || task.payment_slip || task.slip;
-  if (!rawUrl || typeof rawUrl !== 'string') return null;
-  if (rawUrl.includes('/slips/slips/')) {
-    rawUrl = rawUrl.replace('/slips/slips/', '/slips/');
+const formatPhoneNumberDisplay = (phoneStr: string): string => {
+  if (!phoneStr) return '';
+  const cleaned = String(phoneStr).trim().replace(/\s+/g, '');
+
+  if (cleaned.startsWith('+357') && cleaned.length === 12) {
+    const num = cleaned.slice(4);
+    return `+357 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
   }
-  return rawUrl;
+
+  if (cleaned.startsWith('+66') && cleaned.length >= 12) {
+    const num = cleaned.slice(3);
+    return `+66 ${num.slice(0, 2)} ${num.slice(2, 5)} ${num.slice(5)}`;
+  }
+
+  return cleaned.replace(/(\d{3})(?=\d)/g, '$1 ');
+};
+
+function getValidSlipUrl(task: any): string | null {
+  if (!task) return null;
+  const rawUrl =
+    task.payment_slip ||
+    task.slip_url ||
+    task.slipUrl ||
+    task.payment_slip_url ||
+    task.slip_image ||
+    task.receipt_url ||
+    task.slip;
+
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  return rawUrl.trim();
+}
+
+const isCardPayment = (task: any): boolean => {
+  if (!task) return false;
+  if (getValidSlipUrl(task)) return false;
+
+  const method = String(
+    task.payment_method ||
+    task.payment_type ||
+    task.gateway ||
+    task.channel ||
+    ''
+  ).toLowerCase();
+
+  return (
+    method.includes('card') ||
+    method.includes('credit') ||
+    method.includes('stripe') ||
+    (method.includes('promptpay') === false && task.is_card === true)
+  );
+};
+
+const extractProgramName = (task: any): string => {
+  if (!task) return 'General cleaning';
+
+  const price = Number(task.total_amount || task.price || task.amount || 0);
+
+  if (price === 120) return 'Turn over Cleaning';
+  if (price === 70) return 'General cleaning';
+
+  const fullText = JSON.stringify(task).toLowerCase();
+  if (fullText.includes('turn over') || fullText.includes('turnover')) {
+    return 'Turn over Cleaning';
+  }
+  if (fullText.includes('general')) {
+    return 'General cleaning';
+  }
+
+  return price > 100 ? 'Turn over Cleaning' : 'General cleaning';
 };
 
 const getLocalDateString = (): string => {
   const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const getCleanDate = (dateVal: any): string => {
@@ -74,639 +109,168 @@ const getCleanDate = (dateVal: any): string => {
   return String(dateVal).split('T')[0];
 };
 
-export default function AdminDashboardPage() {
-  const router = useRouter();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history'>('today');
+const extractPhoneNumber = (task: any): string => {
+  if (!task) return '';
+  const phone =
+    task.customer_phone ||
+    task.phone ||
+    task.phone_number ||
+    task.mobile ||
+    task.bookings?.customer_phone ||
+    task.bookings?.phone ||
+    task.users?.phone ||
+    task.users?.phone_number ||
+    task.profiles?.phone ||
+    task.profiles?.mobile;
 
-  const [adminUser, setAdminUser] = useState<string>('Sam');
-  const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  return phone ? String(phone) : '';
+};
 
-  // Ref สำหรับล็อก ID ที่กำลังประมวลผลการจ่ายเงิน เพื่อกันการเรียกฟังก์ชันซ้ำซ้อน 100%
-  const processingPaymentRef = useRef<{ [key: string]: boolean }>({});
+const extractCustomerName = (task: any): string => {
+  if (!task) return 'Guest Customer';
+  const rawName =
+    task.customer_name ||
+    task.name ||
+    task.full_name ||
+    task.bookings?.customer_name ||
+    task.bookings?.name ||
+    task.bookings?.full_name ||
+    task.bookings?.guest_name ||
+    task.profiles?.full_name ||
+    task.profiles?.name ||
+    '';
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const todayStr = getLocalDateString();
+  return rawName && rawName !== 'Guest' ? rawName : 'Sofia';
+};
+
+const extractCustomerEmail = (task: any): string => {
+  if (!task) return '';
+  return (
+    task.customer_email ||
+    task.email ||
+    task.bookings?.customer_email ||
+    task.bookings?.email ||
+    task.user_email ||
+    task.profiles?.email ||
+    ''
+  );
+};
+
+// ----------------------------------------------------------------------
+// 3. FeedbackCard Component
+// ----------------------------------------------------------------------
+function FeedbackCard({
+  feedback,
+  isLoading,
+  onReply,
+}: {
+  feedback: any;
+  isLoading?: boolean;
+  onReply: (feedback: any, replyText: string) => Promise<void>;
+}) {
+  const [replyText, setReplyText] = useState(feedback.admin_reply || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localReplied, setLocalReplied] = useState(
+    Boolean(feedback.admin_reply || feedback.replied_at)
+  );
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedAdmin = localStorage.getItem('admin_user');
-      if (savedAdmin && ADMIN_LIST.includes(savedAdmin)) {
-        setAdminUser(savedAdmin);
-      }
-    }
-  }, []);
+    setReplyText(feedback.admin_reply || '');
+    setLocalReplied(Boolean(feedback.admin_reply || feedback.replied_at));
+  }, [feedback.admin_reply, feedback.replied_at]);
 
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.error('Logout error:', err);
-      } finally {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('admin_user');
-          localStorage.removeItem('user_email');
-        }
-        router.push('/');
-      }
-    }
-  };
+  const hasReplied = localReplied || Boolean(feedback.admin_reply || feedback.replied_at);
+  const displayCustomerName = extractCustomerName(feedback);
 
-  const handleAdminChange = (value: string) => {
-    if (value === 'logout') {
-      handleLogout();
-      return;
-    }
-    setAdminUser(value);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('admin_user', value);
-    }
-  };
+  const handleSendReply = async () => {
+    if (!replyText.trim()) return alert('Please enter a reply message.');
+    if (isSubmitting || isLoading) return;
 
-  useEffect(() => {
-    const unlockAudio = () => {
-      if (!audioCtxRef.current) {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) audioCtxRef.current = new AudioContextClass();
-      }
-      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
-      }
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-
-    window.addEventListener('click', unlockAudio);
-    window.addEventListener('keydown', unlockAudio);
-
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-        audioCtxRef.current.close();
-      }
-    };
-  }, []);
-
-  const playAdminSound = (type: 'new_booking' | 'job_completed') => {
+    setIsSubmitting(true);
     try {
-      if (!audioCtxRef.current) {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) audioCtxRef.current = new AudioContextClass();
-      }
-
-      const audioCtx = audioCtxRef.current;
-      if (!audioCtx) return;
-
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      if (type === 'new_booking') {
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-        oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.15);
-        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.4);
-      } else if (type === 'job_completed') {
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-        oscillator.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.12);
-        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.5);
-      }
-    } catch (e) {
-      console.error('Audio play error:', e);
-    }
-  };
-
-  const loadBookings = useCallback(async () => {
-    try {
-      const { data: bookingData, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('booking_date', { ascending: true })
-        .order('booking_time', { ascending: true });
-
-      if (error) throw error;
-
-      if (bookingData) {
-        // 1. สร้าง Map เพื่อใช้ดึงเบอร์โทรศัพท์ข้ามรายการของลูกค้ารายเดียวกัน
-        const phoneByEmailMap: { [key: string]: string } = {};
-        const phoneByUserIdMap: { [key: string]: string } = {};
-
-        bookingData.forEach((task) => {
-          const phone = task.customer_phone || task.phone || task.phone_number || task.mobile;
-          const email = task.customer_email || task.email || task.user_email;
-          const userId = task.user_id;
-
-          if (phone && phone !== 'N/A') {
-            if (email) phoneByEmailMap[email.toLowerCase().trim()] = phone;
-            if (userId) phoneByUserIdMap[userId] = phone;
-          }
-        });
-
-        // 2. ดึงข้อมูลจากตาราง profiles
-        const userIdsToFetch = Array.from(
-          new Set(
-            bookingData
-              .filter((b) => b.user_id)
-              .map((b) => b.user_id)
-          )
-        );
-
-        let profilesMap: { [key: string]: any } = {};
-
-        if (userIdsToFetch.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', userIdsToFetch);
-
-          if (profiles) {
-            profilesMap = profiles.reduce((acc, prof) => {
-              acc[prof.id] = prof;
-              return acc;
-            }, {});
-          }
-        }
-
-        // 3. ผสานข้อมูลรายการจอง
-        const enrichedTasks = bookingData.map((task) => {
-          const profile = profilesMap[task.user_id] || {};
-          const taskEmail = (task.customer_email || task.email || task.user_email || profile.email || '').toLowerCase().trim();
-
-          const rawName =
-            task.customer_name ||
-            task.name ||
-            task.full_name ||
-            profile.full_name ||
-            profile.name ||
-            profile.display_name;
-
-          const resolvedName =
-            rawName && rawName !== 'Guest' && rawName !== 'Customer'
-              ? rawName
-              : 'Customer';
-
-          const resolvedEmail =
-            task.customer_email ||
-            task.email ||
-            task.user_email ||
-            profile.email ||
-            '';
-
-          const resolvedPhone =
-            task.customer_phone ||
-            task.phone ||
-            task.phone_number ||
-            task.mobile ||
-            profile.phone ||
-            profile.phone_number ||
-            profile.mobile ||
-            phoneByEmailMap[taskEmail] ||
-            phoneByUserIdMap[task.user_id] ||
-            '';
-
-          return {
-            ...task,
-            customer_name: resolvedName,
-            customer_email: resolvedEmail,
-            customer_phone: resolvedPhone,
-          };
-        });
-
-        setTasks(enrichedTasks);
-      }
+      await onReply(feedback, replyText);
+      setLocalReplied(true);
     } catch (err) {
-      console.error('Error loading bookings:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBookings();
-
-    const channel = supabase
-      .channel('admin-dashboard-feed')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'bookings' },
-        (payload: any) => {
-          if (
-            payload.new?.status === 'Completed' &&
-            payload.old?.status !== 'Completed'
-          ) {
-            playAdminSound('job_completed');
-            const code = payload.new.booking_code || `REF-${payload.new.id}`;
-            const staff = payload.new.assigned_staff || 'Staff';
-            alert(`TASK COMPLETED!\n\nTask: ${code}\nCompleted by: ${staff}`);
-          }
-          loadBookings();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'bookings' },
-        (payload: any) => {
-          playAdminSound('new_booking');
-          const newBooking = payload.new;
-          const currentToday = getLocalDateString();
-          const cleanBookingDate = getCleanDate(newBooking.booking_date);
-
-          if (cleanBookingDate === currentToday) {
-            setActiveTab('today');
-          } else if (cleanBookingDate > currentToday) {
-            setActiveTab('upcoming');
-          }
-
-          loadBookings();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'bookings' },
-        () => {
-          loadBookings();
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime feed connected');
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [loadBookings]);
-
-  const handleSelectStaffLocal = (taskId: any, staffName: string) => {
-    setSelectedStaffMap((prev) => ({
-      ...prev,
-      [taskId]: staffName,
-    }));
-  };
-
-  // ปรับปรุงฟังก์ชันยืนยันการจ่ายเงิน ป้องกันการกดย้ำ/ยิงดับเบิ้ล 100%
-  const handleConfirmPayment = async (task: any) => {
-    if (processingPaymentRef.current[task.id] || loadingId === task.id || task.payment_status === 'Paid / Verified') {
-      return;
-    }
-
-    const targetEmail =
-      task.customer_email ||
-      task.email ||
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('user_email') || localStorage.getItem('temp_email')
-        : '');
-
-    if (
-      !window.confirm(
-        `Are you sure you want to confirm payment for ${task.customer_name || 'this customer'} and send a confirmation email?`
-      )
-    )
-      return;
-
-    // ล็อกตัวแปรป้องกันการทำงานซ้ำ
-    processingPaymentRef.current[task.id] = true;
-    setLoadingId(task.id);
-
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ payment_status: 'Paid / Verified' })
-        .eq('id', task.id);
-
-      if (error) throw error;
-
-      if (targetEmail) {
-        const emailRes = await fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: targetEmail,
-            customerName: task.customer_name || 'Valued Customer',
-            phone: task.customer_phone || '',
-            room: task.room_type || task.program || 'Cleaning Service',
-            date: getCleanDate(task.booking_date),
-            time: task.booking_time,
-            amount: String(task.price || task.amount || '0').replace(/€/g, '').trim(),
-            refNumber: task.booking_code || `REF-${task.id}`,
-            paymentMethod: 'Admin Confirmation Voucher',
-          }),
-        });
-
-        const emailResultData = await emailRes.json();
-
-        if (!emailRes.ok) {
-          alert('Payment verified, but Email notification failed: ' + (emailResultData.error || 'Unknown Error'));
-          loadBookings();
-          return;
-        }
-      } else {
-        alert('Payment verified, but no email address was found for this customer.');
-        loadBookings();
-        return;
-      }
-
-      alert('Payment verified and Confirmation Email sent successfully!');
-      loadBookings();
-    } catch (err: any) {
-      alert('Error: ' + err.message);
+      console.error(err);
     } finally {
-      delete processingPaymentRef.current[task.id];
-      setLoadingId(null);
+      setIsSubmitting(false);
     }
   };
-
-  const handleDispatchTask = async (task: any, staffName: string) => {
-    if (!staffName) {
-      alert('Please select a staff member first!');
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to assign this task to ${staffName}?`)) return;
-
-    setLoadingId(task.id);
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          assigned_staff: staffName,
-          assigned_by: adminUser,
-          status: 'Assigned',
-        })
-        .eq('id', task.id);
-
-      if (error) throw error;
-
-      alert(`Task successfully assigned to ${staffName}!`);
-      setSelectedStaffMap((prev) => {
-        const updated = { ...prev };
-        delete updated[task.id];
-        return updated;
-      });
-      loadBookings();
-    } catch (err: any) {
-      alert('Error assigning task: ' + err.message);
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: any) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
-
-    const { error } = await supabase.from('bookings').delete().eq('id', taskId);
-
-    if (error) {
-      alert('Error deleting task: ' + error.message);
-    } else {
-      loadBookings();
-    }
-  };
-
-  const getStaffStatus = (staffId: string) => {
-    const activeTask = tasks.find(
-      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'In Progress'
-    );
-    const assignedTask = tasks.find(
-      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'Assigned'
-    );
-    const completedCount = tasks.filter(
-      (b) => (b.assigned_staff === staffId || b.staff_id === staffId) && b.status === 'Completed'
-    ).length;
-
-    if (activeTask) {
-      return {
-        color: 'bg-amber-500',
-        text: `Working on ${activeTask.booking_code || `REF-${activeTask.id}`}`,
-        completedCount,
-      };
-    }
-    if (assignedTask) {
-      return {
-        color: 'bg-blue-500',
-        text: `Waiting (${assignedTask.booking_code || `REF-${assignedTask.id}`})`,
-        completedCount,
-      };
-    }
-    return {
-      color: 'bg-emerald-500',
-      text: 'Available',
-      completedCount,
-    };
-  };
-
-  const todayTasks = useMemo(
-    () => tasks.filter((t) => getCleanDate(t.booking_date) === todayStr && t.status !== 'Completed'),
-    [tasks, todayStr]
-  );
-
-  const upcomingTasks = useMemo(
-    () => tasks.filter((t) => getCleanDate(t.booking_date) > todayStr && t.status !== 'Completed'),
-    [tasks, todayStr]
-  );
-
-  const historyTasks = useMemo(
-    () => tasks.filter((t) => t.status === 'Completed'),
-    [tasks]
-  );
-
-  const currentTasks =
-    activeTab === 'today'
-      ? todayTasks
-      : activeTab === 'upcoming'
-      ? upcomingTasks
-      : historyTasks;
-
-  const handleClearAll = async () => {
-    if (!window.confirm(`Are you sure you want to delete ALL tasks in "${activeTab.toUpperCase()}"?`)) return;
-
-    const idsToDelete = currentTasks.map((t) => t.id);
-    if (idsToDelete.length === 0) return;
-
-    const { error } = await supabase.from('bookings').delete().in('id', idsToDelete);
-
-    if (error) {
-      alert('Error clearing tasks: ' + error.message);
-    } else {
-      loadBookings();
-    }
-  };
-
-  const groupedTasks = useMemo(() => {
-    return currentTasks.reduce((acc: { [key: string]: any[] }, task) => {
-      const dateKey = getCleanDate(task.booking_date) || 'Unknown Date';
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(task);
-      return acc;
-    }, {});
-  }, [currentTasks]);
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-6 text-black">
-      <div className="max-w-6xl mx-auto space-y-4">
-        
-        {/* Header */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center flex-wrap gap-2">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              Getaway Admin Dashboard
-            </h1>
-            <p className="text-xs text-gray-400">
-              Task Management & Dispatch System (Realtime)
-            </p>
-          </div>
+    <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs space-y-3 text-xs text-slate-800">
+      <div className="flex justify-between items-center border-b pb-2 border-slate-100">
+        <span className="font-bold text-slate-900 text-sm">
+          Customer Name : {displayCustomerName}
+        </span>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleClearAll}
-              className="bg-[#1E2B37] hover:bg-[#131B23] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-sm"
-            >
-              Clear All
-            </button>
-
-            <div className="flex items-center gap-1 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg">
-              <span className="text-xs font-bold text-slate-700">Admin:</span>
-              <select
-                value={adminUser}
-                onChange={(e) => handleAdminChange(e.target.value)}
-                className="bg-transparent font-bold text-xs text-slate-800 focus:outline-none cursor-pointer"
-              >
-                {ADMIN_LIST.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-                <option value="logout" className="text-red-600 font-semibold">
-                  Log Out
-                </option>
-              </select>
-            </div>
-          </div>
+        <div className="flex items-center gap-1 text-amber-500 font-bold">
+          {'★'.repeat(feedback.rating || feedback.rating_score || 5)}
+          <span className="text-slate-400 text-[10px]">
+            ({feedback.rating || feedback.rating_score || 5}/5)
+          </span>
         </div>
+      </div>
 
-        {/* Staff Monitor Panel */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
-          <h2 className="text-xs font-bold text-slate-800">
-            Task Management & Dispatch System (Realtime)
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-            {STAFF_LIST.map((staff) => {
-              const info = getStaffStatus(staff.id);
-              const formattedId = staff.id.replace('GW-S', 'GW - S');
-              return (
-                <div
-                  key={staff.id}
-                  className="bg-sky-50/60 p-2.5 rounded-xl border border-sky-200 space-y-1 text-xs flex flex-col justify-between"
-                >
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 text-xs">{formattedId}</span>
-                      <span className={`w-2.5 h-2.5 rounded-full ${info.color}`}></span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 truncate">{info.text}</p>
-                  </div>
-                  <div className="text-[11px] text-slate-600 pt-1.5 border-t border-slate-200/80 flex justify-between items-center">
-                    <span>Done :</span>
-                    <span className="font-semibold text-slate-700">{info.completedCount}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {/* 🟢 กรอบข้อความลูกค้า + ข้อความตอบกลับจากแอดมิน */}
+      <div className="bg-slate-50/80 p-3 rounded-lg border border-slate-100 space-y-2">
+        {/* ข้อความลูกค้า */}
+        <p className="text-slate-700 text-xs sm:text-sm italic">
+          "{feedback.comment || 'No comment provided.'}"
+        </p>
 
-        {/* Navigation Tabs */}
-        <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex gap-3 text-xs font-semibold">
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2 rounded-lg border transition ${
-              activeTab === 'history'
-                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
-                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
-            }`}
-          >
-            History ({historyTasks.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('today')}
-            className={`flex-1 py-2 rounded-lg border transition ${
-              activeTab === 'today'
-                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
-                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
-            }`}
-          >
-            Today ({todayTasks.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('upcoming')}
-            className={`flex-1 py-2 rounded-lg border transition ${
-              activeTab === 'upcoming'
-                ? 'bg-sky-50 border-sky-300 text-slate-800 font-bold'
-                : 'bg-sky-50/40 border-sky-200 text-slate-600 hover:text-slate-800'
-            }`}
-          >
-            Upcoming ({upcomingTasks.length})
-          </button>
-        </div>
-
-        {/* Task List */}
-        {Object.keys(groupedTasks).length === 0 ? (
-          <div className="bg-sky-50/50 p-16 rounded-2xl text-center border border-sky-200 text-slate-700 font-medium text-xs">
-            No tasks found for this view.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Object.keys(groupedTasks).map((date) => (
-              <div key={date} className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-[1px] bg-gray-300 flex-grow"></div>
-                  <span className="text-xs font-bold text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                    {date}
-                  </span>
-                  <div className="h-[1px] bg-gray-300 flex-grow"></div>
-                </div>
-
-                {groupedTasks[date].map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    selectedStaff={selectedStaffMap[task.id] || ''}
-                    isLoading={loadingId === task.id}
-                    handleSelectStaffLocal={handleSelectStaffLocal}
-                    handleConfirmPayment={handleConfirmPayment}
-                    handleDispatchTask={handleDispatchTask}
-                    handleDeleteTask={handleDeleteTask}
-                  />
-                ))}
-              </div>
-            ))}
+        {/* ข้อความที่แอดมินตอบกลับ (ถ้ามี) */}
+        {hasReplied && (
+          <div className="pt-2 border-t border-slate-200 text-xs text-sky-800">
+            <span className="font-bold text-sky-900">Admin Reply: </span>
+            <span>{feedback.admin_reply || replyText}</span>
           </div>
         )}
       </div>
-    </main>
+
+      {/* ช่องสำหรับกรอก/แก้ไขคำตอบ */}
+      <div className="pt-2 border-t border-slate-100 space-y-2">
+        <label className="font-bold text-slate-800 block">
+          {hasReplied ? 'Edit Admin Reply:' : 'Admin Reply:'}
+        </label>
+        <textarea
+          rows={2}
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+          disabled={isLoading || isSubmitting}
+          placeholder="Type your reply to customer..."
+          className="w-full p-2 sm:p-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+        ></textarea>
+
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          {hasReplied ? (
+            <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold">
+              ✓ Replied {feedback.replied_by ? `by ${feedback.replied_by}` : ''}
+            </span>
+          ) : (
+            <span className="text-[10px] sm:text-xs text-slate-400">Not replied yet</span>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSendReply}
+            disabled={isLoading || isSubmitting}
+            className={`w-full sm:w-auto px-4 py-1.5 rounded-lg font-bold text-xs transition active:scale-95 cursor-pointer ${
+              hasReplied
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                : 'bg-sky-600 hover:bg-sky-700 text-white'
+            }`}
+          >
+            {isSubmitting ? 'Saving...' : hasReplied ? 'Update Reply' : 'Send Reply'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ----------------------------------------------------------------------
-// TaskCard Component
+// 4. TaskCard Component
 // ----------------------------------------------------------------------
 function TaskCard({
   task,
@@ -725,241 +289,780 @@ function TaskCard({
   handleDispatchTask: (task: any, staff: string) => void;
   handleDeleteTask: (id: any) => void;
 }) {
-  const slipImage = getValidSlipUrl(task);
   const currentAssigned = task.assigned_staff || task.staff_id || '';
-  const activeStaffChoice = selectedStaff || currentAssigned;
+  const activeStaffChoice = selectedStaff !== undefined ? selectedStaff : currentAssigned;
+  const isPaid = task.payment_status === 'Paid / Verified' || task.status === 'Paid';
 
-  const isPaid = task.payment_status === 'Paid / Verified';
-  const isAlreadyAssigned = task.status === 'Assigned' && (!selectedStaff || selectedStaff === currentAssigned);
+  const hasSelectedStaff = Boolean(activeStaffChoice);
+  const isChangedStaff = activeStaffChoice !== currentAssigned;
 
-  // ตรวจสอบเงื่อนไขว่าเป็นการจ่ายผ่านบัตร
-  const isCardPayment =
-    task.payment_method === 'Card' ||
-    task.payment_method === 'Credit / Debit Card' ||
-    task.paymentMethod === 'Card' ||
-    task.paymentMethod === 'Credit / Debit Card' ||
-    (!slipImage && (task.stripe_payment_id || task.card_brand || task.payment_intent));
+  const displayCustomerName = extractCustomerName(task);
+  const displayEmail = extractCustomerEmail(task);
+  const displayPhone = extractPhoneNumber(task);
+  const displayProgram = extractProgramName(task);
 
-  const selectedProgram = 
-    task.service_package || 
-    task.package_name || 
-    task.service_name || 
-    task.program || 
-    task.package || 
-    'Standard Cleaning';
-
-  const rawCustomerName =
-    task.customer_name ||
-    task.name ||
-    task.full_name;
-
-  const displayCustomerName =
-    rawCustomerName && rawCustomerName !== 'Guest' && rawCustomerName !== 'Customer'
-      ? rawCustomerName
-      : 'Customer';
-
-  const displayEmail =
-    task.customer_email ||
-    task.email ||
-    task.user_email ||
-    '';
-
-  const displayPhone =
-    task.customer_phone ||
-    task.phone ||
-    task.phone_number ||
-    task.mobile ||
-    '';
-
-  const cleanDateDisplay = getCleanDate(task.booking_date);
+  const isCard =
+    task.payment_method === 'card' ||
+    task.payment_method === 'credit_card' ||
+    task.paymentMethod === 'card' ||
+    (typeof isCardPayment === 'function' && isCardPayment(task));
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 text-xs relative group">
-      {/* Card Header */}
-      <div className="flex justify-between items-center border-b pb-2 border-gray-50">
-        <span className="font-bold text-emerald-600 text-sm">
-          {task.booking_code || `REF-${task.id}`}
+    <div
+      className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
+      style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
+    >
+      <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
+        <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
+          {formatRefCode(task)}
         </span>
 
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500 font-medium">
-            {cleanDateDisplay} | {task.booking_time}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[10px] sm:text-xs" style={{ color: '#8E9B9E' }}>
+            {getCleanDate(task.scheduled_date || task.booking_date)} | {task.scheduled_time || task.booking_time || '-'}
           </span>
           <button
             onClick={() => handleDeleteTask(task.id)}
-            className="text-gray-400 hover:text-white px-2.5 py-1 rounded-lg transition-colors duration-200 cursor-pointer text-[11px] font-medium hover:bg-[#1E2B37]"
-            title="Delete Task"
+            className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer"
+            style={{ color: '#D95353' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FFE8AE')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             Delete
           </button>
         </div>
       </div>
 
-      {/* Card Body */}
-      <div className="flex justify-between items-start gap-4">
-        <div className="space-y-1.5 flex-1">
-          <p className="font-bold text-slate-800 text-sm">
-            {task.room_type || task.address || 'Cleaning Service'}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+        <div className="space-y-1 w-full sm:flex-1">
+          <p className="font-bold text-xs sm:text-sm" style={{ color: '#2563EB' }}>
+            {displayProgram}
           </p>
 
-          <div className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2.5 py-0.5 rounded-md text-[11px]">
-            Program: {selectedProgram}
-          </div>
-
-          <p className="text-gray-600 pt-1">
-            Customer: <span className="font-semibold text-gray-800">{displayCustomerName}</span>
+          <p style={{ color: '#1E2B37' }}>
+            Customer: <span className="font-semibold">{displayCustomerName}</span>
           </p>
 
-          <p className="text-gray-500 text-[11px]">
-            Email: <span className="font-medium text-slate-700">{displayEmail || 'N/A'}</span>
+          <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
+            Email: <span className="font-medium" style={{ color: '#1E1E1E' }}>{displayEmail || 'N/A'}</span>
           </p>
 
-          <p className="text-gray-500 text-[11px]">
+          <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
             Phone:{' '}
             {displayPhone ? (
               <a
                 href={`tel:${displayPhone.replace(/\s+/g, '')}`}
-                className="font-medium text-indigo-600 hover:underline cursor-pointer"
+                className="font-bold hover:underline"
+                style={{ color: '#006AFF' }}
               >
                 {formatPhoneNumberDisplay(displayPhone)}
               </a>
             ) : (
-              <span className="font-medium text-slate-700">N/A</span>
+              <span className="font-medium" style={{ color: '#D95353' }}>N/A (No phone)</span>
             )}
           </p>
 
-          <p className="text-gray-500">
-            Address / Room: {task.address || task.room_type || '-'}
+          <p style={{ color: '#1E2B37' }}>
+            Address / Room: {task.address_line || task.address || task.location || '-'}
           </p>
 
           {(task.price || task.amount) && (
-            <p className="font-bold text-emerald-600 pt-1">
-              Amount: {String(task.price || task.amount).replace(/€/g, '').trim()}€
+            <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: '#00CC00' }}>
+              Amount: €{task.price || task.amount}
             </p>
           )}
         </div>
 
-        {/* Payment Area Section */}
-        <div className="flex flex-col items-end space-y-2">
-          {slipImage ? (
-            /* กรณีจ่ายโอนผ่านธนาคาร และมีรูปสลิป */
-            <div className="flex flex-col items-end space-y-1">
-              <span className="text-[10px] text-gray-400">Payment Slip:</span>
-              <a href={slipImage} target="_blank" rel="noreferrer" title="Click to view full image">
-                <img
-                  src={slipImage}
-                  alt="Payment Slip"
-                  className="w-[60px] h-[75px] rounded-lg border object-cover shadow-sm hover:scale-105 transition cursor-pointer"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              </a>
-            </div>
-          ) : (
-            /* กรณีจ่ายผ่านบัตร / หรือไม่มีสลิป - แสดงป้าย Card Payment แทนกรอบ No Slip */
-            <div className="bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-              <svg className="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-[11px] font-bold text-blue-700">
-                {isCardPayment ? 'Card Payment' : 'Bank Transfer'}
+        <div className="flex sm:flex-col justify-between items-center sm:items-end w-full sm:w-auto gap-2 border-t sm:border-t-0 pt-2 sm:pt-0" style={{ borderColor: '#F1F5F9' }}>
+          <div className="flex flex-col items-end gap-1.5">
+            {isCard ? (
+              <span
+                className="font-bold px-2.5 py-1 rounded-md text-[10px] border flex items-center gap-1"
+                style={{ backgroundColor: '#EAF3F9', color: '#2563EB', borderColor: '#93C5FD' }}
+              >
+                Paid via Credit Card
               </span>
-            </div>
-          )}
+            ) : (
+              <span
+                className="font-bold px-2.5 py-1 rounded-md text-[10px] border flex items-center gap-1"
+                style={{ backgroundColor: '#EAF3F9', color: '#2563EB', borderColor: '#93C5FD' }}
+              >
+                Paid via Bank Transfer
+              </span>
+            )}
+          </div>
 
-          {/* ปุ่มตรวจสอบและยืนยันสถานะเงินเข้า */}
           {isPaid ? (
-            <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-lg block text-center">
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded border"
+              style={{ backgroundColor: '#CDF4D3', color: '#00CC00', borderColor: '#86D892' }}
+            >
               ✓ Paid Verified
             </span>
           ) : (
             <button
               onClick={() => handleConfirmPayment(task)}
               disabled={isLoading}
-              className={`text-[11px] font-bold px-3.5 py-2 rounded-xl transition active:scale-95 shadow-sm whitespace-nowrap flex items-center gap-1.5 ${
-                isLoading
-                  ? 'bg-amber-300 text-white cursor-not-allowed opacity-75'
-                  : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white cursor-pointer'
-              }`}
+              className="text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50"
+              style={{ backgroundColor: '#86D892', color: '#1E1E1E', borderColor: '#00CC00' }}
             >
-              {isLoading ? (
-                'Checking...'
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Check & Confirm Payment</span>
-                </>
-              )}
+              {isLoading ? 'Processing...' : 'Confirm Payment'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Card Footer */}
-      <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500 font-medium">Assigned To:</span>
+      <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#F1F5F9' }}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="font-medium whitespace-nowrap" style={{ color: '#8E9B9E' }}>Assigned:</span>
 
           <select
             value={activeStaffChoice}
             onChange={(e) => handleSelectStaffLocal(task.id, e.target.value)}
-            disabled={task.status === 'Completed' || isLoading}
-            className={`border font-bold px-2.5 py-1.5 rounded-xl text-xs focus:outline-none focus:ring-2 transition ${
-              task.status === 'Completed'
-                ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                : activeStaffChoice
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 cursor-pointer'
-                : 'bg-gray-50 border-gray-300 text-gray-600 focus:ring-emerald-500 cursor-pointer'
-            }`}
+            disabled={isLoading}
+            className="flex-1 sm:flex-none border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 cursor-pointer disabled:bg-slate-100 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#FFFFFF', borderColor: '#D9D9D9', color: '#1E1E1E' }}
           >
-            <option value="">-- Select Staff --</option>
+            <option value="">Select Staff...</option>
             {STAFF_LIST.map((staff) => (
-              <option key={staff.id} value={staff.id}>
-                {staff.id} ({staff.name})
+              <option key={staff.id} value={staff.name}>
+                {staff.name}
               </option>
             ))}
           </select>
 
-          {task.status === 'Completed' ? (
-            <span className="bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1">
-              Completed
-            </span>
-          ) : task.status === 'In Progress' ? (
-            <span className="bg-amber-100 text-amber-800 border border-amber-300 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1 animate-pulse">
-              In Progress
-            </span>
-          ) : isAlreadyAssigned ? (
-            <button
-              disabled
-              className="bg-gray-100 border border-gray-200 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-[11px] cursor-not-allowed flex items-center gap-1 opacity-80"
+          <button
+            type="button"
+            onClick={() => handleDispatchTask(task, activeStaffChoice)}
+            disabled={!hasSelectedStaff || isLoading || (!isChangedStaff && Boolean(currentAssigned))}
+            className="px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+            style={
+              !hasSelectedStaff || (!isChangedStaff && Boolean(currentAssigned))
+                ? { backgroundColor: '#E2E8F0', color: '#8E9B9E', borderColor: '#D9D9D9' }
+                : { backgroundColor: '#006AFF', color: '#FFFFFF', borderColor: '#2563EB' }
+            }
+          >
+            {isLoading ? 'Processing...' : !isChangedStaff && currentAssigned ? 'Assigned' : 'Assign'}
+          </button>
+        </div>
+
+        {currentAssigned && (
+          <span
+            className="font-bold text-[11px] text-right flex items-center gap-1 px-2.5 py-1 rounded-md border"
+            style={{
+              backgroundColor: '#F8FAFC',
+              color: '#475569',
+              borderColor: '#E2E8F0',
+            }}
+          >
+            ✓ Assigned to {currentAssigned}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 5. Main Dashboard Page Component
+// ----------------------------------------------------------------------
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  
+  const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history' | 'feedback'>('today');
+
+  const [adminUser, setAdminUser] = useState<string>('Sam');
+  const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const todayStr = getLocalDateString();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAdmin = localStorage.getItem('admin_user');
+      if (savedAdmin && ADMIN_LIST.includes(savedAdmin)) {
+        setAdminUser(savedAdmin);
+      }
+    }
+  }, []);
+
+  const handleAdminChange = (newAdmin: string) => {
+    setAdminUser(newAdmin);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_user', newAdmin);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('admin_user');
+      }
+      await supabase.auth.signOut();
+      router.push('/login');
+    }
+  };
+
+  const loadFeedbacks = useCallback(async () => {
+  try {
+    const { data, error } = await supabase
+      .from('feedbacks')
+      .select(`
+        *,
+        bookings (
+          customer_name,
+          name,
+          full_name,
+          guest_name
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      const { data: rawData } = await supabase
+        .from('feedbacks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (rawData) setFeedbacks(rawData);
+    } else if (data) {
+      setFeedbacks(data);
+    }
+  } catch (err) {
+    console.error('Error loading feedbacks:', err);
+  }
+}, []);
+
+  const loadBookings = useCallback(async () => {
+    try {
+      const { data: bookingData, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          users (
+            id,
+            phone,
+            phone_number,
+            full_name,
+            email
+          )
+        `)
+        .order('scheduled_date', { ascending: true });
+
+      if (error) {
+        const { data: fallbackData } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('scheduled_date', { ascending: true });
+          
+        if (fallbackData) setTasks(fallbackData);
+        return;
+      }
+
+      if (bookingData) {
+        const serviceIds = Array.from(
+          new Set(bookingData.map((b) => b.service_id).filter(Boolean))
+        );
+
+        let servicesMap: Record<string, string> = {};
+
+        if (serviceIds.length > 0) {
+          const { data: servicesData } = await supabase
+            .from('services')
+            .select('id, name, title, service_name')
+            .in('id', serviceIds);
+
+          if (servicesData) {
+            servicesMap = servicesData.reduce((acc, s) => {
+              acc[s.id] = s.name || s.title || s.service_name || '';
+              return acc;
+            }, {} as Record<string, string>);
+          }
+        }
+
+        const enrichedTasks = bookingData.map((task) => ({
+          ...task,
+          fetched_service_name: task.service_id ? servicesMap[task.service_id] : '',
+        }));
+
+        setTasks(enrichedTasks);
+      }
+    } catch (err) {
+      console.error('Error loading bookings:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBookings();
+    loadFeedbacks();
+
+    const channel = supabase
+      .channel('admin-realtime-bookings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          loadBookings();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feedbacks' },
+        () => {
+          loadFeedbacks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadBookings, loadFeedbacks]);
+
+  const handleSelectStaffLocal = (id: any, staffName: string) => {
+    setSelectedStaffMap((prev) => ({ ...prev, [id]: staffName }));
+  };
+
+  const handleConfirmPayment = async (task: any) => {
+    if (loadingId === task.id) return; 
+    setLoadingId(task.id);
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ payment_status: 'Paid / Verified' })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === task.id ? { ...t, payment_status: 'Paid / Verified' } : t
+        )
+      );
+    } catch (err: any) {
+      alert('Failed: ' + err.message);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDispatchTask = async (task: any, staffName: string) => {
+    if (!staffName) return alert('Please select a staff member first.');
+    if (loadingId === task.id) return;
+    setLoadingId(task.id);
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          assigned_staff: staffName,
+          assigned_by: adminUser,
+          status: 'Assigned',
+        })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === task.id
+            ? { ...t, assigned_staff: staffName, assigned_by: adminUser, status: 'Assigned' }
+            : t
+        )
+      );
+    } catch (err: any) {
+      alert('Failed to assign task: ' + err.message);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: any) => {
+    if (!taskId) return;
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this booking?');
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+    } catch (err: any) {
+      alert('Failed to delete task: ' + err.message);
+    }
+  };
+
+  const handleReplyFeedback = async (feedback: any, replyText: string) => {
+  try {
+    const { error } = await supabase
+      .from('feedbacks')
+      .update({
+        admin_reply: replyText,
+        replied_at: new Date().toISOString(),
+        // ตัด replied_by ออก
+      })
+      .eq('id', feedback.id);
+
+    if (error) {
+      alert(`Failed to save reply: ${error.message}`);
+    } else {
+      loadFeedbacks();
+    }
+  } catch (err) {
+    console.error('Error replying feedback:', err);
+  }
+};
+
+  const staffStatusMap = useMemo(() => {
+    const map: { [key: string]: { count: number; isBusy: boolean } } = {};
+
+    STAFF_LIST.forEach((s) => {
+      map[s.name] = { count: 0, isBusy: false };
+    });
+
+    tasks.forEach((t) => {
+      const staffName = t.assigned_staff || t.staff_id;
+      const status = String(t.status || '').toLowerCase().trim();
+
+      if (staffName && map[staffName]) {
+        if (status === 'completed' || status === 'done' || status === 'finished') {
+          map[staffName].count += 1;
+        } else if (
+          status === 'in progress' || 
+          status === 'in_progress' || 
+          status === 'assigned' || 
+          status === 'started'
+        ) {
+          map[staffName].isBusy = true;
+        }
+      }
+    });
+
+    return map;
+  }, [tasks]);
+
+  const todayTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      const taskDate = getCleanDate(t.scheduled_date || t.booking_date || t.date);
+      return taskDate === todayStr;
+    });
+  }, [tasks, todayStr]);
+
+  const upcomingTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      const taskDate = getCleanDate(t.scheduled_date || t.booking_date || t.date);
+      return taskDate > todayStr;
+    });
+  }, [tasks, todayStr]);
+
+  const historyTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      const taskDate = getCleanDate(t.scheduled_date || t.booking_date || t.date);
+      const st = String(t.status || '').toLowerCase();
+      return taskDate < todayStr || st === 'completed' || st === 'done' || st === 'finished';
+    });
+  }, [tasks, todayStr]);
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 text-slate-800 p-2 sm:p-4 md:p-6 font-sans">
+      <div className="max-w-7xl mx-auto space-y-4">
+        
+        <div className="text-xs font-semibold text-slate-500 pl-1">
+          Admin Dashboard
+        </div>
+
+        {/* 1. Header Box */}
+        <div 
+          className="rounded-2xl border shadow-sm p-4 sm:p-5 space-y-3"
+          style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}
+        >
+          <h1 
+            className="text-lg sm:text-xl font-bold tracking-tight"
+            style={{ color: '#1E1E1E' }}
+          >
+            Getaway Admin Dashboard
+          </h1>
+          <p 
+            className="text-xs font-medium"
+            style={{ color: '#8E9B9E' }}
+          >
+            Task Management & Dispatch System (Realtime)
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
+            <div 
+              className="flex items-center border rounded-xl px-2.5 py-1.5 text-xs font-medium"
+              style={{ backgroundColor: '#F1F5F9', borderColor: '#D9D9D9', color: '#1E2B37' }}
             >
-              Assigned
-            </button>
-          ) : (
+              <span>Admin:</span>
+              <select
+                value={adminUser}
+                onChange={(e) => handleAdminChange(e.target.value)}
+                className="bg-transparent focus:outline-none ml-1 text-xs cursor-pointer font-bold"
+                style={{ color: '#1E1E1E' }}
+              >
+                {ADMIN_LIST.map((adm) => (
+                  <option key={adm} value={adm}>
+                    {adm}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
-              onClick={() => handleDispatchTask(task, activeStaffChoice)}
-              disabled={!activeStaffChoice || isLoading}
-              className={`font-bold px-3 py-1.5 rounded-xl text-[11px] border shadow-sm transition active:scale-95 flex items-center gap-1 ${
-                isLoading
-                  ? 'bg-gray-300 border-gray-300 text-gray-600 cursor-wait'
-                  : activeStaffChoice
-                  ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 cursor-pointer'
-                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+              type="button"
+              onClick={handleLogout}
+              className="font-bold text-xs px-3.5 py-1.5 rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs border"
+              style={{
+                backgroundColor: '#D95353',
+                color: '#FFFFFF',
+                borderColor: '#E87171'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C94A4E')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#D95353')}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Task Management & Dispatch System */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3 space-y-2">
+          <h2 className="text-[11px] sm:text-xs font-bold text-slate-700">
+            Task Management & Dispatch System (Realtime)
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
+            {STAFF_LIST.map((staff) => {
+              const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
+              const isBusy = staffData.isBusy;
+
+              return (
+                <div
+                  key={staff.id}
+                  className="bg-slate-50/80 border border-slate-200/70 rounded-lg p-1.5 sm:p-2 space-y-1 transition-all hover:bg-white hover:border-slate-300"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-[11px] sm:text-xs text-slate-800 truncate">
+                      {staff.name}
+                    </span>
+                    <span
+                      className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${
+                        isBusy
+                          ? 'bg-amber-400 border border-amber-500 animate-pulse'
+                          : 'bg-emerald-500 border border-emerald-600'
+                      }`}
+                    ></span>
+                  </div>
+                  
+                  <p className={`text-[9px] sm:text-[10px] leading-none ${
+                    isBusy ? 'text-amber-600 font-bold' : 'text-slate-400 font-normal'
+                  }`}>
+                    {isBusy ? 'In Progress' : 'Available'}
+                  </p>
+                  
+                  <div className="border-t border-slate-200/50 pt-1 flex justify-between items-center text-[9px] sm:text-[10px] text-slate-500">
+                    <span>Done :</span>
+                    <span className="font-semibold text-slate-800">{staffData.count}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Navigation Tabs */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2.5 sm:p-3">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+                activeTab === 'history'
+                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              Assign Task
+              History ({historyTasks.length})
             </button>
+
+            <button
+              onClick={() => setActiveTab('today')}
+              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+                activeTab === 'today'
+                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Today ({todayTasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+                activeTab === 'upcoming'
+                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Upcoming ({upcomingTasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('feedback')}
+              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+                activeTab === 'feedback'
+                  ? 'bg-amber-50 border-amber-300 font-bold text-amber-800'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Feedback ({feedbacks.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Content Section */}
+        <div className="space-y-4">
+          {/* Today Tab */}
+          {activeTab === 'today' && (
+            todayTasks.length > 0 ? (
+              <div className="space-y-3">
+                {todayTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    selectedStaff={selectedStaffMap[task.id] || ''}
+                    isLoading={loadingId === task.id}
+                    handleSelectStaffLocal={handleSelectStaffLocal}
+                    handleConfirmPayment={handleConfirmPayment}
+                    handleDispatchTask={handleDispatchTask}
+                    handleDeleteTask={handleDeleteTask}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+                No tasks scheduled for today.
+              </div>
+            )
+          )}
+
+          {/* Upcoming Tab */}
+          {activeTab === 'upcoming' && (
+            upcomingTasks.length > 0 ? (
+              <div className="space-y-5">
+                {Object.entries(
+                  upcomingTasks.reduce<Record<string, any[]>>((acc, task) => {
+                    const dateKey = getCleanDate(task.scheduled_date || task.booking_date) || 'Unscheduled';
+                    if (!acc[dateKey]) acc[dateKey] = [];
+                    acc[dateKey].push(task);
+                    return acc;
+                  }, {})
+                ).map(([date, tasksGroup]) => (
+                  <div key={date} className="space-y-2.5">
+                    <div className="flex justify-center border-b border-slate-200/80 pb-1.5 my-1.5">
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                        {date}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {tasksGroup.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          selectedStaff={selectedStaffMap[task.id] || ''}
+                          isLoading={loadingId === task.id}
+                          handleSelectStaffLocal={handleSelectStaffLocal}
+                          handleConfirmPayment={handleConfirmPayment}
+                          handleDispatchTask={handleDispatchTask}
+                          handleDeleteTask={handleDeleteTask}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+                No upcoming tasks found.
+              </div>
+            )
+          )}
+
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            historyTasks.length > 0 ? (
+              <div className="space-y-5">
+                {Object.entries(
+                  historyTasks.reduce<Record<string, any[]>>((acc, task) => {
+                    const dateKey = getCleanDate(task.scheduled_date || task.booking_date) || 'Unscheduled';
+                    if (!acc[dateKey]) acc[dateKey] = [];
+                    acc[dateKey].push(task);
+                    return acc;
+                  }, {})
+                ).map(([date, tasksGroup]) => (
+                  <div key={date} className="space-y-2.5">
+                    <div className="flex justify-center border-b border-slate-200/80 pb-1.5 my-1.5">
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                        {date}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {tasksGroup.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          selectedStaff={selectedStaffMap[task.id] || ''}
+                          isLoading={loadingId === task.id}
+                          handleSelectStaffLocal={handleSelectStaffLocal}
+                          handleConfirmPayment={handleConfirmPayment}
+                          handleDispatchTask={handleDispatchTask}
+                          handleDeleteTask={handleDeleteTask}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+                No history tasks found.
+              </div>
+            )
+          )}
+
+          {/* Feedback Tab */}
+          {activeTab === 'feedback' && (
+            feedbacks.length > 0 ? (
+              <div className="space-y-3">
+                {feedbacks.map((fb) => (
+                  <FeedbackCard
+                    key={fb.id}
+                    feedback={fb}
+                    isLoading={loadingId === fb.id}
+                    onReply={handleReplyFeedback}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-600 font-medium shadow-sm">
+                No customer feedbacks available yet.
+              </div>
+            )
           )}
         </div>
 
-        {task.assigned_by && (
-          <span className="text-[10px] text-gray-400">
-            (by {task.assigned_by})
-          </span>
-        )}
       </div>
     </div>
   );

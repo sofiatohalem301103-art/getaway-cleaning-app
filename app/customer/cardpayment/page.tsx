@@ -11,10 +11,15 @@ function CardPaymentContent() {
 
   // 1. ดึงค่าจาก Query String
   const room = searchParams.get('room') || '';
-  const date = searchParams.get('date') || '';
-  const time = searchParams.get('time') || '';
+  const date = searchParams.get('date') || searchParams.get('scheduled_date') || new Date().toISOString().split('T')[0];
+  const time = searchParams.get('time') || searchParams.get('scheduled_time') || '09:00';
   const program = searchParams.get('program') || '';
   const price = searchParams.get('price') || '70€';
+  const address = searchParams.get('address') || searchParams.get('address_line') || room || 'N/A';
+  const serviceId = searchParams.get('serviceId') || searchParams.get('service_id') || null;
+
+  // แปลงค่าราคาให้เป็นตัวเลขบริสุทธิ์สำหรับลงคอลัมน์ Numeric ใน DB
+  const parsedAmount = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -23,7 +28,10 @@ function CardPaymentContent() {
     phone: string;
   } | null>(null);
 
-  // State สำหรับช่องกรอกบัตร
+  // State สำหรับดึงเบอร์โทรเบื้องหลัง (ไม่ต้องแสดง Input)
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
+  // State สำหรับช่องกรอกข้อมูลบัตร
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -31,25 +39,19 @@ function CardPaymentContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // ดึงข้อมูล User
+  // ดึงข้อมูล User และ Phone เบื้องหลัง
   const loadUserData = async () => {
     try {
-      const nameParam = searchParams.get('customerName') || searchParams.get('name');
-      const emailParam = searchParams.get('email');
-      const phoneParam = searchParams.get('phone');
-      const idParam = searchParams.get('userId') || searchParams.get('id');
+      const nameParam = searchParams.get('customerName') || searchParams.get('name') || '';
+      const emailParam = searchParams.get('email') || '';
+      const phoneParam = searchParams.get('phone') || searchParams.get('mobile') || searchParams.get('phone_number') || '';
+      const idParam = searchParams.get('userId') || searchParams.get('id') || '';
 
-      if (nameParam || emailParam || phoneParam) {
-        const userDataFromUrl = {
-          id: idParam || '',
-          name: nameParam || 'Guest',
-          email: emailParam || '',
-          phone: phoneParam || '',
-        };
-        setCurrentUser(userDataFromUrl);
-        localStorage.setItem('user', JSON.stringify(userDataFromUrl));
-        return;
-      }
+      const localPhone =
+        localStorage.getItem('user_phone') ||
+        localStorage.getItem('phone') ||
+        localStorage.getItem('customer_phone') ||
+        '';
 
       const { data: { session } } = await supabase.auth.getSession();
       let user = session?.user;
@@ -59,53 +61,25 @@ function CardPaymentContent() {
         user = userData?.user ?? undefined;
       }
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
+      const finalPhone = phoneParam || localPhone || '';
+      const finalName = nameParam || user?.email?.split('@')[0] || 'Sofia';
+      const finalEmail = emailParam || user?.email || localStorage.getItem('user_email') || '';
+      const finalId = idParam || user?.id || '';
 
-        const name =
-          profile?.full_name ||
-          profile?.name ||
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          user.user_metadata?.user_name ||
-          user.email?.split('@')[0] ||
-          'User';
-
-        const email = profile?.email || user.email || '';
-        const phone =
-          profile?.phone ||
-          profile?.phone_number ||
-          profile?.mobile ||
-          user.user_metadata?.phone ||
-          user.user_metadata?.phone_number ||
-          '';
-
-        const fetchedUser = { id: user.id, name, email, phone };
-        setCurrentUser(fetchedUser);
-        localStorage.setItem('user', JSON.stringify(fetchedUser));
-        return;
+      if (finalPhone) {
+        setPhoneNumber(finalPhone);
       }
 
-      const localUser = localStorage.getItem('user') || localStorage.getItem('sb-user');
-      if (localUser) {
-        const parsed = JSON.parse(localUser);
-        setCurrentUser({
-          id: parsed.id || '',
-          name: parsed.name || parsed.full_name || 'User',
-          email: parsed.email || localStorage.getItem('user_email') || '',
-          phone: parsed.phone || parsed.phone_number || parsed.mobile || '',
-        });
-        return;
-      }
+      const userDataObj = {
+        id: finalId,
+        name: finalName,
+        email: finalEmail,
+        phone: finalPhone,
+      };
 
-      setCurrentUser(null);
+      setCurrentUser(userDataObj);
     } catch (err) {
-      console.error('Failed to load user:', err);
-      setCurrentUser(null);
+      console.warn('Failed to load user:', err);
     }
   };
 
@@ -135,7 +109,57 @@ function CardPaymentContent() {
     setErrorMessage('');
 
     try {
-      // 1. ตัดเงินผ่าน API Stripe ฝั่ง Back-end
+      const finalPhone = phoneNumber.trim() || currentUser?.phone || '';
+      const userEmail = currentUser?.email || searchParams.get('email') || localStorage.getItem('user_email') || '';
+
+      if (!userEmail) {
+        throw new Error('User email not found.');
+      }
+
+      if (finalPhone) {
+        localStorage.setItem('user_phone', finalPhone);
+      }
+
+      // ==========================================
+      // FLOW STEP 1: อัปเดต/สร้างข้อมูลในตาราง users
+      // ==========================================
+      let customerId = currentUser?.id || null;
+
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .maybeSingle();
+
+      if (existingUser?.id) {
+        customerId = existingUser.id;
+        if (finalPhone) {
+          await supabase.from('users').update({ phone: finalPhone }).eq('id', customerId);
+          await supabase.from('users').update({ phone_number: finalPhone }).eq('id', customerId);
+          await supabase.from('users').update({ mobile: finalPhone }).eq('id', customerId);
+        }
+      } else {
+        const { data: newUser } = await supabase
+          .from('users')
+          .insert([
+            {
+              email: userEmail,
+              full_name: currentUser?.name || userEmail.split('@')[0] || 'Sofia',
+              phone: finalPhone,
+              role: 'customer'
+            }
+          ])
+          .select('id')
+          .single();
+
+        if (newUser?.id) {
+          customerId = newUser.id;
+        }
+      }
+
+      // ==========================================
+      // FLOW STEP 2: ตัดเงินผ่าน API Stripe
+      // ==========================================
       const expMonth = expiryDate.split('/')[0];
       const expYear = expiryDate.split('/')[1];
 
@@ -149,13 +173,13 @@ function CardPaymentContent() {
           expYear,
           cvc: cvv,
           holderName: cardHolder,
-          email: currentUser?.email || '',
+          email: userEmail,
         }),
       });
 
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('API route /api/process-card-payment not found or server error. Please restart the dev server.');
+        throw new Error('API route /api/process-card-payment not found or server error.');
       }
 
       const paymentResult = await res.json();
@@ -164,37 +188,110 @@ function CardPaymentContent() {
         throw new Error(paymentResult.error || 'Payment failed. Please check your card details.');
       }
 
-      // 2. บันทึกลง Supabase Bookings เมื่อชำระเงินสำเร็จ
+      // ==========================================
+      // FLOW STEP 3: บันทึกลงตาราง bookings
+      // ==========================================
       const bookingRef = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      const { error: insertError } = await supabase.from('bookings').insert([
-        {
-          booking_code: bookingRef,
-          customer_name: currentUser?.name || 'Guest',
-          customer_email: currentUser?.email || '',
-          room_type: room,
-          address: room,
-          booking_date: date,
-          booking_time: time,
-          program: program,
-          amount: price,
-          status: 'Confirmed',
-        },
-      ]);
+      const phoneFieldsToTry = ['phone', 'customer_phone', 'phone_number', 'mobile', 'contact_number'];
+      let insertedBooking = null;
 
-      if (insertError) {
-        console.error('Insert booking error:', insertError);
+      for (const fieldName of phoneFieldsToTry) {
+        const payload: Record<string, any> = {
+          booking_ref: bookingRef,
+          status: 'confirmed',
+          payment_method: 'card',
+          scheduled_date: date,
+          scheduled_time: time,
+          address_line: address,
+          total_amount: parsedAmount,
+          price: parsedAmount, // ✅ ส่งเฉพาะตัวเลข (เช่น 70) ไม่ส่ง "70€"
+          email: userEmail,
+          customer_email: userEmail,
+          [fieldName]: finalPhone,
+          ...(customerId ? { customer_id: customerId, user_id: customerId } : {}),
+          ...(serviceId ? { service_id: serviceId } : {}),
+        };
+
+        const { data, error } = await supabase
+          .from('bookings')
+          .insert([payload])
+          .select('*')
+          .single();
+
+        if (!error && data) {
+          insertedBooking = data;
+          break;
+        }
       }
 
-      // 3. ส่ง Email Notification
+      if (!insertedBooking) {
+        const basePayload: Record<string, any> = {
+          booking_ref: bookingRef,
+          status: 'confirmed',
+          payment_method: 'card',
+          scheduled_date: date,
+          scheduled_time: time,
+          address_line: address,
+          total_amount: parsedAmount,
+          price: parsedAmount, // ✅ ส่งเฉพาะตัวเลข
+          ...(customerId ? { customer_id: customerId } : {}),
+        };
+
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('bookings')
+          .insert([basePayload])
+          .select('*')
+          .single();
+
+        if (fallbackError) {
+          throw new Error(fallbackError.message || 'Failed to save booking.');
+        }
+        insertedBooking = fallbackData;
+      }
+
+      // ==========================================
+      // FLOW STEP 4: บันทึกลงตาราง payments
+      // ==========================================
+      if (insertedBooking?.id) {
+        const fallbackStatuses = ['success', 'completed', 'paid', 'successful'];
+
+        const defaultInsert = await supabase.from('payments').insert([
+          {
+            booking_id: insertedBooking.id,
+            amount: parsedAmount,
+            payment_method: 'card',
+            paid_at: new Date().toISOString()
+          }
+        ]);
+
+        if (defaultInsert.error) {
+          for (const statusVal of fallbackStatuses) {
+            const retryPayment = await supabase.from('payments').insert([
+              {
+                booking_id: insertedBooking.id,
+                amount: parsedAmount,
+                payment_method: 'card',
+                status: statusVal as any,
+                paid_at: new Date().toISOString()
+              }
+            ]);
+            if (!retryPayment.error) break;
+          }
+        }
+      }
+
+      // ==========================================
+      // FLOW STEP 5: ส่ง Email Notification
+      // ==========================================
       try {
         await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             customerName: currentUser?.name || 'Guest',
-            email: currentUser?.email || '',
-            phone: currentUser?.phone || '',
+            email: userEmail,
+            phone: finalPhone,
             room,
             date,
             time,
@@ -204,16 +301,18 @@ function CardPaymentContent() {
           }),
         });
       } catch (notifyErr) {
-        console.error('Failed to send email notification:', notifyErr);
+        console.warn('Failed to send email notification:', notifyErr);
       }
 
-      // 4. Redirect ไปยังหน้า Confirmation
+      // ==========================================
+      // FLOW STEP 6: Redirect ไปหน้า Confirmation
+      // ==========================================
       const query = new URLSearchParams({
         ref: bookingRef,
-        userId: currentUser?.id || '',
+        userId: customerId || '',
         customerName: currentUser?.name || '',
-        email: currentUser?.email || '',
-        phone: currentUser?.phone || '',
+        email: userEmail,
+        phone: finalPhone,
         room,
         date,
         time,
@@ -224,7 +323,6 @@ function CardPaymentContent() {
 
       router.push(`/customer/confirmation?${query}`);
     } catch (err: any) {
-      console.error(err);
       setErrorMessage(err.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
@@ -236,7 +334,6 @@ function CardPaymentContent() {
       
       {/* Header Section */}
       <div className="w-full relative shrink-0">
-        {/* Logo Section */}
         <div className="w-full flex justify-center pt-6 sm:pt-4 pb-1">
           <Image
             src="/logo.jpeg"
@@ -248,18 +345,17 @@ function CardPaymentContent() {
           />
         </div>
 
-        {/* Title */}
         <h2 className="text-base font-bold text-[#1E2B37] text-center mt-3">
           Credit / Debit Card Payment
         </h2>
       </div>
 
       {/* Form Body */}
-      <form onSubmit={handleNext} className="w-full my-auto py-4 space-y-4 text-left flex-1 flex flex-col justify-between shrink-0">
+      <form onSubmit={handleNext} autoComplete="off" className="w-full my-auto py-4 space-y-4 text-left flex-1 flex flex-col justify-between shrink-0">
         <div className="space-y-4 my-auto">
 
           {errorMessage && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium break-words">
               {errorMessage}
             </div>
           )}
@@ -268,11 +364,12 @@ function CardPaymentContent() {
             {/* 1. Card Number */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                Card Number
+                Card Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 inputMode="numeric"
+                autoComplete="off"
                 required
                 placeholder="xxxx xxxx xxxx xxxx"
                 value={cardNumber}
@@ -284,10 +381,11 @@ function CardPaymentContent() {
             {/* 2. Cardholder Name */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                Cardholder Name
+                Cardholder Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                autoComplete="off"
                 required
                 placeholder="NAME ON CARD"
                 value={cardHolder}
@@ -303,11 +401,12 @@ function CardPaymentContent() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Expiry (MM/YY)
+                  Expiry (MM/YY) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   inputMode="numeric"
+                  autoComplete="off"
                   required
                   placeholder="MM / YY"
                   value={expiryDate}
@@ -317,11 +416,12 @@ function CardPaymentContent() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
-                  CVV/CVC
+                  CVV/CVC <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
                   inputMode="numeric"
+                  autoComplete="off"
                   required
                   maxLength={4}
                   placeholder="xxx"

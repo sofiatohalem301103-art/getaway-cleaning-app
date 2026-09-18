@@ -225,6 +225,7 @@ export async function POST(request: Request) {
     const time = body.time || '-';
     const amount = body.amount || body.price || '0';
     const paymentMethod = body.paymentMethod || 'Credit/Debit Card';
+    const hasProvidedRef = Boolean(body.bookingRef || body.refNumber);
     const refNumber = body.bookingRef || body.refNumber || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
     const pdfBase64 = body.pdfBase64;
     const otpCode = body.otp || body.code || amount;
@@ -241,8 +242,13 @@ export async function POST(request: Request) {
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
 
-    // *** ตรวจสอบการส่งซ้ำ (Duplicate Request Check) ***
-    const requestKey = isOtpRequest ? `OTP_${recipientEmail}_${otpCode}` : `RECEIPT_${refNumber}`;
+    // ----------------------------------------------------------------------
+    // *** ปรับปรุงจุดนี้: ตรวจสอบการส่งซ้ำ (Duplicate Request Check) ***
+    // หากมี Ref จริง ให้ใช้ Ref แต่ถ้าสุ่มขึ้นมา ให้ใช้อีเมล+วันที่+ห้อง เป็นคีย์แทน เพื่อกันซ้ำ
+    // ----------------------------------------------------------------------
+    const uniqueReceiptKey = hasProvidedRef ? refNumber : `${recipientEmail}_${date}_${room}`;
+    const requestKey = isOtpRequest ? `OTP_${recipientEmail}_${otpCode}` : `RECEIPT_${uniqueReceiptKey}`;
+
     if (isDuplicateRequest(requestKey)) {
       console.warn(`[Blocked Duplicate Email Request]: ${requestKey}`);
       return NextResponse.json({ 

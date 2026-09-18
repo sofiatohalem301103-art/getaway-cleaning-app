@@ -216,7 +216,7 @@ const DatePickerCustomInput = forwardRef<HTMLButtonElement, { value?: string; on
       type="button"
       onClick={onClick}
       ref={ref}
-      className="w-full flex items-center justify-between px-4 py-3 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-left touch-manipulation select-none"
+      className="w-full flex items-center justify-between px-4 py-3 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] focus:outline-none focus:ring-[#CDF4D3] transition-all text-left touch-manipulation select-none"
     >
       <span className={value ? 'text-[#1E2B37] font-medium text-base sm:text-sm' : 'text-[#1E2B37]/40 text-base sm:text-sm'}>
         {value || 'Select booking date'}
@@ -241,6 +241,7 @@ function BookingForm() {
     countryCode: '+357',
   });
 
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -262,6 +263,24 @@ function BookingForm() {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const formattedDateString = formatDateToLocalString(selectedDateObj);
+
+  const fetchUnreadCount = useCallback(async (email: string) => {
+    if (!email) return;
+    try {
+      const { data } = await supabase
+        .from('feedbacks')
+        .select('id')
+        .eq('customer_email', email)
+        .not('admin_reply', 'is', null)
+        .eq('is_read_by_user', false);
+
+      if (data) {
+        setUnreadCount(data.length);
+      }
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  }, []);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -303,6 +322,7 @@ function BookingForm() {
         setEditEmail(initialUser.email);
         setEditPhone(initialUser.phone);
         setEditCountryCode(initialUser.countryCode);
+        fetchUnreadCount(initialUser.email);
         return;
       }
 
@@ -342,24 +362,13 @@ function BookingForm() {
         setEditEmail(loadedUser.email);
         setEditPhone(loadedUser.phone);
         setEditCountryCode(loadedUser.countryCode);
+        fetchUnreadCount(loadedUser.email);
         return;
       }
-
-      const fallbackUser = {
-        id: '',
-        name: '',
-        email: '',
-        phone: '',
-        countryCode: '+357',
-      };
-      setCurrentUser(fallbackUser);
-      setEditName('');
-      setEditEmail('');
-      setEditPhone('');
     } catch (err) {
       console.error('Failed to load user:', err);
     }
-  }, [searchParams]);
+  }, [searchParams, fetchUnreadCount]);
 
   useEffect(() => {
     loadUserData();
@@ -375,18 +384,46 @@ function BookingForm() {
 
   useEffect(() => {
     const fetchBookedSlots = async () => {
-      if (!formattedDateString) return;
+      if (!formattedDateString) {
+        setBookedSlots([]);
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('booking_time')
-        .eq('booking_date', formattedDateString);
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('scheduled_date, scheduled_time, status');
 
-      if (error) {
-        console.error('Error fetching booked slots:', error.message);
-      } else if (data) {
-        const times = data.map((item) => item.booking_time);
-        setBookedSlots(times);
+        if (error) {
+          console.error('Error fetching booked slots:', error.message);
+          return;
+        }
+
+        if (data) {
+          const occupied = data
+            .filter((item: any) => {
+              const statusLower = String(item.status || '').toLowerCase();
+              if (statusLower === 'cancelled') return false;
+
+              if (!item.scheduled_date) return false;
+              const cleanItemDate = String(item.scheduled_date).split('T')[0];
+              return cleanItemDate === formattedDateString;
+            })
+            .map((item: any) => {
+              const rawTime = String(item.scheduled_time || '').trim();
+              if (!rawTime) return null;
+
+              const startTime = rawTime.slice(0, 5);
+              const matchedSlot = RAW_TIME_SLOTS.find((slot) => slot.startsWith(startTime));
+
+              return matchedSlot || null;
+            })
+            .filter(Boolean);
+
+          setBookedSlots(occupied as string[]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch booked slots:', err);
       }
     };
 
@@ -439,15 +476,12 @@ function BookingForm() {
         countryCode: editCountryCode,
       };
 
-      // 1. อัปเดต State ปัจจุบันเพื่อสะท้อนผลลัพธ์บน UI ทันที
       setCurrentUser(updatedUser);
 
-      // 2. บันทึกลง LocalStorage
       localStorage.setItem('user_name', editName);
       localStorage.setItem('user_email', editEmail);
       localStorage.setItem('user_phone', fullPhoneNumber);
 
-      // 3. บันทึกลง Supabase
       if (currentUser.id) {
         await supabase.from('profiles').upsert({
           id: currentUser.id,
@@ -464,6 +498,19 @@ function BookingForm() {
     } finally {
       setIsSavingProfile(false);
     }
+  };
+
+  const handleGoToHistory = async () => {
+    if (unreadCount > 0 && currentUser.email) {
+      setUnreadCount(0);
+      await supabase
+        .from('feedbacks')
+        .update({ is_read_by_user: true })
+        .eq('customer_email', currentUser.email)
+        .eq('is_read_by_user', false);
+    }
+    setIsProfileModalOpen(false);
+    router.push('/customer/history');
   };
 
   const timeSlots = RAW_TIME_SLOTS.map((time, index) => ({
@@ -507,14 +554,20 @@ function BookingForm() {
 
     const finalRoomName = selectedRoom === 'Other' ? customRoomName.trim() : selectedRoom;
 
+    const validSlot = selectedSlot || '';
+    const cleanStartTime = validSlot.includes('-') 
+      ? validSlot.split('-')[0].trim() 
+      : validSlot;
+
     const query = new URLSearchParams({
       userId: currentUser.id || '',
       room: finalRoomName,
       date: formattedDateString,
-      time: selectedSlot,
+      time: cleanStartTime,
       customerName: currentUser.name,
       email: currentUser.email,
       phone: `${currentUser.countryCode}${currentUser.phone.replace(/\s+/g, '')}`,
+      serviceId: 'bc5c6d36-0d41-4c6e-85c8-1a52e05156a5',
     }).toString();
 
     router.push(`/customer/program?${query}`);
@@ -529,7 +582,7 @@ function BookingForm() {
           <button
             type="button"
             onClick={() => setIsProfileModalOpen(true)}
-            className="flex items-center gap-2 bg-[#FFFFFF] border-2 border-[#B8D7ED] hover:border-[#8E9B9E] px-3 py-1.5 rounded-full transition-all text-left group cursor-pointer touch-manipulation select-none shadow-sm"
+            className="relative flex items-center gap-2 bg-[#FFFFFF] border-2 border-[#B8D7ED] hover:border-[#8E9B9E] px-3 py-1.5 rounded-full transition-all text-left group cursor-pointer touch-manipulation select-none shadow-sm"
           >
             <div className="w-6 h-6 rounded-full bg-[#1E2B37] flex items-center justify-center text-white font-bold text-xs uppercase">
               {currentUser.name ? currentUser.name.charAt(0) : '?'}
@@ -542,6 +595,12 @@ function BookingForm() {
                 {currentUser.email || 'Set Detail'}
               </span>
             </div>
+
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md animate-pulse">
+                {unreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -645,17 +704,17 @@ function BookingForm() {
                     type="button"
                     disabled={!isAvailable}
                     onClick={() => setSelectedSlot(slot.time)}
-                    className={`py-3 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer touch-manipulation select-none border-2 active:scale-95 ${
+                    className={`py-2 px-1.5 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer touch-manipulation select-none border border-[#86D892] active:scale-95 ${
                       !isAvailable
-                        ? 'bg-[#8E9B9E] border-[#8E9B9E] text-white opacity-70 cursor-not-allowed'
+                        ? 'bg-[#8E9B9E] border-[#8E9B9E] text-white cursor-not-allowed opacity-90'
                         : isSelected
-                        ? 'bg-[#CDF4D3] border-[#86D892] text-[#1E2B37] font-extrabold shadow-md scale-[1.03] ring-2 ring-[#86D892]'
-                        : 'bg-[#CDF4D3] border-[#86D892] text-[#1E2B37] hover:bg-[#bdecc3] active:bg-[#bdecc3]'
+                        ? 'bg-[#CDF4D3] border-[#86D892] text-[#1E2B37] font-extrabold shadow-sm scale-[1.02] ring-2 ring-[#86D892]'
+                        : 'bg-[#CDF4D3] text-[#1E2B37] hover:bg-[#bdecc3] active:bg-[#bdecc3]'
                     }`}
                   >
                     <span className="text-xs sm:text-sm font-bold tracking-tight">{slot.time}</span>
-                    <span className={`text-[10px] font-medium mt-0.5 ${!isAvailable ? 'text-white/90' : 'text-[#1E2B37]/70'}`}>
-                      ({!isAvailable ? 'Booked' : 'Available'})
+                    <span className={`text-[10px] font-medium leading-none mt-0.5 ${!isAvailable ? 'text-white/90' : 'text-[#1E2B37]/70'}`}>
+                      ({!isAvailable ? 'Unavailable' : 'Available'})
                     </span>
                   </button>
                 );
@@ -690,7 +749,6 @@ function BookingForm() {
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-extrabold text-[#1E2B37] tracking-tight">Customer Profile</h2>
 
-              {/* Log Out Button */}
               <button
                 type="button"
                 onClick={handleLogout}
@@ -708,7 +766,6 @@ function BookingForm() {
             {/* Profile Form */}
             <form onSubmit={handleSaveProfile} className="space-y-4 pt-1">
               
-              {/* Full Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#1E2B37]">Full Name</label>
                 <input
@@ -721,7 +778,6 @@ function BookingForm() {
                 />
               </div>
 
-              {/* Email Address */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#1E2B37]">Email Address</label>
                 <input
@@ -734,11 +790,9 @@ function BookingForm() {
                 />
               </div>
 
-              {/* Phone Number */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#1E2B37]">Phone Number</label>
                 <div className="flex gap-2.5">
-                  {/* Select Country Code */}
                   <div className="relative w-32 sm:w-36 shrink-0">
                     <select
                       value={editCountryCode}
@@ -758,7 +812,6 @@ function BookingForm() {
                     </div>
                   </div>
 
-                  {/* Input Phone Number */}
                   <input
                     type="text"
                     placeholder="XX XXX XXXX"
@@ -770,8 +823,26 @@ function BookingForm() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleGoToHistory}
+                  className="relative w-full py-3 bg-[#EAF3F9] hover:bg-[#d8ebfa] text-[#1E2B37] font-bold rounded-2xl text-xs transition flex items-center justify-center gap-2 border border-[#B8D7ED] cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 022-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span>View My Booking History & Feedback</span>
+
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(false)}
