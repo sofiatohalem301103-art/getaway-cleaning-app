@@ -42,7 +42,8 @@ function VerifyOtpContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: validEmail,
+          email: validEmail,
+          otp: generatedOtp,
           subject: 'Your Getaway OTP Verification Code',
           customerName: 'Customer',
           room: 'OTP Verification',

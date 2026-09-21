@@ -237,16 +237,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // ----------------------------------------------------------------------
+    // 🔍 ปรับปรุงเงื่อนไขการตรวจจับ OTP Request
+    // ----------------------------------------------------------------------
     const isOtpRequest = 
+      Boolean(body.otp) || 
+      Boolean(body.code) ||
       paymentMethod === 'Email OTP Service' || 
       paymentMethod === 'Verification System' || 
       room === 'OTP Verification';
 
     // ----------------------------------------------------------------------
-    // *** ปรับปรุงจุดนี้: ตรวจสอบการส่งซ้ำ (Duplicate Request Check) ***
-    // หากมี Ref จริง ให้ใช้ Ref แต่ถ้าสุ่มขึ้นมา ให้ใช้อีเมล+วันที่+ห้อง เป็นคีย์แทน เพื่อกันซ้ำ
+    // 🛡️ ปรับปรุงระบบป้องกัน Request ซ้ำ (Debounce Check)
     // ----------------------------------------------------------------------
-    const uniqueReceiptKey = hasProvidedRef ? refNumber : `${recipientEmail}_${date}_${room}`;
+    const uniqueReceiptKey = hasProvidedRef ? refNumber : `${recipientEmail}_${date}_${room}_${Date.now()}`;
     const requestKey = isOtpRequest ? `OTP_${recipientEmail}_${otpCode}` : `RECEIPT_${uniqueReceiptKey}`;
 
     if (isDuplicateRequest(requestKey)) {
