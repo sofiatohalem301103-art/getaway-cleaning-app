@@ -1,63 +1,47 @@
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 
-export default function HomePage() {
+export default function StartCustomerPage() {
   return (
-    // มือถือ: bg-white เต็มจอ / คอมพิวเตอร์ (sm:): bg-[#EAF3F9] ตรงกลาง
-    <main className="min-h-[100dvh] w-full bg-[#FFFFFF] sm:bg-[#EAF3F9] flex flex-col sm:items-center sm:justify-center p-0 sm:p-6 text-[#1E1E1E] font-sans antialiased">
+    <main className="min-h-screen w-full bg-[#F8FAFC] flex flex-col justify-between p-6 sm:p-12 text-[#1E2B37] font-sans antialiased">
       
-      {/* Spacer บนสำหรับมือถือ */}
-      <div className="flex-1 sm:hidden" />
+      {/* Spacer Top */}
+      <div className="w-full max-w-7xl mx-auto h-6"></div>
 
-      {/* มือถือ: w-full เต็มจอ ไร้ขอบ (rounded-none, border-none)
-          คอมพิวเตอร์ (sm:): การ์ดลอยขนาด max-w-md มน 32px เงา shadow-xl */}
-      <div className="w-full sm:max-w-md bg-[#FFFFFF] rounded-none sm:rounded-[32px] p-6 sm:p-10 border-none sm:border sm:border-[#D9D9D9]/70 shadow-none sm:shadow-xl sm:shadow-[#006AFF]/5 flex flex-col items-center text-center space-y-6">
+      {/* Center Main Content (Minimalist & Clean) */}
+      <section className="w-full max-w-2xl mx-auto my-auto flex flex-col items-center text-center space-y-8 py-12">
         
-        {/* Header & Logo Section */}
-        <div className="w-full flex flex-col items-center space-y-4">
+        {/* Title & Subtitle */}
+        <div className="space-y-4 w-full">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-[#1E2B37] tracking-tight leading-tight">
+            Cleaning Service Booking
+          </h1>
           
-          {/* Logo ขนาดเท่าภาพที่ 2 (width 140) */}
-          <div className="flex items-center justify-center">
-            <Image 
-              src="/logo.jpeg" 
-              alt="Getaway Cleaning Logo" 
-              width={140} 
-              height={140} 
-              className="object-contain"
-              style={{ width: 'auto', height: 'auto' }}
-              priority
-            />
-          </div>
-
-          {/* Title & Description */}
-          <div className="space-y-1.5 w-full">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#1E1E1E] tracking-tight whitespace-nowrap">
-              Cleaning Service Booking
-            </h1>
-            <p className="text-xs sm:text-sm text-[#1E1E1E]/60 px-2 leading-relaxed whitespace-nowrap">
-              Book professional cleaning service in just a few clicks
-            </p>
-          </div>
-        </div>
-
-        {/* Action Button & Footer Section */}
-        <div className="w-full space-y-4 pt-2">
-          <Link
-            href="/auth/login"
-            className="flex items-center justify-center w-full min-h-[52px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-[#FFFFFF] font-semibold rounded-2xl text-base transition-all duration-150 shadow-sm touch-manipulation cursor-pointer"
-          >
-            Get Start / Sign in
-          </Link>
-
-          <p className="text-[11px] text-[#1E1E1E]/40 font-medium tracking-wide">
-            © Getaway Cleaning Service
+          <p className="text-sm sm:text-lg text-slate-500 font-normal max-w-md mx-auto leading-relaxed">
+            Book professional cleaning service in just a few clicks
           </p>
         </div>
 
-      </div>
+        {/* Single Get Started Button -> Links to Login/Register Page */}
+        <div className="pt-4 w-full max-w-xs sm:max-w-sm">
+          <Link
+            href="/auth/login"
+            className="w-full py-4 px-8 bg-[#1E2B37] hover:bg-[#2c3d4e] active:scale-95 text-white font-semibold rounded-2xl text-base sm:text-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center cursor-pointer touch-manipulation"
+          >
+            Get Started
+          </Link>
+        </div>
 
-      {/* Spacer ล่างสำหรับมือถือ */}
-      <div className="flex-1 sm:hidden" />
+      </section>
+
+      {/* Footer Text */}
+      <footer className="w-full text-center py-4 max-w-7xl mx-auto">
+        <p className="text-xs sm:text-sm text-slate-400 font-medium">
+          © Getaway Cleaning Service
+        </p>
+      </footer>
 
     </main>
   );

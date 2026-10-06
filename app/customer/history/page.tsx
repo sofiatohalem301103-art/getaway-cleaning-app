@@ -144,7 +144,7 @@ function HistoryContent() {
         }
       } catch (err) {
         console.error('Failed to load history data:', err);
-      } finally {
+      }  finally {
         if (isMounted) setLoading(false);
       }
     };
@@ -216,44 +216,53 @@ function HistoryContent() {
   }, {} as Record<string, Booking[]>);
 
   return (
-    <main className="fixed inset-0 min-h-[100dvh] w-screen bg-[#EAF3F9] flex flex-col justify-center items-center p-0 sm:p-4 text-[#1E2B37] font-sans">
-      <div className="w-full h-full sm:h-auto sm:max-w-lg bg-white sm:rounded-[32px] border-0 sm:border border-[#B8D7ED] shadow-none sm:shadow-xl p-5 sm:p-8 flex flex-col justify-between overflow-hidden">
+    <main className="min-h-screen w-full bg-[#F8FAFC] flex flex-col justify-between items-center p-4 sm:p-8 lg:p-12 text-[#1E2B37] font-sans overflow-y-auto">
+      
+      {/* Container หลัก (ขนาดพอดีสายตา) */}
+      <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-between items-center space-y-6">
         
         {/* Header */}
-        <div className="text-center border-b border-[#E2E8F0] pb-3 shrink-0">
-          <h1 className="text-xl font-extrabold text-[#1E2B37]">My Bookings</h1>
+        <div className="w-full text-center border-b border-[#E2E8F0] pb-4 shrink-0">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
+            My Bookings
+          </h1>
         </div>
 
         {/* List Container */}
-        <div className="flex-1 overflow-y-auto my-3 pr-1 space-y-5">
+        <div className="w-full my-2 space-y-8 flex-1 flex flex-col items-center">
           {loading ? (
-            <div className="py-8 text-center text-sm font-medium text-[#8E9B9E]">
-              Loading bookings...
+            <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-8 h-8 border-3 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-[#8E9B9E]">Loading bookings...</p>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="py-12 text-center space-y-3">
-              <p className="text-sm font-medium text-[#8E9B9E]">No booking history found.</p>
+            <div className="py-16 text-center flex flex-col items-center justify-center space-y-4 bg-white rounded-3xl border border-[#E2E8F0] shadow-xs p-8 w-full max-w-md">
+              <p className="text-base font-bold text-[#1E2B37]">No booking history found.</p>
               <button
                 type="button"
                 onClick={() => router.push('/customer/booking')}
-                className="px-5 py-2.5 bg-[#1E2B37] text-white text-xs font-bold rounded-2xl hover:bg-[#2c3d4e] transition cursor-pointer"
+                className="px-6 py-3 bg-[#1E2B37] hover:bg-[#2c3d4e] text-white text-xs font-bold rounded-2xl transition cursor-pointer shadow-sm active:scale-95"
               >
                 Book Service Now
               </button>
             </div>
           ) : (
             Object.entries(groupedBookings).map(([date, items]) => (
-              <div key={date} className="space-y-2.5">
-                <div className="sticky top-0 bg-white/95 backdrop-blur-xs py-1 z-10 border-b border-[#B8D7ED]/50 flex items-center justify-between">
-                  <span className="text-xs font-black text-[#1E2B37] tracking-wide">
+              <div key={date} className="space-y-4 w-full flex flex-col items-center">
+                
+                {/* Header วันที่ */}
+                <div className="sticky top-0 bg-[#F8FAFC]/95 backdrop-blur-md py-2 z-10 border-b border-[#E2E8F0] flex items-center justify-between w-full max-w-lg px-1">
+                  <span className="text-sm font-extrabold text-[#1E2B37] tracking-wide flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#006AFF]"></span>
                     {date}
                   </span>
-                  <span className="text-[10px] font-bold text-[#8E9B9E] bg-[#EAF3F9] px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-bold text-[#8E9B9E] bg-white border border-[#E2E8F0] px-3 py-1 rounded-full shadow-2xs">
                     {items.length} {items.length > 1 ? 'bookings' : 'booking'}
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                {/* List การ์ดจัดกึ่งกลางแน่นอน */}
+                <div className="flex flex-col items-center gap-4 w-full">
                   {items.map((booking) => {
                     if (!booking) return null;
                     const currentStatus = (booking.status || '').toLowerCase();
@@ -287,58 +296,67 @@ function HistoryContent() {
                     return (
                       <div
                         key={booking.id}
-                        className="p-3.5 bg-white border-2 border-[#B8D7ED] rounded-2xl shadow-xs flex flex-col justify-between items-start gap-2.5"
+                        className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between items-center gap-4 hover:border-[#006AFF]/40 w-full max-w-lg"
                       >
-                        <div className="space-y-2 w-full">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-[#006AFF]">{formattedRef}</span>
+                        <div className="space-y-3.5 w-full">
+                          {/* Reference & Status Header */}
+                          <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                            <span className="text-xs font-extrabold text-[#006AFF] bg-[#006AFF]/10 px-3 py-1 rounded-lg">
+                              {formattedRef}
+                            </span>
                             <span
-                              className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full capitalize ${
                                 isCompleted
-                                  ? 'bg-[#CDF4D3] text-[#008800]'
+                                  ? 'bg-[#E6F9E6] text-[#008800]'
                                   : currentStatus === 'confirmed'
-                                  ? 'bg-[#D0E8FF] text-[#006AFF]'
-                                  : 'bg-gray-100 text-gray-700'
+                                  ? 'bg-[#EBF5FF] text-[#006AFF]'
+                                  : 'bg-gray-100 text-gray-600'
                               }`}
                             >
-                              ● {booking.status}
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isCompleted
+                                    ? 'bg-[#008800]'
+                                    : currentStatus === 'confirmed'
+                                    ? 'bg-[#006AFF]'
+                                    : 'bg-gray-400'
+                                }`}
+                              />
+                              {booking.status}
                             </span>
                           </div>
 
-                          <div className="flex items-start justify-between gap-2 pt-0.5 border-t border-gray-100/80">
-                            <span className="text-xs font-bold text-[#006AFF] shrink-0">
-                              Location
-                            </span>
-                            <p className="text-xs font-bold text-[#1E2B37] text-right line-clamp-2 leading-tight">
-                              {locationText}
-                            </p>
-                          </div>
+                          {/* Details */}
+                          <div className="space-y-2.5 text-xs">
+                            <div className="flex items-start justify-between gap-4">
+                              <span className="font-medium text-[#8E9B9E] shrink-0">Location</span>
+                              <p className="font-bold text-[#1E2B37] text-right leading-tight">
+                                {locationText}
+                              </p>
+                            </div>
 
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-[#8E9B9E] shrink-0">
-                              Program
-                            </span>
-                            <span className="text-xs font-bold text-[#1E2B37] text-right line-clamp-1">
-                              {programName}
-                            </span>
-                          </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="font-medium text-[#8E9B9E] shrink-0">Program</span>
+                              <span className="font-bold text-[#1E2B37] text-right">
+                                {programName}
+                              </span>
+                            </div>
 
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-[#8E9B9E] shrink-0">
-                              Time
-                            </span>
-                            <p className="text-xs text-[#8E9B9E] font-semibold text-right">
-                              {bookingTime}
-                            </p>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="font-medium text-[#8E9B9E] shrink-0">Time</span>
+                              <span className="font-semibold text-[#8E9B9E] text-right">
+                                {bookingTime}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
                         {/* Action & Feedback Area */}
-                        <div className="w-full pt-2 border-t border-gray-100 shrink-0 space-y-2">
+                        <div className="w-full pt-3 border-t border-gray-100 shrink-0 flex flex-col items-center justify-center">
                           {isCompleted ? (
                             existingFeedback ? (
-                              <div className="space-y-2">
-                                <div className="w-full py-2 bg-[#F4F8FA] border border-[#B8D7ED]/60 rounded-xl text-center flex items-center justify-center gap-1.5">
+                              <div className="space-y-2 w-full">
+                                <div className="w-full py-2 bg-[#F4F8FA] border border-[#E2E8F0] rounded-xl text-center flex items-center justify-center gap-1.5">
                                   <span className="text-xs font-bold text-[#008800]">
                                     ✓ Feedback Submitted
                                   </span>
@@ -349,10 +367,8 @@ function HistoryContent() {
                                   )}
                                 </div>
 
-                                {/* 🟢 ปรับดีไซน์คลีน สบายตา: ตัวหนังสือตัวตรง (ไม่เอียง) และถอดจุดออก */}
                                 {(existingFeedback.comment || existingFeedback.admin_reply) && (
                                   <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-left space-y-2.5">
-                                    {/* ความคิดเห็นของลูกค้า */}
                                     {existingFeedback.comment && (
                                       <div className="space-y-0.5">
                                         <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider block">
@@ -364,7 +380,6 @@ function HistoryContent() {
                                       </div>
                                     )}
 
-                                    {/* ข้อความตอบกลับจากแอดมิน */}
                                     {existingFeedback.admin_reply && (
                                       <div className="pt-2 border-t border-[#E2E8F0] space-y-0.5">
                                         <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wider block">
@@ -381,14 +396,14 @@ function HistoryContent() {
                             ) : (
                               <Link
                                 href={`/customer/feedback?booking_id=${booking.id}&ref=${rawRef}`}
-                                className="w-full text-center bg-[#006AFF] hover:bg-[#2563EB] text-white text-xs font-bold py-2.5 rounded-xl transition shadow-md flex items-center justify-center cursor-pointer"
+                                className="w-full py-2.5 bg-[#006AFF]/10 hover:bg-[#006AFF] text-[#006AFF] hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center active:scale-98"
                               >
                                 Leave Feedback
                               </Link>
                             )
                           ) : (
-                            <div className="text-center py-0.5">
-                              <span className="text-[11px] font-semibold text-[#8E9B9E] italic">
+                            <div className="text-center py-1">
+                              <span className="text-xs font-semibold text-[#8E9B9E] italic">
                                 {currentStatus === 'confirmed' ? 'In progress' : 'Scheduled'}
                               </span>
                             </div>
@@ -404,19 +419,20 @@ function HistoryContent() {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 pt-2 border-t border-[#E2E8F0] space-y-2">
+        <div className="w-full shrink-0 pt-6 border-t border-[#E2E8F0] space-y-2 text-center flex flex-col items-center justify-center">
           <button
             type="button"
             onClick={() => router.push('/customer/booking')}
-            className="w-full py-2 text-xs font-bold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer text-center"
+            className="py-1.5 px-4 text-xs font-bold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-lg hover:bg-slate-200/50"
           >
             ← Back to Booking
           </button>
 
-          <p className="text-[11px] text-[#8E9B9E] font-medium text-center">
+          <p className="text-xs text-[#8E9B9E] font-medium">
             © Getaway Cleaning Service
           </p>
         </div>
+
       </div>
     </main>
   );
@@ -424,7 +440,7 @@ function HistoryContent() {
 
 export default function HistoryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">Loading...</div>}>
       <HistoryContent />
     </Suspense>
   );

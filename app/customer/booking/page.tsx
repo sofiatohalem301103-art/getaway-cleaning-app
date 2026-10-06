@@ -1,880 +1,1524 @@
 'use client';
 
-import { useState, useEffect, forwardRef, Suspense, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import React, { useState, useEffect, Suspense, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-const COUNTRY_CODES = [
-  { code: '+357', label: 'CY +357' },
-  { code: '+66', label: 'TH +66' },
-  { code: '+44', label: 'UK +44' },
-  { code: '+1', label: 'US/CA +1' },
-  { code: '+49', label: 'DE +49' },
-  { code: '+33', label: 'FR +33' },
-  { code: '+39', label: 'IT +39' },
-  { code: '+7', label: 'RU +7' },
-  { code: '+971', label: 'AE +971' },
-  { code: '+61', label: 'AU +61' },
-  { code: '+93', label: 'AF +93' },
-  { code: '+355', label: 'AL +355' },
-  { code: '+213', label: 'DZ +213' },
-  { code: '+376', label: 'AD +376' },
-  { code: '+244', label: 'AO +244' },
-  { code: '+54', label: 'AR +54' },
-  { code: '+374', label: 'AM +374' },
-  { code: '+43', label: 'AT +43' },
-  { code: '+994', label: 'AZ +994' },
-  { code: '+973', label: 'BH +973' },
-  { code: '+880', label: 'BD +880' },
-  { code: '+375', label: 'BY +375' },
-  { code: '+32', label: 'BE +32' },
-  { code: '+501', label: 'BZ +501' },
-  { code: '+229', label: 'BJ +229' },
-  { code: '+975', label: 'BT +975' },
-  { code: '+591', label: 'BO +591' },
-  { code: '+387', label: 'BA +387' },
-  { code: '+267', label: 'BW +267' },
-  { code: '+55', label: 'BR +55' },
-  { code: '+673', label: 'BN +673' },
-  { code: '+359', label: 'BG +359' },
-  { code: '+226', label: 'BF +226' },
-  { code: '+257', label: 'BI +257' },
-  { code: '+855', label: 'KH +855' },
-  { code: '+237', label: 'CM +237' },
-  { code: '+238', label: 'CV +238' },
-  { code: '+236', label: 'CF +236' },
-  { code: '+235', label: 'TD +235' },
-  { code: '+56', label: 'CL +56' },
-  { code: '+86', label: 'CN +86' },
-  { code: '+57', label: 'CO +57' },
-  { code: '+269', label: 'KM +269' },
-  { code: '+242', label: 'CG +242' },
-  { code: '+506', label: 'CR +506' },
-  { code: '+385', label: 'HR +385' },
-  { code: '+53', label: 'CU +53' },
-  { code: '+420', label: 'CZ +420' },
-  { code: '+45', label: 'DK +45' },
-  { code: '+253', label: 'DJ +253' },
-  { code: '+593', label: 'EC +593' },
-  { code: '+20', label: 'EG +20' },
-  { code: '+503', label: 'SV +503' },
-  { code: '+240', label: 'GQ +240' },
-  { code: '+372', label: 'EE +372' },
-  { code: '+251', label: 'ET +251' },
-  { code: '+679', label: 'FJ +679' },
-  { code: '+358', label: 'FI +358' },
-  { code: '+241', label: 'GA +241' },
-  { code: '+220', label: 'GM +220' },
-  { code: '+995', label: 'GE +995' },
-  { code: '+233', label: 'GH +233' },
-  { code: '+30', label: 'GR +30' },
-  { code: '+502', label: 'GT +502' },
-  { code: '+224', label: 'GN +224' },
-  { code: '+592', label: 'GY +592' },
-  { code: '+509', label: 'HT +509' },
-  { code: '+504', label: 'HN +504' },
-  { code: '+852', label: 'HK +852' },
-  { code: '+36', label: 'HU +36' },
-  { code: '+354', label: 'IS +354' },
-  { code: '+91', label: 'IN +91' },
-  { code: '+62', label: 'ID +62' },
-  { code: '+98', label: 'IR +98' },
-  { code: '+964', label: 'IQ +964' },
-  { code: '+353', label: 'IE +353' },
-  { code: '+972', label: 'IL +972' },
-  { code: '+81', label: 'JP +81' },
-  { code: '+962', label: 'JO +962' },
-  { code: '+7', label: 'KZ +7' },
-  { code: '+254', label: 'KE +254' },
-  { code: '+82', label: 'KR +82' },
-  { code: '+965', label: 'KW +965' },
-  { code: '+996', label: 'KG +996' },
-  { code: '+856', label: 'LA +856' },
-  { code: '+371', label: 'LV +371' },
-  { code: '+961', label: 'LB +961' },
-  { code: '+218', label: 'LY +218' },
-  { code: '+370', label: 'LT +370' },
-  { code: '+352', label: 'LU +352' },
-  { code: '+853', label: 'MO +853' },
-  { code: '+389', label: 'MK +389' },
-  { code: '+261', label: 'MG +261' },
-  { code: '+60', label: 'MY +60' },
-  { code: '+960', label: 'MV +960' },
-  { code: '+356', label: 'MT +356' },
-  { code: '+222', label: 'MR +222' },
-  { code: '+230', label: 'MU +230' },
-  { code: '+52', label: 'MX +52' },
-  { code: '+373', label: 'MD +373' },
-  { code: '+377', label: 'MC +377' },
-  { code: '+976', label: 'MN +976' },
-  { code: '+382', label: 'ME +382' },
-  { code: '+212', label: 'MA +212' },
-  { code: '+258', label: 'MZ +258' },
-  { code: '+95', label: 'MM +95' },
-  { code: '+264', label: 'NA +264' },
-  { code: '+977', label: 'NP +977' },
-  { code: '+31', label: 'NL +31' },
-  { code: '+64', label: 'NZ +64' },
-  { code: '+505', label: 'NI +505' },
-  { code: '+234', label: 'NG +234' },
-  { code: '+47', label: 'NO +47' },
-  { code: '+968', label: 'OM +968' },
-  { code: '+92', label: 'PK +92' },
-  { code: '+507', label: 'PA +507' },
-  { code: '+595', label: 'PY +595' },
-  { code: '+51', label: 'PE +51' },
-  { code: '+63', label: 'PH +63' },
-  { code: '+48', label: 'PL +48' },
-  { code: '+351', label: 'PT +351' },
-  { code: '+974', label: 'QA +974' },
-  { code: '+40', label: 'RO +40' },
-  { code: '+250', label: 'RW +250' },
-  { code: '+966', label: 'SA +966' },
-  { code: '+381', label: 'RS +381' },
-  { code: '+65', label: 'SG +65' },
-  { code: '+421', label: 'SK +421' },
-  { code: '+386', label: 'SI +386' },
-  { code: '+27', label: 'ZA +27' },
-  { code: '+34', label: 'ES +34' },
-  { code: '+94', label: 'LK +94' },
-  { code: '+46', label: 'SE +46' },
-  { code: '+41', label: 'CH +41' },
-  { code: '+886', label: 'TW +886' },
-  { code: '+255', label: 'TZ +255' },
-  { code: '+216', label: 'TN +216' },
-  { code: '+90', label: 'TR +90' },
-  { code: '+380', label: 'UA +380' },
-  { code: '+598', label: 'UY +598' },
-  { code: '+998', label: 'UZ +998' },
-  { code: '+58', label: 'VE +58' },
-  { code: '+84', label: 'VN +84' },
-  { code: '+967', label: 'YE +967' },
-  { code: '+260', label: 'ZM +260' },
-  { code: '+263', label: 'ZW +263' },
+// ==========================================
+// 1. TYPES & DATA STRUCTURES
+// ==========================================
+export interface PricingInfo {
+  general: number;
+  turnover: number;
+  note: string;
+}
+
+export interface PropertyCategory {
+  category: string;
+  pricing: PricingInfo;
+  items: string[];
+}
+
+const PROPERTY_DATA: PropertyCategory[] = [
+  {
+    category: '1 Bedroom Apartment',
+    pricing: { general: 40, turnover: 70, note: '' },
+    items: [
+      'Beautiful Apartment in Harbour Paphos | Central',
+      'Breathtaking Seaview Apartment | Lighthouse Beach',
+      'Harbour Lights Seaview One Bedroom Apt | Paphos',
+      'One Bedroom Apartment | Lighthouse Beach',
+      'One Bedroom Apartment in Universal Paphos',
+      'Stylish One Bedroom Apartment at Paphos Harbour',
+    ],
+  },
+  {
+    category: '2 Bedroom Apartment / House',
+    pricing: { general: 70, turnover: 120, note: '' },
+    items: ['Cozy Nerina Cottage | Harbour Paphos'],
+  },
+  {
+    category: '3 Bedroom Apartment / House',
+    pricing: { general: 90, turnover: 150, note: '3 Hours/Cleaning' },
+    items: [
+      'Modern Poolside Villa | Paphos',
+      'Stylish Poolside Villa | Paphos',
+      'Tropical Paradise | Harbour Paphos | Center',
+    ],
+  },
 ];
 
-const ROOM_LIST = [
-  'Beautiful Apartment in Harbour Paphos | Central',
-  'Breathtaking Seaview Apartment | Lighthouse Beach',
-  'Harbour Lights Seaview One Bedroom Apt | Paphos',
-  'One Bedroom Apartment | Lighthouse Beach',
-  'One Bedroom Apartment in Universal Paphos',
-  'Stylish One Bedroom Apartment at Paphos Harbour',
-  'Cozy Nerina Cottage | Harbour Paphos',
-  'Modern Poolside villa | Paphos.',
-  'Stylish Poolside Villa | Paphos',
-  'Tropical Paradise | Harbour Paphos | Center',
-  'Other',
-];
+// Class สำหรับการป้องกัน Auto-zoom on Mobile
+const INPUT_BASE_CLASSES =
+  'w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl text-[16px] leading-6 font-medium text-[#1E2B37] focus:outline-none focus:border-[#006AFF] transition-colors box-border touch-manipulation';
 
-const RAW_TIME_SLOTS = [
-  '09:00 - 10:00',
-  '10:00 - 11:00',
-  '11:00 - 12:00',
-  '13:00 - 14:00',
-  '14:00 - 15:00',
-  '15:00 - 16:00',
-];
+// ==========================================
+// 2. SUB-COMPONENTS
+// ==========================================
 
-const formatDateToLocalString = (date: Date | null) => {
-  if (!date) return '';
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+/** SECTION 1: Service Type Selector Component **/
+interface ServiceTypeSelectorProps {
+  selectedService: 'holiday' | 'private';
+  onSelectService: (service: 'holiday' | 'private') => void;
+}
 
-const formatPhoneNumber = (value: string, countryCode: string) => {
-  const cleaned = value.replace(/\D/g, '');
+const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
+  selectedService,
+  onSelectService,
+}) => (
+  <div className="space-y-3">
+    <div>
+      <h2 className="text-base sm:text-xl font-bold text-[#1E2B37]">Select Service Type</h2>
+      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5 sm:mt-1">
+        Please select the service type you require
+      </p>
+    </div>
 
-  switch (countryCode) {
-    case '+357':
-      if (cleaned.length <= 2) return cleaned;
-      if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
-      return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+      <button
+        type="button"
+        onClick={() => onSelectService('holiday')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+          selectedService === 'holiday'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <span className={`text-base sm:text-lg font-bold block ${selectedService === 'holiday' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+          Holiday Home Guest
+        </span>
+      </button>
 
-    case '+66':
-      if (cleaned.length <= 3) return cleaned;
-      if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
-
-    case '+1':
-    case '+44':
-    default:
-      if (cleaned.length <= 3) return cleaned;
-      if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
-  }
-};
-
-const DatePickerCustomInput = forwardRef<HTMLButtonElement, { value?: string; onClick?: () => void }>(
-  ({ value, onClick }, ref) => (
-    <button
-      type="button"
-      onClick={onClick}
-      ref={ref}
-      className="w-full flex items-center justify-between px-4 py-3 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] focus:outline-none focus:ring-[#CDF4D3] transition-all text-left touch-manipulation select-none"
-    >
-      <span className={value ? 'text-[#1E2B37] font-medium text-base sm:text-sm' : 'text-[#1E2B37]/40 text-base sm:text-sm'}>
-        {value || 'Select booking date'}
-      </span>
-      <svg className="w-5 h-5 text-[#1E2B37]/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    </button>
-  )
+      <button
+        type="button"
+        onClick={() => onSelectService('private')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+          selectedService === 'private'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <span className={`text-base sm:text-lg font-bold block ${selectedService === 'private' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+          Private Home / Office Cleaning
+        </span>
+      </button>
+    </div>
+  </div>
 );
-DatePickerCustomInput.displayName = 'DatePickerCustomInput';
 
-function BookingForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+/** SECTION 2 (Holiday): Property Selection Component **/
+interface PropertySelectionProps {
+  selectedProperty: string;
+  onSelectProperty: (property: string) => void;
+}
 
-  const [currentUser, setCurrentUser] = useState({
-    id: '',
-    name: '',
-    email: '',
-    phone: '',
-    countryCode: '+357',
-  });
+const PropertySelection: React.FC<PropertySelectionProps> = ({
+  selectedProperty,
+  onSelectProperty,
+}) => (
+  <div className="pt-6 border-t border-[#E2E8F0] space-y-3">
+    <div>
+      <label htmlFor="property-select" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+        Select Property
+      </label>
+      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+        Choose your property to reveal exact program pricing
+      </p>
+    </div>
 
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editCountryCode, setEditCountryCode] = useState('+357');
-  const [editPhone, setEditPhone] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+    <select
+      id="property-select"
+      value={selectedProperty}
+      onChange={(e) => onSelectProperty(e.target.value)}
+      className={`${INPUT_BASE_CLASSES} cursor-pointer truncate`}
+    >
+      <option value="">-- Please Select a Property --</option>
+      {PROPERTY_DATA.map((group) => (
+        <optgroup key={group.category} label={`--- ${group.category} ---`}>
+          {group.items.map((property) => (
+            <option key={property} value={property}>
+              {property}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  </div>
+);
 
-  const getTomorrowDateObj = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow;
-  };
+/** SECTION 3 (Holiday): Cleaning Program Selection Component **/
+interface ProgramSelectionProps {
+  selectedProgram: 'general' | 'turnover' | null;
+  onSelectProgram: (program: 'general' | 'turnover') => void;
+  currentPropertyInfo: PropertyCategory | undefined;
+}
 
-  const [selectedRoom, setSelectedRoom] = useState('');
-  const [customRoomName, setCustomRoomName] = useState('');
-  const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+const ProgramSelection: React.FC<ProgramSelectionProps> = ({
+  selectedProgram,
+  onSelectProgram,
+  currentPropertyInfo,
+}) => (
+  <div className="pt-6 border-t border-[#E2E8F0] space-y-3">
+    <div>
+      <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+        Select Cleaning Program
+      </label>
+      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+        Choose the cleaning option that suits your needs
+      </p>
+    </div>
 
-  const formattedDateString = formatDateToLocalString(selectedDateObj);
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+      <button
+        type="button"
+        onClick={() => onSelectProgram('general')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl text-left border-2 transition-all cursor-pointer flex flex-col justify-between w-full box-border touch-manipulation ${
+          selectedProgram === 'general'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <div className="space-y-2 w-full">
+          <div className="flex justify-between items-center gap-2">
+            <span className={`text-base sm:text-lg font-bold ${selectedProgram === 'general' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              General Cleaning
+            </span>
+            <span className="text-lg sm:text-xl font-black text-[#006AFF] shrink-0">
+              {currentPropertyInfo ? `€${currentPropertyInfo.pricing.general}` : '€'}
+            </span>
+          </div>
+          {currentPropertyInfo?.pricing.note && (
+            <p className="text-xs sm:text-sm text-[#8E9B9E]">
+              {currentPropertyInfo.pricing.note}
+            </p>
+          )}
+        </div>
+      </button>
 
-  const fetchUnreadCount = useCallback(async (email: string) => {
-    if (!email) return;
-    try {
-      const { data } = await supabase
-        .from('feedbacks')
-        .select('id')
-        .eq('customer_email', email)
-        .not('admin_reply', 'is', null)
-        .eq('is_read_by_user', false);
+      <button
+        type="button"
+        onClick={() => onSelectProgram('turnover')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl text-left border-2 transition-all cursor-pointer flex flex-col justify-between w-full box-border touch-manipulation ${
+          selectedProgram === 'turnover'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <div className="space-y-2 w-full">
+          <div className="flex justify-between items-start gap-2">
+            <span className={`text-base sm:text-lg font-bold ${selectedProgram === 'turnover' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              Turnover Cleaning
+            </span>
+            <span className="text-lg sm:text-xl font-black text-[#006AFF] shrink-0">
+              {currentPropertyInfo ? `€${currentPropertyInfo.pricing.turnover}` : '€'}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] leading-relaxed break-words">
+            Cleaning & change all sheets and towels
+          </p>
+        </div>
+      </button>
+    </div>
+  </div>
+);
 
-      if (data) {
-        setUnreadCount(data.length);
-      }
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
-  }, []);
+/** SECTION 2 (Private): Location & Details Form Component **/
+interface PrivateHomeFormProps {
+  selectedPrivateProgram: 'general' | 'deep' | 'office' | 'garden' | null;
+  propertyType: 'house' | 'apartment' | null;
+  bedrooms: string | null;
+  bathrooms: string | null;
+  balconies: string | null;
+  officeSquareMeters: string | null;
+  officeToilets: string | null;
+  officeBalconies: string | null;
+  officeCleanWindows: 'yes' | 'no' | null;
+  officeWindowsCount: string | null;
+  gardenSquareMeters: string | null;
+  gardenType: 'weeds' | 'trees' | 'other' | null;
+  gardenOtherDetails: string;
+  address: string;
+  buildingComplex: string;
+  apartmentHouseNo: string;
+  mapLink: string;
+  onPrivateProgramChange: (program: 'general' | 'deep' | 'office' | 'garden') => void;
+  onPropertyTypeChange: (type: 'house' | 'apartment') => void;
+  onBedroomsChange: (num: string) => void;
+  onBathroomsChange: (num: string) => void;
+  onBalconiesChange: (num: string) => void;
+  onOfficeSquareMetersChange: (val: string) => void;
+  onOfficeToiletsChange: (val: string) => void;
+  onOfficeBalconiesChange: (val: string) => void;
+  onOfficeCleanWindowsChange: (val: 'yes' | 'no') => void;
+  onOfficeWindowsCountChange: (val: string) => void;
+  onGardenSquareMetersChange: (val: string) => void;
+  onGardenTypeChange: (type: 'weeds' | 'trees' | 'other') => void;
+  onGardenOtherDetailsChange: (val: string) => void;
+  onAddressChange: (val: string) => void;
+  onBuildingComplexChange: (val: string) => void;
+  onApartmentHouseNoChange: (val: string) => void;
+  onMapLinkChange: (val: string) => void;
+}
 
-  const loadUserData = useCallback(async () => {
-    try {
-      const nameParam = searchParams.get('customerName') || searchParams.get('name') || '';
-      const emailParam = searchParams.get('email') || '';
-      const phoneParam = searchParams.get('phone') || '';
-      const idParam = searchParams.get('userId') || '';
+const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
+  selectedPrivateProgram,
+  propertyType,
+  bedrooms,
+  bathrooms,
+  balconies,
+  officeSquareMeters,
+  officeToilets,
+  officeBalconies,
+  officeCleanWindows,
+  officeWindowsCount,
+  gardenSquareMeters,
+  gardenType,
+  gardenOtherDetails,
+  address,
+  buildingComplex,
+  apartmentHouseNo,
+  mapLink,
+  onPrivateProgramChange,
+  onPropertyTypeChange,
+  onBedroomsChange,
+  onBathroomsChange,
+  onBalconiesChange,
+  onOfficeSquareMetersChange,
+  onOfficeToiletsChange,
+  onOfficeBalconiesChange,
+  onOfficeCleanWindowsChange,
+  onOfficeWindowsCountChange,
+  onGardenSquareMetersChange,
+  onGardenTypeChange,
+  onGardenOtherDetailsChange,
+  onAddressChange,
+  onBuildingComplexChange,
+  onApartmentHouseNoChange,
+  onMapLinkChange,
+}) => {
+  const bedroomOptions = [
+    { label: '1 Bedroom', value: '1' },
+    { label: '2 Bedrooms', value: '2' },
+    { label: '3 Bedrooms', value: '3' },
+    { label: '4 Bedrooms', value: '4' },
+    { label: '5 Bedrooms or More', value: '5+' },
+  ];
 
-      const localName = localStorage.getItem('user_name') || '';
-      const localEmail = localStorage.getItem('user_email') || '';
-      const localPhone = localStorage.getItem('user_phone') || '';
+  const bathroomOptions = [
+    { label: '1 Bathroom', value: '1' },
+    { label: '2 Bathrooms', value: '2' },
+    { label: '3 Bathrooms', value: '3' },
+    { label: '4 Bathrooms', value: '4' },
+    { label: '5 Bathrooms or More', value: '5+' },
+  ];
 
-      const finalName = nameParam || localName;
-      const finalEmail = emailParam || localEmail;
-      const rawPhone = phoneParam || localPhone;
+  const balconyOptions = [
+    { label: '1 Balcony / Verandah', value: '1' },
+    { label: '2 Balconies / Verandahs', value: '2' },
+    { label: '3 Balconies / Verandahs', value: '3' },
+    { label: '4 Balconies / Verandahs or More', value: '4+' },
+  ];
 
-      if (finalName || finalEmail || rawPhone) {
-        let code = '+357';
-        let number = rawPhone;
+  const officeSquareMetersOptions = [
+    { label: 'Less than 100 m²', value: 'less_than_100' },
+    { label: '100 m²', value: '100' },
+    { label: '200 m²', value: '200' },
+    { label: 'More than 300 m²', value: 'more_than_300' },
+  ];
 
-        const matched = COUNTRY_CODES.find((c) => rawPhone.startsWith(c.code));
-        if (matched) {
-          code = matched.code;
-          number = rawPhone.replace(matched.code, '').trim();
-        }
+  const officeToiletOptions = [
+    { label: '1 Toilet', value: '1' },
+    { label: '2 Toilets', value: '2' },
+    { label: '3 Toilets', value: '3' },
+    { label: '4 Toilets', value: '4' },
+    { label: 'More than 5 Toilets', value: 'more_than_5' },
+  ];
 
-        const formattedNumber = formatPhoneNumber(number, code);
+  const officeBalconyOptions = [
+    { label: '1 Balcony', value: '1' },
+    { label: '2 Balconies', value: '2' },
+    { label: '3 Balconies', value: '3' },
+    { label: '4 Balconies', value: '4' },
+    { label: 'More than 5 Balconies', value: 'more_than_5' },
+  ];
 
-        const initialUser = {
-          id: idParam,
-          name: finalName,
-          email: finalEmail,
-          phone: formattedNumber,
-          countryCode: code,
-        };
+  const officeWindowCountOptions = [
+    { label: '1 Window', value: '1' },
+    { label: '2 Windows', value: '2' },
+    { label: 'More Than 3 Windows', value: 'more_than_3' },
+  ];
 
-        setCurrentUser(initialUser);
-        setEditName(initialUser.name);
-        setEditEmail(initialUser.email);
-        setEditPhone(initialUser.phone);
-        setEditCountryCode(initialUser.countryCode);
-        fetchUnreadCount(initialUser.email);
-        return;
-      }
+  const gardenSquareMetersOptions = [
+    { label: '50 m²', value: '50' },
+    { label: '100 m²', value: '100' },
+    { label: '200 m²', value: '200' },
+    { label: 'More than 300 m²', value: 'more_than_300' },
+  ];
 
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, name, email, phone, phone_number')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        const authEmail = profile?.email || user.email || '';
-        const authName = profile?.full_name || profile?.name || user.user_metadata?.full_name || '';
-        const authPhone = profile?.phone || profile?.phone_number || user.user_metadata?.phone || '';
-
-        let code = '+357';
-        let number = authPhone;
-        const matched = COUNTRY_CODES.find((c) => authPhone.startsWith(c.code));
-        if (matched) {
-          code = matched.code;
-          number = authPhone.replace(matched.code, '').trim();
-        }
-
-        const formattedNumber = formatPhoneNumber(number, code);
-
-        const loadedUser = {
-          id: user.id,
-          name: authName,
-          email: authEmail,
-          phone: formattedNumber,
-          countryCode: code,
-        };
-
-        setCurrentUser(loadedUser);
-        setEditName(loadedUser.name);
-        setEditEmail(loadedUser.email);
-        setEditPhone(loadedUser.phone);
-        setEditCountryCode(loadedUser.countryCode);
-        fetchUnreadCount(loadedUser.email);
-        return;
-      }
-    } catch (err) {
-      console.error('Failed to load user:', err);
-    }
-  }, [searchParams, fetchUnreadCount]);
-
-  useEffect(() => {
-    loadUserData();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      loadUserData();
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [loadUserData]);
-
-  useEffect(() => {
-    const fetchBookedSlots = async () => {
-      if (!formattedDateString) {
-        setBookedSlots([]);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('bookings')
-          .select('scheduled_date, scheduled_time, status');
-
-        if (error) {
-          console.error('Error fetching booked slots:', error.message);
-          return;
-        }
-
-        if (data) {
-          const occupied = data
-            .filter((item: any) => {
-              const statusLower = String(item.status || '').toLowerCase();
-              if (statusLower === 'cancelled') return false;
-
-              if (!item.scheduled_date) return false;
-              const cleanItemDate = String(item.scheduled_date).split('T')[0];
-              return cleanItemDate === formattedDateString;
-            })
-            .map((item: any) => {
-              const rawTime = String(item.scheduled_time || '').trim();
-              if (!rawTime) return null;
-
-              const startTime = rawTime.slice(0, 5);
-              const matchedSlot = RAW_TIME_SLOTS.find((slot) => slot.startsWith(startTime));
-
-              return matchedSlot || null;
-            })
-            .filter(Boolean);
-
-          setBookedSlots(occupied as string[]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch booked slots:', err);
-      }
-    };
-
-    fetchBookedSlots();
-  }, [formattedDateString]);
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-
-      await supabase.auth.signOut();
-
-      localStorage.removeItem('user_name');
-      localStorage.removeItem('user_email');
-      localStorage.removeItem('user_phone');
-      localStorage.clear();
-
-      setCurrentUser({
-        id: '',
-        name: '',
-        email: '',
-        phone: '',
-        countryCode: '+357',
-      });
-      setEditName('');
-      setEditEmail('');
-      setEditPhone('');
-      setIsProfileModalOpen(false);
-
-      window.location.href = '/auth/login';
-    } catch (err) {
-      console.error('Error logging out:', err);
-      setIsLoggingOut(false);
-    }
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingProfile(true);
-
-    try {
-      const cleanNumber = editPhone.replace(/\s+/g, '');
-      const fullPhoneNumber = `${editCountryCode}${cleanNumber}`;
-
-      const updatedUser = {
-        ...currentUser,
-        name: editName,
-        email: editEmail,
-        phone: editPhone,
-        countryCode: editCountryCode,
-      };
-
-      setCurrentUser(updatedUser);
-
-      localStorage.setItem('user_name', editName);
-      localStorage.setItem('user_email', editEmail);
-      localStorage.setItem('user_phone', fullPhoneNumber);
-
-      if (currentUser.id) {
-        await supabase.from('profiles').upsert({
-          id: currentUser.id,
-          full_name: editName,
-          email: editEmail,
-          phone: fullPhoneNumber,
-          updated_at: new Date().toISOString(),
-        });
-      }
-
-      setIsProfileModalOpen(false);
-    } catch (err) {
-      console.error('Failed to update profile:', err);
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  const handleGoToHistory = async () => {
-    if (unreadCount > 0 && currentUser.email) {
-      setUnreadCount(0);
-      await supabase
-        .from('feedbacks')
-        .update({ is_read_by_user: true })
-        .eq('customer_email', currentUser.email)
-        .eq('is_read_by_user', false);
-    }
-    setIsProfileModalOpen(false);
-    router.push('/customer/history');
-  };
-
-  const timeSlots = RAW_TIME_SLOTS.map((time, index) => ({
-    id: `slot-${index + 1}`,
-    time: time,
-    available: !bookedSlots.includes(time),
-  }));
-
-  const handleNext = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    if (!currentUser.name || !currentUser.phone || !currentUser.email) {
-      alert('Please complete your profile (Name, Email, and Phone) by clicking profile at top-left.');
-      setIsProfileModalOpen(true);
-      return;
-    }
-
-    if (!selectedRoom) {
-      alert('Please select a room.');
-      return;
-    }
-
-    if (!selectedDateObj) {
-      alert('Please select a booking date.');
-      return;
-    }
-
-    if (!selectedSlot) {
-      alert('Please select a time slot.');
-      return;
-    }
-
-    if (selectedRoom === 'Other' && !customRoomName.trim()) {
-      alert('Please enter your property name.');
-      return;
-    }
-
-    const finalRoomName = selectedRoom === 'Other' ? customRoomName.trim() : selectedRoom;
-
-    const validSlot = selectedSlot || '';
-    const cleanStartTime = validSlot.includes('-') 
-      ? validSlot.split('-')[0].trim() 
-      : validSlot;
-
-    const query = new URLSearchParams({
-      userId: currentUser.id || '',
-      room: finalRoomName,
-      date: formattedDateString,
-      time: cleanStartTime,
-      customerName: currentUser.name,
-      email: currentUser.email,
-      phone: `${currentUser.countryCode}${currentUser.phone.replace(/\s+/g, '')}`,
-      serviceId: 'bc5c6d36-0d41-4c6e-85c8-1a52e05156a5',
-    }).toString();
-
-    router.push(`/customer/program?${query}`);
-  };
+  const gardenTypeOptions = [
+    { label: 'Weeds', value: 'weeds' },
+    { label: 'Trees', value: 'trees' },
+    { label: 'Other', value: 'other' },
+  ];
 
   return (
-    <main className="min-h-[100dvh] w-full bg-[#FFFFFF] sm:bg-[#EAF3F9] flex flex-col items-center justify-center p-0 sm:p-6 text-[#1E2B37] font-sans antialiased">
-      <div className="w-full sm:max-w-lg bg-[#FFFFFF] rounded-none sm:rounded-[32px] border-none sm:border sm:border-[#B8D7ED] shadow-none sm:shadow-xl p-6 sm:p-8 space-y-6 my-auto relative">
-        
-        {/* Profile Button Header */}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setIsProfileModalOpen(true)}
-            className="relative flex items-center gap-2 bg-[#FFFFFF] border-2 border-[#B8D7ED] hover:border-[#8E9B9E] px-3 py-1.5 rounded-full transition-all text-left group cursor-pointer touch-manipulation select-none shadow-sm"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#1E2B37] flex items-center justify-center text-white font-bold text-xs uppercase">
-              {currentUser.name ? currentUser.name.charAt(0) : '?'}
-            </div>
-            <div className="flex flex-col pr-1">
-              <span className="text-[11px] font-bold text-[#1E2B37] transition leading-tight truncate max-w-[110px] capitalize">
-                {currentUser.name || 'Set Profile'}
-              </span>
-              <span className="text-[9px] text-[#1E2B37]/60 truncate max-w-[100px] sm:max-w-[130px] leading-tight">
-                {currentUser.email || 'Set Detail'}
-              </span>
-            </div>
-
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md animate-pulse">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+    <div className="pt-6 border-t border-[#E2E8F0] space-y-6">
+      {/* Address Input */}
+      <div className="space-y-2">
+        <div>
+          <label htmlFor="address-input" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+            Address
+          </label>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+            Please enter street name, area, or full address
+          </p>
         </div>
-
-        {/* Logo Section */}
-        <div className="flex flex-col items-center justify-center pt-1">
-          <div className="relative w-52 h-18 sm:w-60 sm:h-20">
-            <Image
-              src="/logo.jpeg"
-              alt="Getaway Cleaning"
-              fill
-              className="object-contain"
-              sizes="(max-width: 640px) 208px, 240px"
-              priority
-            />
-          </div>
-        </div>
-
-        {/* Form Container */}
-        <form onSubmit={handleNext} className="space-y-6">
-          
-          {/* Select Room & Date */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-[#1E2B37]">Select Room & Date</h2>
-
-            {/* Room Select */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#1E2B37]/80">Room</label>
-              <div className="relative">
-                <select
-                  value={selectedRoom}
-                  onChange={(e) => setSelectedRoom(e.target.value)}
-                  className="w-full px-4 py-3 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all appearance-none cursor-pointer text-base sm:text-sm font-medium touch-manipulation shadow-sm"
-                >
-                  <option value="" disabled>Select a room...</option>
-                  {ROOM_LIST.map((room, idx) => (
-                    <option key={idx} value={room}>
-                      {room}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1E2B37]/60">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Custom Room Input if "Other" is selected */}
-            {selectedRoom === 'Other' && (
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-semibold text-[#1E2B37]/80">Property Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter your property name"
-                  value={customRoomName}
-                  onChange={(e) => setCustomRoomName(e.target.value)}
-                  className="w-full px-4 py-3 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium shadow-sm"
-                />
-              </div>
-            )}
-
-            {/* DatePicker */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#1E2B37]/80">Date (Advance booking only)</label>
-              <DatePicker
-                selected={selectedDateObj}
-                onChange={(date: Date | null) => setSelectedDateObj(date)}
-                minDate={getTomorrowDateObj()}
-                dateFormat="yyyy-MM-dd"
-                customInput={<DatePickerCustomInput />}
-                wrapperClassName="w-full"
-              />
-            </div>
-          </div>
-
-          {/* Select Time Slot */}
-          <div className="space-y-4 pt-1">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#1E2B37]">Select Time Slot</h2>
-              
-              <div className="flex items-center gap-3 text-xs font-medium text-[#1E2B37]/70">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-[#CDF4D3] border border-[#86D892]"></span> Available
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-[#8E9B9E]"></span> Unavailable
-                </span>
-              </div>
-            </div>
-
-            {/* Time Slots Grid */}
-            <div className="grid grid-cols-3 gap-2.5">
-              {timeSlots.map((slot) => {
-                const isSelected = selectedSlot === slot.time;
-                const isAvailable = slot.available;
-
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    disabled={!isAvailable}
-                    onClick={() => setSelectedSlot(slot.time)}
-                    className={`py-2 px-1.5 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer touch-manipulation select-none border border-[#86D892] active:scale-95 ${
-                      !isAvailable
-                        ? 'bg-[#8E9B9E] border-[#8E9B9E] text-white cursor-not-allowed opacity-90'
-                        : isSelected
-                        ? 'bg-[#CDF4D3] border-[#86D892] text-[#1E2B37] font-extrabold shadow-sm scale-[1.02] ring-2 ring-[#86D892]'
-                        : 'bg-[#CDF4D3] text-[#1E2B37] hover:bg-[#bdecc3] active:bg-[#bdecc3]'
-                    }`}
-                  >
-                    <span className="text-xs sm:text-sm font-bold tracking-tight">{slot.time}</span>
-                    <span className={`text-[10px] font-medium leading-none mt-0.5 ${!isAvailable ? 'text-white/90' : 'text-[#1E2B37]/70'}`}>
-                      ({!isAvailable ? 'Unavailable' : 'Available'})
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <div className="pt-2 flex justify-end">
-            <button
-              type="submit"
-              className="px-8 py-3 bg-[#1E2B37] hover:bg-[#2c3d4e] active:bg-[#121b23] text-white font-bold rounded-3xl text-base transition-all duration-150 shadow-md cursor-pointer touch-manipulation select-none"
-            >
-              Next
-            </button>
-          </div>
-        </form>
-
-        {/* Footer */}
-        <p className="text-[11px] text-[#1E2B37]/40 font-medium text-center tracking-wide pt-2">
-          © Getaway Cleaning Service
-        </p>
-
+        <textarea
+          id="address-input"
+          rows={3}
+          placeholder="Enter street name, area, city..."
+          value={address}
+          onChange={(e) => onAddressChange(e.target.value)}
+          className={`${INPUT_BASE_CLASSES} resize-none`}
+        />
       </div>
 
-      {/* Profile Modal */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#FFFFFF] rounded-[32px] border-2 border-[#8E8E8E]/40 shadow-2xl p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-extrabold text-[#1E2B37] tracking-tight">Customer Profile</h2>
+      {/* Building / Complex & Apartment / House No. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="space-y-2">
+          <label htmlFor="building-input" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+            Building / Complex
+          </label>
+          <p className="text-xs sm:text-sm text-[#8E9B9E]">
+            Enter building, condo, or complex name
+          </p>
+          <input
+            id="building-input"
+            type="text"
+            placeholder="e.g. Sunset Heights / Phase 2"
+            value={buildingComplex}
+            onChange={(e) => onBuildingComplexChange(e.target.value)}
+            className={INPUT_BASE_CLASSES}
+          />
+        </div>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex items-center gap-1.5 bg-[#E87171] hover:bg-[#d86262] border border-[#D95353] text-white font-semibold text-xs px-4 py-2 rounded-2xl transition-all cursor-pointer shadow-xs touch-manipulation select-none disabled:opacity-50 cursor-not-allowed"
-              >
-                <span>{isLoggingOut ? 'Logging out...' : '→ Log Out'}</span>
-              </button>
-            </div>
+        <div className="space-y-2">
+          <label htmlFor="unit-input" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+            Apartment / House No.
+          </label>
+          <p className="text-xs sm:text-sm text-[#8E9B9E]">
+            Enter apartment, unit, or house number
+          </p>
+          <input
+            id="unit-input"
+            type="text"
+            placeholder="e.g. Apt 302 / House 12B"
+            value={apartmentHouseNo}
+            onChange={(e) => onApartmentHouseNoChange(e.target.value)}
+            className={INPUT_BASE_CLASSES}
+          />
+        </div>
+      </div>
 
-            <p className="text-xs text-[#1E2B37]/70 font-medium -mt-2">
-              Please check your information for admin confirmation.
+      {/* Google Maps Link */}
+      <div className="space-y-2">
+        <div>
+          <label htmlFor="map-input" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+            Google Maps Link
+          </label>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+            Paste location URL from Google Maps for precise navigation
+          </p>
+        </div>
+        <input
+          id="map-input"
+          type="url"
+          placeholder="https://maps.google.com/..."
+          value={mapLink}
+          onChange={(e) => onMapLinkChange(e.target.value)}
+          className={INPUT_BASE_CLASSES}
+        />
+      </div>
+
+      {/* Private Service Program Selection */}
+      <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+        <div>
+          <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+            Select Service Program
+          </label>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+            Choose the service type that matches your requirements
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+          <button
+            type="button"
+            onClick={() => onPrivateProgramChange('general')}
+            className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+              selectedPrivateProgram === 'general'
+                ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+            }`}
+          >
+            <span className={`text-base sm:text-lg font-bold block ${selectedPrivateProgram === 'general' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              General Cleaning
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPrivateProgramChange('deep')}
+            className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+              selectedPrivateProgram === 'deep'
+                ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+            }`}
+          >
+            <span className={`text-base sm:text-lg font-bold block ${selectedPrivateProgram === 'deep' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              Deep Cleaning
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPrivateProgramChange('office')}
+            className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+              selectedPrivateProgram === 'office'
+                ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+            }`}
+          >
+            <span className={`text-base sm:text-lg font-bold block ${selectedPrivateProgram === 'office' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              Office Cleaning
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPrivateProgramChange('garden')}
+            className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+              selectedPrivateProgram === 'garden'
+                ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+            }`}
+          >
+            <span className={`text-base sm:text-lg font-bold block ${selectedPrivateProgram === 'garden' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+              Garden Cleaning <span className="text-xs sm:text-sm font-normal text-[#8E9B9E] block sm:inline">(Upon Request)</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Choose Type Of Property (General / Deep Cleaning) */}
+      {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && (
+        <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+          <div>
+            <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+              Choose Type Of Property
+            </label>
+            <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+              Select whether your property is a house or an apartment
             </p>
+          </div>
 
-            {/* Profile Form */}
-            <form onSubmit={handleSaveProfile} className="space-y-4 pt-1">
-              
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#1E2B37]">Full Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter Your Full Name"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                  className="w-full px-5 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium shadow-sm"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+            <button
+              type="button"
+              onClick={() => onPropertyTypeChange('house')}
+              className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                propertyType === 'house'
+                  ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                  : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+              }`}
+            >
+              <span className={`text-base sm:text-lg font-bold block ${propertyType === 'house' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                House
+              </span>
+            </button>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#1E2B37]">Email Address</label>
-                <input
-                  type="email"
-                  placeholder="Enter Your Email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                  className="w-full px-5 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium shadow-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#1E2B37]">Phone Number</label>
-                <div className="flex gap-2.5">
-                  <div className="relative w-32 sm:w-36 shrink-0">
-                    <select
-                      value={editCountryCode}
-                      onChange={(e) => setEditCountryCode(e.target.value)}
-                      className="w-full pl-3 pr-7 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-sm font-medium cursor-pointer appearance-none truncate touch-manipulation shadow-sm"
-                    >
-                      {COUNTRY_CODES.map((c, i) => (
-                        <option key={i} value={c.code}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[#1E2B37]/60">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <input
-                      type="tel"
-                      inputMode="numeric"
-                      pattern="[0-9 ]*"
-                      placeholder="XX XXX XXXX"
-                      value={editPhone}
-                      onChange={(e) => setEditPhone(formatPhoneNumber(e.target.value, editCountryCode))}
-                      required
-                      className="flex-1 px-4 sm:px-5 py-3.5 bg-[#FFFFFF] border-2 border-[#B8D7ED] rounded-3xl text-[#1E2B37] placeholder-[#1E2B37]/50 focus:outline-none focus:ring-2 focus:ring-[#CDF4D3] transition-all text-base sm:text-sm font-medium min-w-0 shadow-sm"
-                    />
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleGoToHistory}
-                  className="relative w-full py-3 bg-[#EAF3F9] hover:bg-[#d8ebfa] text-[#1E2B37] font-bold rounded-2xl text-xs transition flex items-center justify-center gap-2 border border-[#B8D7ED] cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 022-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <span>View My Booking History & Feedback</span>
-
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md animate-pulse">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileModalOpen(false)}
-                  className="px-6 py-2.5 bg-[#FFFFFF] hover:bg-[#d8ebfa] border-2 border-[#B8D7ED] text-[#1E2B37] font-semibold rounded-3xl text-sm transition-all cursor-pointer touch-manipulation select-none shadow-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingProfile}
-                  className="px-7 py-2.5 bg-[#1E2B37] hover:bg-[#2c3d4e] text-white font-bold rounded-3xl text-sm transition-all cursor-pointer shadow-md touch-manipulation select-none"
-                >
-                  {isSavingProfile ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
-
-            </form>
-
+            <button
+              type="button"
+              onClick={() => onPropertyTypeChange('apartment')}
+              className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                propertyType === 'apartment'
+                  ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                  : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+              }`}
+            >
+              <span className={`text-base sm:text-lg font-bold block ${propertyType === 'apartment' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                Apartment
+              </span>
+            </button>
           </div>
         </div>
       )}
 
+      {/* Choose How Many Bedroom(s) */}
+      {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
+        <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+          <div>
+            <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+              Choose How Many Bedroom(s)
+            </label>
+            <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+              Select the number of bedrooms in your property
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-1">
+            {bedroomOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onBedroomsChange(opt.value)}
+                className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                  bedrooms === opt.value
+                    ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                }`}
+              >
+                <span className={`text-base sm:text-lg font-bold block ${bedrooms === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                  {opt.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Choose How Many Bathroom(s) */}
+      {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
+        <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+          <div>
+            <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+              Choose How Many Bathroom(s)
+            </label>
+            <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+              Select the number of bathrooms in your property
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-1">
+            {bathroomOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onBathroomsChange(opt.value)}
+                className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                  bathrooms === opt.value
+                    ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                }`}
+              >
+                <span className={`text-base sm:text-lg font-bold block ${bathrooms === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                  {opt.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Choose How Many Balconies / Verandahs */}
+      {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
+        <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+          <div>
+            <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+              Choose How Many Balconies / Verandahs
+            </label>
+            <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+              Select the number of balconies or verandahs in your property
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+            {balconyOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onBalconiesChange(opt.value)}
+                className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                  balconies === opt.value
+                    ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                }`}
+              >
+                <span className={`text-base sm:text-lg font-bold block ${balconies === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                  {opt.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Office Cleaning Specifics */}
+      {selectedPrivateProgram === 'office' && (
+        <>
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                How Many Square Meters (m²)?
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Select the approximate total area of your office
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+              {officeSquareMetersOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onOfficeSquareMetersChange(opt.value)}
+                  className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                    officeSquareMeters === opt.value
+                      ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                      : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                  }`}
+                >
+                  <span className={`text-base sm:text-lg font-bold block ${officeSquareMeters === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                How Many Toilets?
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Select the number of toilets in your office
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-1">
+              {officeToiletOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onOfficeToiletsChange(opt.value)}
+                  className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                    officeToilets === opt.value
+                      ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                      : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                  }`}
+                >
+                  <span className={`text-base sm:text-lg font-bold block ${officeToilets === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                How Many Balconies?
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Select the number of balconies in your office
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-1">
+              {officeBalconyOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onOfficeBalconiesChange(opt.value)}
+                  className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                    officeBalconies === opt.value
+                      ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                      : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                  }`}
+                >
+                  <span className={`text-base sm:text-lg font-bold block ${officeBalconies === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Would you like to clean the windows? */}
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                Would you like to clean the windows?
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Select whether window cleaning service is needed
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+              <button
+                type="button"
+                onClick={() => onOfficeCleanWindowsChange('yes')}
+                className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                  officeCleanWindows === 'yes'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                }`}
+              >
+                <span className={`text-base sm:text-lg font-bold block ${officeCleanWindows === 'yes' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                  Yes
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOfficeCleanWindowsChange('no')}
+                className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                  officeCleanWindows === 'no'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                }`}
+              >
+                <span className={`text-base sm:text-lg font-bold block ${officeCleanWindows === 'no' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                  No
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* How Many Windows? (แสดงเฉพาะเมื่อตอบ Yes) */}
+          {officeCleanWindows === 'yes' && (
+            <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+              <div>
+                <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                  How Many Windows?
+                </label>
+                <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                  Select the number of windows to clean
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-1">
+                {officeWindowCountOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onOfficeWindowsCountChange(opt.value)}
+                    className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                      officeWindowsCount === opt.value
+                        ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                        : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                    }`}
+                  >
+                    <span className={`text-base sm:text-lg font-bold block ${officeWindowsCount === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Garden Cleaning Specifics */}
+      {selectedPrivateProgram === 'garden' && (
+        <>
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                How Many Square Meters (m²)?
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Select the approximate total area of your garden
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+              {gardenSquareMetersOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onGardenSquareMetersChange(opt.value)}
+                  className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                    gardenSquareMeters === opt.value
+                      ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                      : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                  }`}
+                >
+                  <span className={`text-base sm:text-lg font-bold block ${gardenSquareMeters === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-[#E2E8F0]">
+            <div>
+              <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+                Select Type Of Garden
+              </label>
+              <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+                Choose what type of garden work is required
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-1">
+              {gardenTypeOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onGardenTypeChange(opt.value as 'weeds' | 'trees' | 'other')}
+                  className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation ${
+                    gardenType === opt.value
+                      ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+                      : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+                  }`}
+                >
+                  <span className={`text-base sm:text-lg font-bold block ${gardenType === opt.value ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {gardenType === 'other' && (
+              <div className="pt-3 space-y-2">
+                <label htmlFor="garden-other-details" className="text-sm font-semibold text-[#1E2B37] block">
+                  Please Specify Other Details
+                </label>
+                <input
+                  id="garden-other-details"
+                  type="text"
+                  placeholder="Please specify other details..."
+                  value={gardenOtherDetails}
+                  onChange={(e) => onGardenOtherDetailsChange(e.target.value)}
+                  className={INPUT_BASE_CLASSES}
+                />
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/** SECTION 4 (Common): Date Selection Component **/
+interface DateSelectionProps {
+  selectedDate: string;
+  minDate: string;
+  onDateChange: (val: string) => void;
+}
+
+const DateSelection: React.FC<DateSelectionProps> = ({
+  selectedDate,
+  minDate,
+  onDateChange,
+}) => (
+  <div className="pt-6 border-t border-[#E2E8F0] space-y-3 w-full max-w-full">
+    <div>
+      <label htmlFor="service-date" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+        Select Service Date
+      </label>
+      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+        Please choose a date starting from tomorrow
+      </p>
+    </div>
+
+    <div className="w-full">
+      <input
+        id="service-date"
+        type="date"
+        min={minDate}
+        value={selectedDate}
+        onChange={(e) => onDateChange(e.target.value)}
+        className={`${INPUT_BASE_CLASSES} cursor-pointer block appearance-none min-w-0 max-w-full`}
+        required // 👈 เติม required ตรงนี้ครับ
+      />
+    </div>
+  </div>
+);
+
+/** SECTION 5 (Common): Time Slot Selection Component **/
+interface TimeSelectionProps {
+  selectedTime: 'morning' | 'afternoon' | null;
+  onSelectTime: (time: 'morning' | 'afternoon') => void;
+}
+
+const TimeSelection: React.FC<TimeSelectionProps> = ({
+  selectedTime,
+  onSelectTime,
+}) => (
+  <div className="pt-6 border-t border-[#E2E8F0] space-y-3">
+    <div>
+      <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
+        Select Time
+      </label>
+      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+        Choose your preferred time slot for the service
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-1">
+      <button
+        type="button"
+        onClick={() => onSelectTime('morning')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl text-center border-2 transition-all cursor-pointer flex flex-col items-center justify-center w-full box-border touch-manipulation ${
+          selectedTime === 'morning'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <div className="space-y-1 w-full">
+          <span className={`text-base sm:text-lg font-bold block ${selectedTime === 'morning' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+            Morning
+          </span>
+          <span className="text-xs sm:text-sm text-[#8E9B9E] block">
+            09:00 - 12:00 hrs
+          </span>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onSelectTime('afternoon')}
+        className={`p-5 sm:p-6 rounded-xl sm:rounded-2xl text-center border-2 transition-all cursor-pointer flex flex-col items-center justify-center w-full box-border touch-manipulation ${
+          selectedTime === 'afternoon'
+            ? 'bg-[#EAF3F9] border-[#006AFF] shadow-sm'
+            : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD]'
+        }`}
+      >
+        <div className="space-y-1 w-full">
+          <span className={`text-base sm:text-lg font-bold block ${selectedTime === 'afternoon' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+            Afternoon
+          </span>
+          <span className="text-xs sm:text-sm text-[#8E9B9E] block">
+            13:00 - 16:00 hrs
+          </span>
+        </div>
+      </button>
+    </div>
+  </div>
+);
+// ==========================================
+// 3. MAIN FORM COMPONENT
+// ==========================================
+interface CustomerInfo {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+function BookingForm() {
+  const router = useRouter(); 
+  const [selectedService, setSelectedService] = useState<'holiday' | 'private'>('holiday');
+  
+  // Holiday Home States
+  const [selectedProperty, setSelectedProperty] = useState<string>('');
+  const [selectedProgram, setSelectedProgram] = useState<'general' | 'turnover' | null>(null);
+
+  // Private Home States
+  const [privateAddress, setPrivateAddress] = useState<string>('');
+  const [privateBuildingComplex, setPrivateBuildingComplex] = useState<string>('');
+  const [privateApartmentHouseNo, setPrivateApartmentHouseNo] = useState<string>('');
+  const [googleMapsLink, setGoogleMapsLink] = useState<string>('');
+  const [selectedPrivateProgram, setSelectedPrivateProgram] = useState<'general' | 'deep' | 'office' | 'garden' | null>(null);
+  const [privatePropertyType, setPrivatePropertyType] = useState<'house' | 'apartment' | null>(null);
+  const [privateBedrooms, setPrivateBedrooms] = useState<string | null>(null);
+  const [privateBathrooms, setPrivateBathrooms] = useState<string | null>(null);
+  const [privateBalconies, setPrivateBalconies] = useState<string | null>(null);
+  
+  // Office States
+  const [officeSquareMeters, setOfficeSquareMeters] = useState<string | null>(null);
+  const [officeToilets, setOfficeToilets] = useState<string | null>(null);
+  const [officeBalconies, setOfficeBalconies] = useState<string | null>(null);
+  const [officeCleanWindows, setOfficeCleanWindows] = useState<'yes' | 'no' | null>(null);
+  const [officeWindowsCount, setOfficeWindowsCount] = useState<string | null>(null);
+
+  // Garden States
+  const [gardenSquareMeters, setGardenSquareMeters] = useState<string | null>(null);
+  const [gardenType, setGardenType] = useState<'weeds' | 'trees' | 'other' | null>(null);
+  const [gardenOtherDetails, setGardenOtherDetails] = useState<string>('');
+
+  // Common States
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedTime, setSelectedTime] = useState<'morning' | 'afternoon' | null>(null);
+  const [minDate, setMinDate] = useState<string>('');
+
+  // Customer Info State
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+    name: '',
+    email: '',
+    phone: '',
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // 1. คำนวณวันพรุ่งนี้สำหรับตั้งค่า minDate
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const year = tomorrow.getFullYear();
+      const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const day = String(tomorrow.getDate()).padStart(2, '0');
+      const minDateStr = `${year}-${month}-${day}`;
+      
+      setMinDate(minDateStr);
+
+      // 2. ดึงข้อมูล User/Profile จาก Supabase และ localStorage
+      const fetchUserData = async () => {
+        let name = localStorage.getItem('user_name') || '';
+        let email = localStorage.getItem('user_email') || '';
+        let phone = localStorage.getItem('user_phone') || '';
+
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            email = user.email || email;
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (profile) {
+              name = profile.full_name || profile.name || name;
+              phone = profile.phone || profile.mobile || phone;
+            }
+          }
+        }
+
+        setCustomerInfo({ name, email, phone });
+      };
+
+      fetchUserData();
+
+      // 3. ดึงข้อมูลเดิมจาก sessionStorage กลับมาเซตใส่ State
+      const savedData = sessionStorage.getItem('bookingData');
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          
+          if (parsed.service) setSelectedService(parsed.service);
+          if (parsed.property) setSelectedProperty(parsed.property);
+          if (parsed.program) setSelectedProgram(parsed.program);
+          
+          if (parsed.date) {
+            setSelectedDate(parsed.date < minDateStr ? minDateStr : parsed.date);
+          } else {
+            setSelectedDate(minDateStr);
+          }
+          
+          if (parsed.timeSlot) setSelectedTime(parsed.timeSlot);
+          
+          // ข้อมูลฝั่ง Private Home
+          if (parsed.address) setPrivateAddress(parsed.address);
+          if (parsed.buildingComplex) setPrivateBuildingComplex(parsed.buildingComplex);
+          if (parsed.apartmentHouseNo) setPrivateApartmentHouseNo(parsed.apartmentHouseNo);
+          if (parsed.mapLink) setGoogleMapsLink(parsed.mapLink);
+          if (parsed.program && parsed.service === 'private') setSelectedPrivateProgram(parsed.program);
+          if (parsed.propertyType) setPrivatePropertyType(parsed.propertyType);
+          if (parsed.bedrooms) setPrivateBedrooms(parsed.bedrooms);
+          if (parsed.bathrooms) setPrivateBathrooms(parsed.bathrooms);
+          if (parsed.balconies) setPrivateBalconies(parsed.balconies);
+          
+          // รายละเอียด Office
+          if (parsed.officeSquareMeters) setOfficeSquareMeters(parsed.officeSquareMeters);
+          if (parsed.officeToilets) setOfficeToilets(parsed.officeToilets);
+          if (parsed.officeBalconies) setOfficeBalconies(parsed.officeBalconies);
+          if (parsed.officeCleanWindows) setOfficeCleanWindows(parsed.officeCleanWindows);
+          if (parsed.officeWindowsCount) setOfficeWindowsCount(parsed.officeWindowsCount);
+          
+          // รายละเอียด Garden
+          if (parsed.gardenSquareMeters) setGardenSquareMeters(parsed.gardenSquareMeters);
+          if (parsed.gardenType) setGardenType(parsed.gardenType);
+          if (parsed.gardenOtherDetails) setGardenOtherDetails(parsed.gardenOtherDetails);
+
+          if (parsed.name || parsed.phone || parsed.email) {
+            setCustomerInfo((prev) => ({
+              name: parsed.name || prev.name,
+              email: parsed.email || prev.email,
+              phone: parsed.phone || prev.phone,
+            }));
+          }
+        } catch (err) {
+          console.error("Error parsing bookingData from sessionStorage", err);
+          setSelectedDate(minDateStr);
+        }
+      } else {
+        setSelectedDate(minDateStr);
+      }
+    }
+  }, []);
+
+  // Handler เปลี่ยนแปลงบริการหลัก
+  const handleServiceChange = (service: 'holiday' | 'private') => {
+    setSelectedService(service);
+    setSelectedDate(minDate);
+    setSelectedTime(null);
+    setSelectedProperty('');
+    setSelectedProgram(null);
+    setSelectedPrivateProgram(null);
+    setPrivatePropertyType(null);
+    setPrivateBedrooms(null);
+    setPrivateBathrooms(null);
+    setPrivateBalconies(null);
+    setOfficeSquareMeters(null);
+    setOfficeToilets(null);
+    setOfficeBalconies(null);
+    setOfficeCleanWindows(null);
+    setOfficeWindowsCount(null);
+    setGardenSquareMeters(null);
+    setGardenType(null);
+    setGardenOtherDetails('');
+  };
+
+  const handlePrivateProgramChange = (program: 'general' | 'deep' | 'office' | 'garden') => {
+    setSelectedPrivateProgram(program);
+    setPrivatePropertyType(null);
+    setPrivateBedrooms(null);
+    setPrivateBathrooms(null);
+    setPrivateBalconies(null);
+    setOfficeSquareMeters(null);
+    setOfficeToilets(null);
+    setOfficeBalconies(null);
+    setOfficeCleanWindows(null);
+    setOfficeWindowsCount(null);
+    setGardenSquareMeters(null);
+    setGardenType(null);
+    setGardenOtherDetails('');
+  };
+
+  const handlePropertyTypeChange = (type: 'house' | 'apartment') => {
+    setPrivatePropertyType(type);
+    setPrivateBedrooms(null);
+    setPrivateBathrooms(null);
+    setPrivateBalconies(null);
+  };
+
+  const handleOfficeCleanWindowsChange = (val: 'yes' | 'no') => {
+    setOfficeCleanWindows(val);
+    if (val === 'no') {
+      setOfficeWindowsCount(null);
+    }
+  };
+
+  // ค้นหาข้อมูลกลุ่มของ Property ที่เลือก
+  const currentPropertyInfo = PROPERTY_DATA.find((group) =>
+    group.items.includes(selectedProperty)
+  );
+
+  // ฟังก์ชันจัดการเมื่อกด Submit
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    // 📌 Validation เบื้องต้นก่อนส่งข้อมูล
+    if (!selectedDate) {
+      alert("กรุณาเลือกวันที่ต้องการรับบริการ");
+      return;
+    }
+    if (!selectedTime) {
+      alert("กรุณาเลือกรอบเวลาที่ต้องการ");
+      return;
+    }
+
+    if (selectedService === 'holiday') {
+      if (!selectedProperty) {
+        alert("กรุณาเลือกอสังหาริมทรัพย์ / Property");
+        return;
+      }
+      if (!selectedProgram) {
+        alert("กรุณาเลือกโปรแกรมทำความสะอาด");
+        return;
+      }
+    } else {
+      if (!selectedPrivateProgram) {
+        alert("กรุณาเลือกแพ็กเกจบริการทำความสะอาดบ้าน/ออฟฟิศ");
+        return;
+      }
+      if (!privateAddress.trim()) {
+        alert("กรุณาระบุที่อยู่สำหรับให้บริการ");
+        return;
+      }
+    }
+
+    let calculatedPrice = 70;
+    let roomCount = '1';
+
+    if (selectedService === 'holiday' && currentPropertyInfo) {
+      if (currentPropertyInfo.category.startsWith('2')) {
+        roomCount = '2';
+      }
+      if (currentPropertyInfo.category.startsWith('3')) {
+        roomCount = '3';
+      }
+
+      const programKey = selectedProgram === 'general' ? 'general' : 'turnover';
+      calculatedPrice = currentPropertyInfo.pricing[programKey] || 70;
+    }
+
+    // แปลงชื่อโปรแกรมให้รองรับทั้ง Holiday และ Private
+    let formattedProgramName = '';
+    if (selectedService === 'holiday') {
+      formattedProgramName = selectedProgram === 'general'
+        ? 'General Cleaning'
+        : 'Turnover Cleaning (Cleaning & change all sheets and towels)';
+    } else {
+      const privateProgramNames = {
+        general: 'Private Home - General Cleaning',
+        deep: 'Private Home - Deep Cleaning',
+        office: 'Office Cleaning',
+        garden: 'Garden Maintenance',
+      };
+      formattedProgramName = selectedPrivateProgram ? privateProgramNames[selectedPrivateProgram] : 'Private Service';
+    }
+
+    const formData = selectedService === 'holiday' 
+      ? {
+          service: 'holiday',
+          property: selectedProperty,
+          program: selectedProgram,
+          date: selectedDate,
+          timeSlot: selectedTime,
+          price: calculatedPrice,
+          room: roomCount,
+          name: customerInfo.name,
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+        }
+      : {
+          service: 'private',
+          address: privateAddress,
+          buildingComplex: privateBuildingComplex,
+          apartmentHouseNo: privateApartmentHouseNo,
+          mapLink: googleMapsLink,
+          mapsLink: googleMapsLink,
+          googleMapsLink: googleMapsLink,
+          program: selectedPrivateProgram,
+          propertyType: privatePropertyType,
+          bedrooms: privateBedrooms,
+          bathrooms: privateBathrooms,
+          balconies: privateBalconies,
+          officeSquareMeters: officeSquareMeters,
+          officeToilets: officeToilets,
+          officeBalconies: officeBalconies,
+          officeCleanWindows: officeCleanWindows,
+          officeWindowsCount: officeCleanWindows === 'yes' ? officeWindowsCount : null,
+          gardenSquareMeters: gardenSquareMeters,
+          gardenType: gardenType,
+          gardenOtherDetails: gardenType === 'other' ? gardenOtherDetails : '',
+          date: selectedDate,
+          timeSlot: selectedTime,
+          name: customerInfo.name,
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+        };
+
+    if (selectedService === 'holiday') {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('bookingData', JSON.stringify(formData));
+      }
+
+      const queryParams = new URLSearchParams({
+        program: formattedProgramName,
+        room: roomCount,
+        price: calculatedPrice.toString(),
+        apartment: selectedProperty || '',
+        name: customerInfo.name || '',
+        email: customerInfo.email || '',
+        phone: customerInfo.phone || '',
+      }).toString();
+
+      router.push(`/customer/payment?${queryParams}`);
+    } else {
+      // เคส Private Service
+      const generatedRef = `PRV-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const validScheduledTime = selectedTime === 'morning' 
+        ? '09:00:00' 
+        : selectedTime === 'afternoon' 
+        ? '13:00:00' 
+        : null;
+
+      // 📌 ใส่ทุกคีย์ให้ครบ รองรับทุกแบบที่แอดมินจะเรียกใช้
+      const privateDetails = {
+        program: selectedPrivateProgram,
+        program_name: formattedProgramName,
+        property_type: privatePropertyType,
+        bedrooms: privateBedrooms,
+        bathrooms: privateBathrooms,
+        balconies: privateBalconies,
+        address: privateAddress,                     // 👈 ใส่เพิ่ม
+        building_complex: privateBuildingComplex,
+        buildingComplex: privateBuildingComplex,      // 👈 ใส่เพิ่ม
+        apartment_house_no: privateApartmentHouseNo,
+        apartmentHouseNo: privateApartmentHouseNo,    // 👈 ใส่เพิ่ม
+        google_maps_link: googleMapsLink,
+        googleMapsLink: googleMapsLink,              // 👈 ใส่เพิ่ม
+        mapLink: googleMapsLink,                     // 👈 ใส่เพิ่ม
+        office_sqm: officeSquareMeters,
+        office_toilets: officeToilets,
+        office_balconies: officeBalconies,
+        office_clean_windows: officeCleanWindows,
+        office_windows_count: officeCleanWindows === 'yes' ? officeWindowsCount : null,
+        garden_sqm: gardenSquareMeters,
+        garden_type: gardenType,
+        garden_other_details: gardenType === 'other' ? gardenOtherDetails : '',
+      };
+
+      try {
+        const { data, error } = await supabase.from('bookings').insert([
+          {
+            booking_ref: generatedRef,
+            customer_name: customerInfo.name || null,
+            email: customerInfo.email || null,
+            phone: customerInfo.phone || null,
+            address_line: privateAddress || '',
+            scheduled_date: selectedDate || null,
+            scheduled_time: validScheduledTime,
+            service_type: 'private',
+            
+            // 📌 ใส่ฟิลด์ details กลับเข้าไป โดยแปลง privateDetails เป็น JSON String
+            details: JSON.stringify(privateDetails),
+            
+            price: 0,
+            payment_method: 'direct_request',
+            payment_status: 'pending',
+            status: 'pending',
+          },
+        ]).select();
+        
+        if (error) {
+          console.error('Supabase Insert Error Detail:', error);
+          alert(`เกิดข้อผิดพลาดจาก Supabase: ${error.message} (${error.details || ''})`);
+          return;
+        }
+
+        console.log("Inserted successfully:", data);
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        alert(`Unexpected Error: ${err}`);
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          'bookingData',
+          JSON.stringify({ ...formData, bookingRef: generatedRef })
+        );
+      }
+
+      router.push('/customer/confirmation-private');
+    }
+  };
+
+
+  return (
+    <main className="min-h-screen w-full overflow-x-hidden bg-white py-4 sm:py-8">
+      <div className="w-full px-3 sm:px-6 lg:px-10 xl:px-12">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-8 space-y-6"
+        >
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">
+              Book a Cleaning Service
+            </h1>
+            <p className="text-sm text-[#8E9B9E]">
+              Please complete the information below to continue.
+            </p>
+          </div>
+
+          <ServiceTypeSelector
+            selectedService={selectedService}
+            onSelectService={handleServiceChange}
+          />
+
+          {selectedService === 'holiday' && (
+            <>
+              <PropertySelection
+                selectedProperty={selectedProperty}
+                onSelectProperty={(property) => {
+                  setSelectedProperty(property);
+                  setSelectedProgram(null);
+                }}
+              />
+
+              {selectedProperty && (
+                <ProgramSelection
+                  selectedProgram={selectedProgram}
+                  onSelectProgram={setSelectedProgram}
+                  currentPropertyInfo={currentPropertyInfo}
+                />
+              )}
+            </>
+          )}
+
+          {selectedService === 'private' && (
+            <PrivateHomeForm
+              selectedPrivateProgram={selectedPrivateProgram}
+              propertyType={privatePropertyType}
+              bedrooms={privateBedrooms}
+              bathrooms={privateBathrooms}
+              balconies={privateBalconies}
+              officeSquareMeters={officeSquareMeters}
+              officeToilets={officeToilets}
+              officeBalconies={officeBalconies}
+              officeCleanWindows={officeCleanWindows}
+              officeWindowsCount={officeWindowsCount}
+              gardenSquareMeters={gardenSquareMeters}
+              gardenType={gardenType}
+              gardenOtherDetails={gardenOtherDetails}
+              address={privateAddress}
+              buildingComplex={privateBuildingComplex}
+              apartmentHouseNo={privateApartmentHouseNo}
+              mapLink={googleMapsLink}
+              onPrivateProgramChange={handlePrivateProgramChange}
+              onPropertyTypeChange={handlePropertyTypeChange}
+              onBedroomsChange={setPrivateBedrooms}
+              onBathroomsChange={setPrivateBathrooms}
+              onBalconiesChange={setPrivateBalconies}
+              onOfficeSquareMetersChange={setOfficeSquareMeters}
+              onOfficeToiletsChange={setOfficeToilets}
+              onOfficeBalconiesChange={setOfficeBalconies}
+              onOfficeCleanWindowsChange={handleOfficeCleanWindowsChange}
+              onOfficeWindowsCountChange={setOfficeWindowsCount}
+              onGardenSquareMetersChange={setGardenSquareMeters}
+              onGardenTypeChange={setGardenType}
+              onGardenOtherDetailsChange={setGardenOtherDetails}
+              onAddressChange={setPrivateAddress}
+              onBuildingComplexChange={setPrivateBuildingComplex}
+              onApartmentHouseNoChange={setPrivateApartmentHouseNo}
+              onMapLinkChange={setGoogleMapsLink}
+            />
+          )}
+
+          <DateSelection
+            selectedDate={selectedDate}
+            minDate={minDate}
+            onDateChange={setSelectedDate}
+          />
+
+          <TimeSelection
+            selectedTime={selectedTime}
+            onSelectTime={setSelectedTime}
+          />
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-[#006AFF] px-5 py-4 text-base font-bold text-white transition-colors hover:bg-[#0057D9] focus:outline-none focus:ring-2 focus:ring-[#006AFF] focus:ring-offset-2"
+            >
+              Continue
+            </button>
+          </div>
+        </form>
+      </div>
     </main>
   );
 }
 
-export default function BookingPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
-      <BookingForm />
-    </Suspense>
-  );
-}
+export default BookingForm;

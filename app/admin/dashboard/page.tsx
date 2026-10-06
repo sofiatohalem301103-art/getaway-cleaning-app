@@ -1,6 +1,9 @@
 'use client';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+// ✅ เพิ่ม Suspense เข้าไป
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -270,7 +273,7 @@ function FeedbackCard({
 }
 
 // ----------------------------------------------------------------------
-// 4. TaskCard Component
+// 4. TaskCard Component (Clean Layout - Line-by-Line Specs Display)
 // ----------------------------------------------------------------------
 function TaskCard({
   task,
@@ -299,7 +302,22 @@ function TaskCard({
   const displayCustomerName = extractCustomerName(task);
   const displayEmail = extractCustomerEmail(task);
   const displayPhone = extractPhoneNumber(task);
-  const displayProgram = extractProgramName(task);
+
+  // 1. Parse ข้อมูล details
+  let details: Record<string, any> = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try { details = JSON.parse(task.details); } catch (e) { details = {}; }
+    } else if (typeof task.details === 'object') {
+      details = task.details;
+    }
+  }
+
+  const isPrivateService = task.service_type === 'private' || String(task.booking_code || task.booking_ref || task.id || '').startsWith('PRV') || Boolean(task.details);
+
+  const displayProgram = isPrivateService && (details.program_name || details.program || task.service_name)
+    ? (details.program_name || details.program || task.service_name)
+    : extractProgramName(task);
 
   const isCard =
     task.payment_method === 'card' ||
@@ -307,15 +325,62 @@ function TaskCard({
     task.paymentMethod === 'card' ||
     (typeof isCardPayment === 'function' && isCardPayment(task));
 
+  // 2. ดึงข้อมูล Address ทุกส่วน
+  const addressLine = task.address_line || task.address || details.address || details.address_line || '';
+  const cityArea = task.city_area || task.city || details.city_area || details.city || details.area || '';
+  const building = task.building_complex || task.building || details.building_complex || details.building || details.buildingComplex || '';
+  const houseApt = task.house_apt || task.apartment_house_no || details.house_apt || details.apartment_house_no || details.apartmentHouseNo || '';
+
+  const addressParts = [];
+  if (addressLine) addressParts.push(addressLine);
+  if (cityArea) addressParts.push(cityArea);
+  if (building) addressParts.push(building);
+  if (houseApt) addressParts.push(`Apt/House: ${houseApt}`);
+
+  const displayAddress = addressParts.length > 0 ? addressParts.join(', ') : (task.address || '-');
+  const mapsLink = details.google_maps_link || details.googleMapsLink || details.mapLink || task.map_link || task.google_maps_link;
+
+  // 3. ดึงค่าสเปกย่อยรองรับทุกบริการ
+  const propertyType = details.property_type || details.propertyType || task.property_type;
+  const bedrooms = details.bedrooms ?? task.bedrooms;
+  const bathrooms = details.bathrooms ?? task.bathrooms;
+  const balconies = details.balconies ?? details.office_balconies ?? details.verandahs ?? task.balconies;
+  
+  // Office Specs
+  const officeSqm = details.office_sqm || task.office_sqm;
+  const officeToilets = details.office_toilets || task.office_toilets;
+  const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
+  const officeWindowsCount = details.office_windows_count || task.office_windows_count;
+
+  // Garden Specs
+  const gardenSqm = details.garden_sqm || task.garden_sqm;
+  const gardenType = details.garden_type || task.garden_type;
+  const gardenOtherDetails = details.garden_other_details || task.garden_other_details;
+
+  const hasPrivateSpecs = Boolean(
+    propertyType || (bedrooms !== undefined && bedrooms !== null && bedrooms !== '') ||
+    (bathrooms !== undefined && bathrooms !== null && bathrooms !== '') ||
+    (balconies !== undefined && balconies !== null && balconies !== '') ||
+    officeSqm || officeToilets || officeCleanWindows ||
+    gardenSqm || gardenType || gardenOtherDetails
+  );
+
   return (
     <div
       className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
       style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
     >
       <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
-        <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
-          {formatRefCode(task)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
+            {formatRefCode(task)}
+          </span>
+          {isPrivateService && (
+            <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200">
+              Private Home / Office
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="text-[10px] sm:text-xs" style={{ color: '#8E9B9E' }}>
@@ -362,15 +427,71 @@ function TaskCard({
             )}
           </p>
 
-          <p style={{ color: '#1E2B37' }}>
-            Address / Room: {task.address_line || task.address || task.location || '-'}
-          </p>
-
-          {(task.price || task.amount) && (
-            <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: '#00CC00' }}>
-              Amount: €{task.price || task.amount}
+          {/* 📌 ส่วนแสดง Address และ Google Maps Link */}
+          <div className="pt-1 space-y-0.5">
+            <p style={{ color: '#1E2B37' }}>
+              Address: <span className="font-semibold text-slate-900">{displayAddress}</span>
             </p>
+
+            {mapsLink && (
+              <p className="pt-0.5">
+                <a
+                  href={mapsLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 underline text-[11px]"
+                >
+                  📍 Open Location Link ↗
+                </a>
+              </p>
+            )}
+          </div>
+
+          {/* 🟢 ส่วนแสดงสเปกรายละเอียดแยกเป็นบรรทัดๆ ต่อลงมาจาก Address */}
+          {isPrivateService && hasPrivateSpecs && (
+            <div className="pt-1 space-y-0.5 text-[11px] text-slate-700">
+              {/* General / Home Specs */}
+              {propertyType && (
+                <p>Property Type: <strong className="text-slate-900">{propertyType}</strong></p>
+              )}
+              {bedrooms !== undefined && bedrooms !== null && bedrooms !== '' && (
+                <p>Bedrooms: <strong className="text-slate-900">{bedrooms}</strong></p>
+              )}
+              {bathrooms !== undefined && bathrooms !== null && bathrooms !== '' && (
+                <p>Bathrooms: <strong className="text-slate-900">{bathrooms}</strong></p>
+              )}
+
+              {/* Office Specs */}
+              {officeSqm && (
+                <p>Area Size: <strong className="text-slate-900">{officeSqm} m²</strong></p>
+              )}
+              {officeToilets && (
+                <p>Toilets: <strong className="text-slate-900">{officeToilets}</strong></p>
+              )}
+              {balconies !== undefined && balconies !== null && balconies !== '' && (
+                <p>Balconies / Verandahs: <strong className="text-slate-900">{balconies}</strong></p>
+              )}
+              {officeCleanWindows && (
+                <p>Window Cleaning: <strong className="text-slate-900">{officeCleanWindows === 'yes' ? `Yes (${officeWindowsCount || 0} Windows)` : 'No'}</strong></p>
+              )}
+
+              {/* Garden Specs */}
+              {gardenSqm && (
+                <p>Area Size: <strong className="text-slate-900">{gardenSqm} m²</strong></p>
+              )}
+              {gardenType && (
+                <p>Garden Type: <strong className="text-slate-900">{gardenType}</strong></p>
+              )}
+              {gardenOtherDetails && (
+                <p>Garden Note: <strong className="text-slate-900">{gardenOtherDetails}</strong></p>
+              )}
+            </div>
           )}
+
+          {/* ราคา */}
+          <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: Number(task.price || task.amount) > 0 ? '#00CC00' : '#D97706' }}>
+            Amount: {Number(task.price || task.amount) > 0 ? `€${task.price || task.amount}` : 'Pending Price Quote (Direct Request)'}
+          </p>
         </div>
 
         <div className="flex sm:flex-col justify-between items-center sm:items-end w-full sm:w-auto gap-2 border-t sm:border-t-0 pt-2 sm:pt-0" style={{ borderColor: '#F1F5F9' }}>
@@ -385,9 +506,9 @@ function TaskCard({
             ) : (
               <span
                 className="font-bold px-2.5 py-1 rounded-md text-[10px] border flex items-center gap-1"
-                style={{ backgroundColor: '#EAF3F9', color: '#2563EB', borderColor: '#93C5FD' }}
+                style={{ backgroundColor: '#FEF3C7', color: '#D97706', borderColor: '#FDE68A' }}
               >
-                Paid via Bank Transfer
+                Direct Request
               </span>
             )}
           </div>
@@ -466,7 +587,7 @@ function TaskCard({
 // ----------------------------------------------------------------------
 // 5. Main Dashboard Page Component
 // ----------------------------------------------------------------------
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const router = useRouter();
   const [tasks, setTasks] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -487,8 +608,7 @@ export default function AdminDashboardPage() {
       }
     }
   }, []);
-
-  const handleAdminChange = (newAdmin: string) => {
+const handleAdminChange = (newAdmin: string) => {
     setAdminUser(newAdmin);
     if (typeof window !== 'undefined') {
       localStorage.setItem('admin_user', newAdmin);
@@ -706,7 +826,6 @@ export default function AdminDashboardPage() {
       .update({
         admin_reply: replyText,
         replied_at: new Date().toISOString(),
-        // ตัด replied_by ออก
       })
       .eq('id', feedback.id);
 
@@ -1065,5 +1184,20 @@ export default function AdminDashboardPage() {
 
       </div>
     </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 6. Export Component wrapped in Suspense Boundary
+// ----------------------------------------------------------------------
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen text-slate-500 font-medium text-sm">
+        Loading Admin Dashboard...
+      </div>
+    }>
+      <AdminDashboardContent />
+    </Suspense>
   );
 }
