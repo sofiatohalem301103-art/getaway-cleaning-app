@@ -39,7 +39,11 @@ function UploadIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-// Helper Function สำหรับแปลงข้อความช่วงเวลาให้เป็นรูปแบบ HH:mm:ss ที่ตรงกับ Type TIME ของ Postgres
+// Class ป้องกัน Auto-zoom บน Mobile (บังคับ text-base / 16px บน mobile เสมอ)
+const INPUT_BASE_CLASSES =
+  'w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
+
+// Helper Function สำหรับแปลงข้อความช่วงเวลาให้เป็นรูปแบบ HH:mm:ss
 const formatTimeToDatabase = (timeSlot: string | null | undefined): string | null => {
   if (!timeSlot) return null;
   const lower = timeSlot.toLowerCase().trim();
@@ -70,7 +74,6 @@ function PaymentContent() {
   const room = searchParams.get('room') || '1';
   const rawPrice = searchParams.get('price') || '150';
 
-  // URL Query Fallbacks
   const urlName = searchParams.get('name') || searchParams.get('customer_name') || searchParams.get('fullname') || '';
   const urlEmail = searchParams.get('email') || searchParams.get('customer_email') || '';
   const urlPhone = searchParams.get('phone') || searchParams.get('mobile') || searchParams.get('tel') || searchParams.get('phone_number') || '';
@@ -89,6 +92,7 @@ function PaymentContent() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
@@ -154,7 +158,8 @@ function PaymentContent() {
       }
     }
 
-    // ดึงข้อมูล bookingData ที่บันทึกไว้จาก sessionStorage
+    setIsUploading(true);
+
     let storedBookingData: Record<string, any> = {};
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('bookingData');
@@ -167,7 +172,6 @@ function PaymentContent() {
       }
     }
 
-    // 📌 ดึงค่า Customer Name รองรับทุก Key
     const customerName = 
       storedBookingData.name || 
       storedBookingData.customerName || 
@@ -176,7 +180,6 @@ function PaymentContent() {
       urlName || 
       null;
 
-    // 📌 ดึงค่า Email รองรับทุก Key
     const customerEmail = 
       storedBookingData.email || 
       storedBookingData.customerEmail || 
@@ -184,7 +187,6 @@ function PaymentContent() {
       urlEmail || 
       null;
 
-    // 📌 ดึงค่า Phone รองรับทุก Key (ครอบคลุม phone, mobile, tel, phoneNumber, customerPhone)
     const customerPhone = 
       storedBookingData.phone || 
       storedBookingData.phoneNumber || 
@@ -199,8 +201,50 @@ function PaymentContent() {
     const generatedRef = `HOL-${Math.floor(100000 + Math.random() * 900000)}`;
     const validScheduledTime = formatTimeToDatabase(storedBookingData.timeSlot || storedBookingData.time);
 
+    let uploadedSlipUrl: string | null = null;
+
+    if (paymentMethod === 'bank' && slipFile) {
+      try {
+        const fileExt = slipFile.name.split('.').pop();
+        const fileName = `${generatedRef}_${Date.now()}.${fileExt}`;
+        const filePath = `receipts/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('slips')
+          .upload(filePath, slipFile, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Upload slip error:', uploadError);
+          alert(`Failed to upload payment slip: ${uploadError.message}`);
+          setIsUploading(false);
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('slips')
+          .getPublicUrl(filePath);
+
+        uploadedSlipUrl = publicUrlData?.publicUrl || filePath;
+      } catch (err) {
+        console.error('Slip processing error:', err);
+        alert('An error occurred while uploading the payment slip.');
+        setIsUploading(false);
+        return;
+      }
+    }
+
+    const holidayDetails = {
+      program_name: program,
+      program: storedBookingData.program || null,
+      room: room,
+      property: apartment || storedBookingData.property || '',
+      service_type: 'holiday',
+    };
+
     try {
-      // 📌 บันทึกข้อมูลลงตาราง bookings ใน Supabase
       const { error } = await supabase.from('bookings').insert([
         {
           booking_ref: generatedRef,
@@ -210,8 +254,14 @@ function PaymentContent() {
           address_line: apartment || storedBookingData.property || storedBookingData.address || '',
           scheduled_date: storedBookingData.date || storedBookingData.scheduled_date || null,
           scheduled_time: validScheduledTime,
+          
+          service_type: 'holiday',
+          service_id: null,
+          details: JSON.stringify(holidayDetails),
+
           price: numericPrice,
           payment_method: paymentMethod,
+          payment_slip: uploadedSlipUrl,
           payment_status: paymentMethod === 'card' ? 'paid' : 'pending_verification',
           status: 'confirmed',
         },
@@ -220,14 +270,17 @@ function PaymentContent() {
       if (error) {
         console.error('Error saving booking to Supabase:', error);
         alert(`Failed to save booking: ${error.message}`);
+        setIsUploading(false);
         return;
       }
     } catch (err) {
       console.error('Unexpected error:', err);
       alert('An unexpected error occurred. Please try again.');
+      setIsUploading(false);
       return;
     }
 
+    setIsUploading(false);
     router.push(`/customer/confirmation?program=${encodeURIComponent(program)}&room=${room}&price=${numericPrice}&method=${paymentMethod}&ref=${generatedRef}`);
   };
 
@@ -235,83 +288,78 @@ function PaymentContent() {
   // 2.4 JSX RENDER
   // ------------------------------------------
   return (
-    <div className="w-full max-w-5xl bg-white p-6 sm:p-10 lg:p-12 rounded-3xl shadow-sm border border-[#E2E8F0] space-y-8">
+    <div className="w-full max-w-4xl mx-auto space-y-6">
       
       {/* PAGE HEADER */}
-      <div className="w-full text-center space-y-1 pb-4 border-b border-[#F1F5F9]">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">Payment</h1>
-        <p className="text-xs sm:text-sm text-[#64748B]">Complete your payment details to confirm booking</p>
+      <div className="w-full text-center space-y-1 pb-4 border-b border-[#E2E8F0]">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">Payment</h1>
+        <p className="text-xs sm:text-sm text-[#8E9B9E]">Complete your payment details to confirm booking</p>
       </div>
 
       {/* RESPONSIVE GRID LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* LEFT COLUMN: SUMMARY & METHOD SELECTOR */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 space-y-5">
           
           {/* BOOKING SUMMARY BOX */}
-          <div className="p-5 sm:p-6 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
+          <div className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
               <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Booking Summary</span>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 bg-white border border-[#E2E8F0] text-[#334155] rounded-full">Overview</span>
             </div>
             
-            {/* Property */}
             {apartment && (
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <span className="text-xs font-medium text-[#64748B]">Property</span>
-                <p className="text-sm font-semibold text-[#0F172A] leading-relaxed break-words">
+                <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">
                   {apartment}
                 </p>
               </div>
             )}
 
-            {/* Service Program */}
-            <div className="space-y-1 pt-1">
+            <div className="space-y-0.5 pt-0.5">
               <span className="text-xs font-medium text-[#64748B]">Service Program</span>
-              <p className="text-sm font-semibold text-[#0F172A] leading-relaxed break-words">
+              <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">
                 {program}
               </p>
             </div>
 
-            {/* Bedrooms Count */}
             <div className="flex justify-between items-center text-sm pt-2 border-t border-[#E2E8F0]">
-              <span className="text-[#64748B] font-medium">Selected Unit</span>
-              <span className="px-2.5 py-1 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#0F172A]">
+              <span className="text-[#64748B] font-medium text-xs sm:text-sm">Selected Unit</span>
+              <span className="px-2.5 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">
                 {room} Bedroom(s)
               </span>
             </div>
 
-            {/* TOTAL PRICE BOX */}
-            <div className="pt-2">
-              <div className="flex justify-between items-center p-4 bg-[#F0F7FF] border border-[#BAE6FD] rounded-xl text-[#0F172A]">
-                <span className="text-sm font-semibold text-[#0284C7]">Total Price</span>
-                <span className="text-2xl font-black tracking-tight text-[#0369A1]">€{formattedPrice}</span>
+            <div className="pt-1">
+              <div className="flex justify-between items-center p-3.5 bg-[#EAF3F9] border border-[#BAE6FD] rounded-xl text-[#1E2B37]">
+                <span className="text-xs sm:text-sm font-semibold text-[#006AFF]">Total Price</span>
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-[#006AFF]">€{formattedPrice}</span>
               </div>
             </div>
           </div>
 
           {/* PAYMENT METHOD SELECTOR */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Select Payment Method</p>
             
-            <div className="grid grid-cols-1 gap-3">
-              {/* Option 1: Credit Card */}
+            <div className="grid grid-cols-1 gap-2.5">
               <label
                 onClick={() => setPaymentMethod('card')}
-                className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-150 cursor-pointer touch-manipulation ${
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation active:scale-[0.99] ${
                   paymentMethod === 'card'
-                    ? 'border-[#0F172A] bg-[#F8FAFC] ring-1 ring-[#0F172A]'
-                    : 'border-[#E2E8F0] hover:border-[#94A3B8] bg-white'
+                    ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]'
+                    : 'border-[#E2E8F0] hover:border-[#93C5FD] bg-white text-[#1E2B37]'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2.5 rounded-xl transition-colors ${paymentMethod === 'card' ? 'bg-[#0F172A] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                  <div className={`p-2 rounded-lg transition-colors ${paymentMethod === 'card' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
                     <CreditCardIcon />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-[#0F172A]">Credit / Debit Card</p>
-                    <p className="text-xs text-[#64748B]">Visa, Mastercard</p>
+                    <p className="text-sm font-bold">Credit / Debit Card</p>
+                    <p className="text-xs text-[#64748B] font-normal">Visa, Mastercard</p>
                   </div>
                 </div>
                 <input
@@ -319,26 +367,25 @@ function PaymentContent() {
                   name="paymentOption"
                   checked={paymentMethod === 'card'}
                   onChange={() => setPaymentMethod('card')}
-                  className="w-4 h-4 text-[#0F172A] accent-[#0F172A]"
+                  className="w-4 h-4 text-[#006AFF] accent-[#006AFF]"
                 />
               </label>
 
-              {/* Option 2: Bank Transfer */}
               <label
                 onClick={() => setPaymentMethod('bank')}
-                className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-150 cursor-pointer touch-manipulation ${
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation active:scale-[0.99] ${
                   paymentMethod === 'bank'
-                    ? 'border-[#0F172A] bg-[#F8FAFC] ring-1 ring-[#0F172A]'
-                    : 'border-[#E2E8F0] hover:border-[#94A3B8] bg-white'
+                    ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]'
+                    : 'border-[#E2E8F0] hover:border-[#93C5FD] bg-white text-[#1E2B37]'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2.5 rounded-xl transition-colors ${paymentMethod === 'bank' ? 'bg-[#0F172A] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                  <div className={`p-2 rounded-lg transition-colors ${paymentMethod === 'bank' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
                     <BankIcon />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-[#0F172A]">Bank Transfer</p>
-                    <p className="text-xs text-[#64748B]">Direct wire or mobile banking</p>
+                    <p className="text-sm font-bold">Bank Transfer</p>
+                    <p className="text-xs text-[#64748B] font-normal">Direct wire or mobile banking</p>
                   </div>
                 </div>
                 <input
@@ -346,7 +393,7 @@ function PaymentContent() {
                   name="paymentOption"
                   checked={paymentMethod === 'bank'}
                   onChange={() => setPaymentMethod('bank')}
-                  className="w-4 h-4 text-[#0F172A] accent-[#0F172A]"
+                  className="w-4 h-4 text-[#006AFF] accent-[#006AFF]"
                 />
               </label>
             </div>
@@ -355,51 +402,51 @@ function PaymentContent() {
         </div>
 
         {/* RIGHT COLUMN: PAYMENT FORMS & ACTIONS */}
-        <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-6">
+        <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-5">
           
           {/* FORM A: CREDIT CARD FORM */}
           {paymentMethod === 'card' && (
-            <div className="p-6 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] space-y-4">
+            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-3.5">
               <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Card Details</p>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[#0F172A]">Card Number</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-[#1E2B37]">Card Number</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   placeholder="xxxx xxxx xxxx xxxx"
                   value={cardDetails.cardNumber}
                   onChange={handleCardNumberChange}
-                  className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] tracking-wider font-mono focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition"
+                  className={`${INPUT_BASE_CLASSES} font-mono tracking-wider`}
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[#0F172A]">Name on Card</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
                 <input
                   type="text"
                   placeholder="NAME ON CARD"
                   value={cardDetails.cardName}
                   onChange={(e) => setCardDetails((prev) => ({ ...prev, cardName: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition uppercase"
+                  className={`${INPUT_BASE_CLASSES} uppercase`}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#0F172A]">Expiry Date</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#1E2B37]">Expiry Date</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="MM/YY"
                     value={cardDetails.expiryDate}
                     onChange={handleExpiryChange}
-                    className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] font-mono focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition text-center"
+                    className={`${INPUT_BASE_CLASSES} font-mono text-center`}
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#0F172A]">CVV / CVC</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#1E2B37]">CVV / CVC</label>
                   <input
                     type="password"
                     inputMode="numeric"
@@ -407,7 +454,7 @@ function PaymentContent() {
                     placeholder="xxx"
                     value={cardDetails.cvv}
                     onChange={handleCvvChange}
-                    className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] font-mono focus:outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition text-center"
+                    className={`${INPUT_BASE_CLASSES} font-mono text-center`}
                   />
                 </div>
               </div>
@@ -416,29 +463,29 @@ function PaymentContent() {
 
           {/* FORM B: BANK TRANSFER INFO & SLIP UPLOAD */}
           {paymentMethod === 'bank' && (
-            <div className="p-6 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] space-y-5">
+            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
               <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Bank Transfer Information</p>
 
-              <div className="p-4 bg-white rounded-xl border border-[#E2E8F0] space-y-3">
+              <div className="p-3.5 bg-white rounded-xl border border-[#E2E8F0] space-y-2.5">
                 <div>
                   <p className="text-xs text-[#64748B] font-medium">Bank Name</p>
-                  <p className="text-sm font-bold text-[#0F172A]">{bankDetails.bankName}</p>
+                  <p className="text-sm font-bold text-[#1E2B37]">{bankDetails.bankName}</p>
                 </div>
 
                 <div className="pt-2 border-t border-[#F1F5F9]">
                   <p className="text-xs text-[#64748B] font-medium">Account Name</p>
-                  <p className="text-sm font-semibold text-[#0F172A]">{bankDetails.accountName}</p>
+                  <p className="text-sm font-semibold text-[#1E2B37]">{bankDetails.accountName}</p>
                 </div>
 
                 <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
                   <div>
                     <p className="text-xs text-[#64748B] font-medium">Account No.</p>
-                    <p className="text-sm font-mono font-bold text-[#0F172A]">{bankDetails.accountNo}</p>
+                    <p className="text-sm font-mono font-bold text-[#1E2B37]">{bankDetails.accountNo}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')}
-                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#0F172A] flex items-center gap-1.5 transition"
+                    className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition active:scale-95 touch-manipulation"
                   >
                     <CopyIcon />
                     {copiedField === 'accountNo' ? 'Copied!' : 'Copy'}
@@ -448,12 +495,12 @@ function PaymentContent() {
                 <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
                   <div className="pr-2">
                     <p className="text-xs text-[#64748B] font-medium">IBAN</p>
-                    <p className="text-xs font-mono font-bold text-[#0F172A] break-all">{bankDetails.iban}</p>
+                    <p className="text-xs font-mono font-bold text-[#1E2B37] break-all">{bankDetails.iban}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopy(bankDetails.iban, 'iban')}
-                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#0F172A] flex items-center gap-1.5 transition shrink-0"
+                    className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition shrink-0 active:scale-95 touch-manipulation"
                   >
                     <CopyIcon />
                     {copiedField === 'iban' ? 'Copied!' : 'Copy'}
@@ -462,25 +509,25 @@ function PaymentContent() {
 
                 <div className="pt-2 border-t border-[#F1F5F9]">
                   <p className="text-xs text-[#64748B] font-medium">BIC / SWIFT</p>
-                  <p className="text-sm font-mono font-semibold text-[#0F172A]">{bankDetails.bic}</p>
+                  <p className="text-sm font-mono font-semibold text-[#1E2B37]">{bankDetails.bic}</p>
                 </div>
               </div>
 
               {/* Slip Upload Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[#0F172A]">Upload Payment Slip</label>
-                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#0F172A] rounded-xl p-5 text-center bg-white transition cursor-pointer">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-[#1E2B37]">Upload Payment Slip</label>
+                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white transition cursor-pointer touch-manipulation">
                   <input
                     type="file"
                     accept="image/*,.pdf"
                     onChange={handleSlipChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base"
                   />
-                  <div className="flex flex-col items-center space-y-1.5">
-                    <div className="p-2.5 bg-[#F1F5F9] rounded-full text-[#0F172A]">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="p-2 bg-[#F1F5F9] rounded-full text-[#006AFF]">
                       <UploadIcon />
                     </div>
-                    <p className="text-xs font-bold text-[#0F172A]">
+                    <p className="text-xs font-bold text-[#1E2B37]">
                       {slipFile ? slipFile.name : 'Click to upload payment slip'}
                     </p>
                     <p className="text-[10px] text-[#64748B]">PNG, JPG or PDF up to 5MB</p>
@@ -491,21 +538,23 @@ function PaymentContent() {
           )}
 
           {/* ACTION BUTTONS */}
-          <div className="w-full pt-4 flex items-center gap-4">
+          <div className="w-full pt-2 flex items-center gap-3">
             <button
               type="button"
+              disabled={isUploading}
               onClick={() => router.back()}
-              className="w-1/3 py-3.5 min-h-[48px] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#334155] font-semibold rounded-xl text-sm transition touch-manipulation"
+              className="w-1/3 py-3.5 min-h-[48px] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#334155] font-bold rounded-xl text-sm sm:text-base transition cursor-pointer touch-manipulation active:scale-[0.99] disabled:opacity-50"
             >
               ← Back
             </button>
             
             <button
               type="button"
+              disabled={isUploading}
               onClick={handleContinue}
-              className="w-2/3 py-3.5 min-h-[48px] bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] text-white font-semibold rounded-xl text-sm transition shadow-sm touch-manipulation"
+              className="w-2/3 py-3.5 min-h-[48px] bg-[#006AFF] hover:bg-[#0057D9] active:scale-[0.99] text-white font-bold rounded-xl text-sm sm:text-base transition cursor-pointer touch-manipulation disabled:opacity-50"
             >
-              Continue
+              {isUploading ? 'Uploading Slip & Confirming...' : 'Continue'}
             </button>
           </div>
 
@@ -522,15 +571,10 @@ function PaymentContent() {
 // ==========================================
 export default function PaymentPage() {
   return (
-    <main className="min-h-screen w-full bg-[#F8FAFC] flex flex-col items-center justify-center p-4 sm:p-8 lg:p-12 text-[#0F172A] font-sans antialiased overflow-y-auto">
-      <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col items-center justify-center py-6">
-        <Suspense fallback={<div className="text-sm text-[#64748B] p-8">Loading payment page...</div>}>
-          <PaymentContent />
-        </Suspense>
-      </div>
-      <footer className="w-full text-center py-4 max-w-7xl mx-auto shrink-0">
-        <p className="text-xs text-[#94A3B8] font-medium">© Getaway Cleaning Service</p>
-      </footer>
+    <main className="min-h-screen w-full bg-white py-4 sm:py-8 px-4 sm:px-6">
+      <Suspense fallback={<div className="text-sm text-[#64748B] p-8 text-center">Loading payment page...</div>}>
+        <PaymentContent />
+      </Suspense>
     </main>
   );
 }

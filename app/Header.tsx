@@ -8,14 +8,6 @@ interface HeaderProps {
   title?: string;
 }
 
-const LANGUAGES = [
-  { code: 'en-US', label: 'English (US)', flag: '🇺🇸', short: 'EN' },
-  { code: 'en', label: 'English (UK)', flag: '🇬🇧', short: 'UK' },
-  { code: 'el', label: 'Greek', flag: '🇬🇷', short: 'EL' },
-  { code: 'ru', label: 'Russian', flag: '🇷🇺', short: 'RU' },
-  { code: 'th', label: 'Thai', flag: '🇹🇭', short: 'TH' },
-];
-
 const COUNTRY_CODES = [
   { code: '+357', flag: '🇨🇾' },
   { code: '+44', flag: '🇬🇧' },
@@ -35,7 +27,6 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
 
   const [user, setUser] = useState<any>(null);
   const [profileName, setProfileName] = useState<string>('');
-  const [selectedLang, setSelectedLang] = useState<string>('en-US');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -75,16 +66,6 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
     const cleanNum = rawPhone.replace(/^\+357/, '').trim();
     return { code: '+357', num: formatPhoneNumber(cleanNum) };
   };
-
-  useEffect(() => {
-    const savedLang = localStorage.getItem('app_language');
-    if (savedLang) {
-      setSelectedLang(savedLang);
-    } else {
-      localStorage.setItem('app_language', 'en-US');
-      setSelectedLang('en-US');
-    }
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -211,12 +192,6 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
     setIsProfileModalOpen(false);
   };
 
-  const handleLanguageChange = (code: string) => {
-    setSelectedLang(code);
-    localStorage.setItem('app_language', code);
-    window.dispatchEvent(new CustomEvent('languageChange', { detail: code }));
-  };
-
   const handleLogout = async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -227,8 +202,6 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
       router.push('/auth/login');
     }
   };
-
-  const currentLangObj = LANGUAGES.find(l => l.code === selectedLang) || LANGUAGES[0];
 
   if (
     pathname?.startsWith('/admin') ||
@@ -241,10 +214,8 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
   return (
     <>
       <header className="w-full bg-white border-b border-[#E2E8F0] shadow-xs sticky top-0 z-40">
-        {/* ใช้ w-full แบบไร้ขอบกั้น เพื่อขยายเต็มหน้าจอ 100% */}
         <div className="w-full px-4 sm:px-8 sm:px-12 h-20 sm:h-28 flex justify-between items-center">
           
-          {/* Logo ขยายใหญ่เด่นขึ้น */}
           <div className="flex items-center h-full py-1">
             <img 
               src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
@@ -254,7 +225,6 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
             />
           </div>
 
-          {/* Right Section */}
           <div className="flex items-center gap-4">
             <h1 className="hidden md:block text-sm sm:text-base font-semibold text-[#8E9B9E] shrink-0">
               {title}
@@ -281,12 +251,9 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
                         setIsProfileDropdownOpen(false);
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition flex items-center justify-between cursor-pointer"
+                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition cursor-pointer"
                     >
-                      <span>Profile & Settings</span>
-                      <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-normal">
-                        {currentLangObj.flag} {currentLangObj.short}
-                      </span>
+                      Profile & Settings
                     </button>
 
                     <div className="border-t border-slate-100 my-1" />
@@ -356,36 +323,10 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
               <button 
                 type="button"
                 onClick={() => setIsProfileModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
               >
                 ✕
               </button>
-            </div>
-
-            <div className="mb-5 pb-5 border-b border-slate-100">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Language
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      selectedLang === lang.code
-                        ? 'border-[#0082CD] bg-sky-50 text-[#0082CD]'
-                        : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      <span>{lang.flag}</span>
-                      <span className="truncate">{lang.label}</span>
-                    </span>
-                    {selectedLang === lang.code && <span>✓</span>}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import Link from 'next/link';
 
 const STAFF_DATABASE = [
   { id: 'GW-S1', name: 'Staff 01', password: 'Getaway01' },
@@ -61,106 +61,167 @@ export default function StaffLoginPage() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-[#EAF3F9] flex flex-col items-center justify-center p-0 sm:p-4 text-[#1E2B37] font-sans">
+    <main className="w-full min-h-screen flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation">
       
-      {/* Container หลัก */}
-      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-md bg-[#FFFFFF] p-6 sm:p-8 sm:rounded-[32px] shadow-none sm:shadow-xl border-none sm:border border-[#D9D9D9] flex flex-col justify-between sm:justify-center items-center">
+      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ (โทนเขียว-ฟ้า สำหรับ Staff Portal) */}
+      <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-screen bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
         
-        {/* Header & Logo */}
-        <div className="w-full flex flex-col items-center pt-8 sm:pt-0">
-          <div className="mb-6 relative w-48 h-20">
-            <Image 
-              src="/logo.jpeg" 
-              alt="Getaway Cleaning Logo" 
-              fill
-              className="object-contain"
-              priority 
-            />
+        {/* Soft Background Accent Lights */}
+        <div className="absolute top-0 left-1/4 w-[30rem] h-[30rem] bg-white/60 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[25rem] h-[25rem] bg-[#86D892]/20 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Top Header Badge */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 bg-white/90 border border-blue-200/80 px-3.5 py-1.5 rounded-full shadow-xs backdrop-blur-md">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#2C7A39] animate-pulse" />
+            <span className="text-xs font-semibold tracking-wider uppercase text-[#2C5282]">
+              Staff Operations Portal
+            </span>
+          </div>
+        </div>
+
+        {/* Main Content ฝั่งซ้าย */}
+        <div className="relative z-10 my-auto py-6 space-y-4 max-w-xl w-full">
+          <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-[#1E3A5F] tracking-tight leading-tight">
+            Getaway Field Service
+          </h1>
+          <p className="text-[#5A7B9C] text-sm lg:text-base font-normal leading-relaxed">
+            Access cleaning schedules, property checklists, and real-time job status updates.
+          </p>
+
+          {/* Mini Cards */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="bg-white/80 p-4 rounded-2xl border border-white shadow-xs">
+              <p className="text-[#6C84A3] text-xs font-medium">Daily Roster</p>
+              <p className="text-[#1E3A5F] font-bold text-sm lg:text-base mt-0.5">Assigned Tasks</p>
+            </div>
+            <div className="bg-white/80 p-4 rounded-2xl border border-white shadow-xs">
+              <p className="text-[#6C84A3] text-xs font-medium">Property Details</p>
+              <p className="text-[#1E3A5F] font-bold text-sm lg:text-base mt-0.5">Keys & Access</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer ฝั่งซ้าย */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#829AB1] pt-3 border-t border-blue-200/60 w-full">
+          <span>Internal Staff Access Only</span>
+          <span>Security Protocol 256-bit</span>
+        </div>
+      </div>
+
+      {/* 🔵 ฝั่งขวา: ฟอร์ม Staff Login (จัดกึ่งกลางพอดีจอปกติ ซูมแล้วเลื่อนได้) */}
+      <div className="w-full md:w-1/2 lg:w-5/12 min-h-screen bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-6 lg:p-10 xl:p-12 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto">
+        
+        {/* Top Spacer / Mobile Badge */}
+        <div className="w-full flex justify-center pt-1 md:pt-0">
+          <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-4 py-1.5 rounded-full shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-[#2C7A39] animate-pulse" />
+            <span className="text-[11px] font-bold tracking-wider uppercase text-[#1E3A5F]">
+              Getaway Staff Portal
+            </span>
+          </div>
+        </div>
+
+        {/* Center Login Form Block */}
+        <div className="w-full max-w-md my-auto py-4">
+          
+          {/* Header Section */}
+          <div className="w-full text-center">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
+              Staff Log In
+            </h2>
+            <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1 font-medium">
+              Sign in to access your work schedule
+            </p>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight text-center">
-            Staff Log In
-          </h1>
-          <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1 text-center">
-            Sign in to access your work schedule
-          </p>
-        </div>
+          {/* Form Section */}
+          <div className="w-full my-5">
+            {errorMessage && (
+              <div className="w-full bg-[#EF8B8D]/20 border border-[#C94A4E]/60 text-[#C94A4E] text-xs py-2.5 px-4 rounded-2xl mb-4 text-center font-bold shadow-xs animate-shake">
+                {errorMessage}
+              </div>
+            )}
 
-        {/* Form Input Section */}
-        <div className="w-full my-auto sm:my-6">
-          {errorMessage && (
-            /* กล่อง Error แบบเข้ม ชัดเจนขึ้น */
-            <div className="w-full bg-[#EF8B8D]/25 border-2 border-[#C94A4E] text-[#C94A4E] text-xs py-2.5 px-4 rounded-full mb-4 text-center font-bold shadow-xs">
-              {errorMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="w-full space-y-4">
-            
-            {/* Staff ID */}
-            <div className="text-left">
-              <label className="block text-xs font-semibold text-[#1E2B37] mb-1.5">
-                Staff ID
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                placeholder="GW-S1"
-                value={staffId}
-                onChange={handleStaffIdChange}
-                className="w-full px-4 py-3 border border-[#D9D9D9] rounded-2xl text-base bg-[#FFFFFF] focus:outline-none focus:border-[#93C5FD] focus:ring-2 focus:ring-[#93C5FD]/50 transition duration-150 text-[#1E2B37] placeholder-[#1E1E1E]/40 font-medium uppercase"
-              />
-            </div>
-
-            {/* Password */}
-            <div className="text-left">
-              <label className="block text-xs font-semibold text-[#1E2B37] mb-1.5">
-                Password
-              </label>
-              <div className="relative w-full flex items-center">
+            <form onSubmit={handleSubmit} className="w-full space-y-4">
+              
+              {/* Staff ID */}
+              <div className="text-left">
+                <label className="block text-xs font-bold text-[#1E2B37] mb-1">
+                  Staff ID
+                </label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="text"
                   required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  className="w-full px-4 py-3 pr-11 border border-[#D9D9D9] rounded-2xl text-base bg-[#FFFFFF] focus:outline-none focus:border-[#93C5FD] focus:ring-2 focus:ring-[#93C5FD]/50 transition duration-150 text-[#1E2B37] placeholder-[#1E1E1E]/40 font-medium"
+                  maxLength={6}
+                  placeholder="GW-S1"
+                  value={staffId}
+                  onChange={handleStaffIdChange}
+                  className="w-full px-4 py-3 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition uppercase"
                 />
+              </div>
+
+              {/* Password */}
+              <div className="text-left">
+                <label className="block text-xs font-bold text-[#1E2B37] mb-1">
+                  Password
+                </label>
+                <div className="relative w-full flex items-center">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    className="w-full px-4 py-3 pr-11 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 text-[#1E1E1E]/40 hover:text-[#1E2B37] p-1 cursor-pointer transition-colors"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.018 10.018 0 014.222-1.063c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" /></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 text-[#1E1E1E]/50 hover:text-[#1E2B37] p-1 cursor-pointer transition-colors"
+                  type="submit"
+                  className="w-full min-h-[48px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-3 rounded-2xl text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none"
                 >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.018 10.018 0 014.222-1.063c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" /></svg>
-                  )}
+                  Log In
                 </button>
               </div>
-            </div>
+            </form>
+          </div>
 
-            {/* Submit Button */}
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="w-full min-h-[50px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-[#FFFFFF] font-bold py-3 rounded-2xl text-sm transition duration-150 shadow-md touch-manipulation cursor-pointer flex items-center justify-center select-none"
-              >
-                Log In
-              </button>
-            </div>
-          </form>
+          {/* Sub Link */}
+          <div className="w-full text-center">
+            <Link 
+              href="/admin" 
+              className="text-xs text-[#1E2B37]/70 hover:text-[#2563EB] underline font-semibold transition"
+            >
+              ← Back to Select Role
+            </Link>
+          </div>
+
         </div>
 
-        {/* Footer */}
-        <div className="w-full pb-4 sm:pb-0 text-center">
-          <p className="text-[11px] text-[#1E1E1E]/50 font-medium">
+        {/* Bottom Footer */}
+        <div className="w-full text-center pt-2 border-t border-slate-200/60 md:border-slate-100 max-w-md">
+          <p className="text-[11px] text-slate-400 font-medium">
             © Getaway Cleaning Service — Staff Only
           </p>
         </div>
 
       </div>
+
     </main>
   );
 }

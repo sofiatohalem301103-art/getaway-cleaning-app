@@ -179,12 +179,12 @@ function VerifyOtpContent() {
   };
 
   return (
-    <main className="h-[calc(100vh-80px)] w-full bg-white sm:bg-[#F8FAFC] flex flex-col justify-between p-0 sm:p-6 text-[#1E2B37] font-sans antialiased overflow-hidden">
+    <main className="min-h-[calc(100vh-80px)] w-full bg-white sm:bg-[#F8FAFC] flex flex-col justify-between p-0 sm:p-6 text-[#1E2B37] font-sans antialiased">
       
-      {/* Container หลัก: ดึงขึ้นด้านบนด้วย pt-4 ถึง pt-10 และจัดกึ่งกลางแนวนอน */}
-      <div className="w-full max-w-7xl mx-auto pt-4 sm:pt-6 lg:pt-10 flex-1 flex flex-col items-center justify-start">
+      {/* Container หลัก: กำหนด Padding และแนวตั้งให้ยืดขยายอย่างสมดุล */}
+      <div className="w-full max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 flex flex-col items-center justify-start">
         
-        {/* การ์ด OTP: ขยายขนาดพอดีบน Desktop และเต็มพื้นที่บน Mobile */}
+        {/* การ์ด OTP */}
         <div className="w-full max-w-md sm:max-w-lg bg-white border-0 sm:border sm:border-slate-200/80 shadow-none sm:shadow-xl sm:shadow-slate-200/50 rounded-none sm:rounded-3xl p-6 sm:p-10 space-y-6 sm:space-y-8 text-center">
           
           {/* Header & Icon */}
@@ -278,7 +278,7 @@ function VerifyOtpContent() {
         </div>
       </div>
 
-      {/* Footer ชิดขอบล่างพอดี */}
+      {/* Footer */}
       <footer className="w-full text-center py-4 max-w-7xl mx-auto">
         <p className="text-xs text-slate-400 font-medium">
           © Getaway Cleaning Service

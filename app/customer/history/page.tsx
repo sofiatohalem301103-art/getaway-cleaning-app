@@ -58,7 +58,7 @@ function HistoryContent() {
         .in('booking_id', stringIds);
 
       if (feedbackError) {
-        console.error('Error fetching feedbacks:', feedbackError);
+        console.error('Error fetching feedbacks:', feedbackError.message);
         return;
       }
 
@@ -76,85 +76,91 @@ function HistoryContent() {
     }
   }, []);
 
-  // ดึงข้อมูลผู้ใช้ และรายการการจองทั้งหมด
+  // ฟังก์ชันดึงข้อมูลผู้ใช้และการจองทั้งหมด (แก้ไข Query ให้ปลอดภัยขึ้น)
+  const fetchUserAndInitialData = useCallback(async (isMounted = true) => {
+    try {
+      if (isMounted) setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let storedUser: any = null;
+      try {
+        const localData = localStorage.getItem('user') || localStorage.getItem('sb-user');
+        if (localData) storedUser = JSON.parse(localData);
+      } catch (e) {}
+
+      const currentUserId = user?.id || storedUser?.id || null;
+      const email = user?.email || storedUser?.email || localStorage.getItem('user_email');
+
+      if (isMounted) setUserId(currentUserId);
+
+      // 🟢 ปรับเปลี่ยนโครงสร้าง Query ป้องกัน Column Not Found Error
+      let query = supabase.from('bookings').select('*');
+
+      const conditions: string[] = [];
+      if (currentUserId) {
+        conditions.push(`user_id.eq.${currentUserId}`);
+      }
+      if (email && email.trim() !== '') {
+        conditions.push(`customer_email.eq.${email}`);
+      }
+
+      let bookingData: Booking[] | null = null;
+      let bookingError = null;
+
+      if (conditions.length > 0) {
+        const { data, error } = await query.or(conditions.join(','));
+        bookingData = data as Booking[];
+        bookingError = error;
+      } else {
+        const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
+        bookingData = data as Booking[];
+        bookingError = error;
+      }
+
+      if (bookingError) {
+        console.error('Error fetching bookings:', bookingError.message);
+        // กรณี Query Error ให้พยายามดึงข้อมูลแบบ Fallback ทันทีเพื่อไม่ให้หน้าจอค้าง
+        const { data: fallbackData } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (fallbackData && isMounted) {
+          setBookings(fallbackData as Booking[]);
+        }
+      } else if (bookingData && isMounted) {
+        const sortedBookings = [...bookingData].sort((a, b) => {
+          const dateA = a.booking_date || a.scheduled_date || '';
+          const dateB = b.booking_date || b.scheduled_date || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        setBookings(sortedBookings);
+        const bookingIds = sortedBookings.map((b) => b.id);
+        await fetchFeedbacksForBookings(bookingIds);
+      }
+    } catch (err: any) {
+      console.error('Failed to load history data:', err?.message || err);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  }, [fetchFeedbacksForBookings]);
+
+  // Initial Load & Focus Re-fetch
   useEffect(() => {
     let isMounted = true;
+    fetchUserAndInitialData(isMounted);
 
-    const fetchUserAndInitialData = async () => {
-      try {
-        setLoading(true);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        let storedUser: any = null;
-        try {
-          const localData = localStorage.getItem('user') || localStorage.getItem('sb-user');
-          if (localData) storedUser = JSON.parse(localData);
-        } catch (e) {}
-
-        const currentUserId = user?.id || storedUser?.id || null;
-        const email = user?.email || storedUser?.email || localStorage.getItem('user_email');
-
-        if (isMounted) setUserId(currentUserId);
-
-        let queryFilters: string[] = [];
-        if (currentUserId) {
-          queryFilters.push(`user_id.eq.${currentUserId}`);
-          queryFilters.push(`customer_id.eq.${currentUserId}`);
-        }
-        if (email) {
-          queryFilters.push(`email.eq.${email}`);
-          queryFilters.push(`customer_email.eq.${email}`);
-        }
-
-        let bookingData: Booking[] | null = null;
-        let bookingError = null;
-
-        if (queryFilters.length > 0) {
-          const { data, error } = await supabase
-            .from('bookings')
-            .select('*')
-            .or(queryFilters.join(','));
-
-          bookingData = data as Booking[];
-          bookingError = error;
-        } else {
-          const { data, error } = await supabase
-            .from('bookings')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(20);
-
-          bookingData = data as Booking[];
-          bookingError = error;
-        }
-
-        if (bookingError) {
-          console.error('Error fetching bookings:', bookingError.message);
-        } else if (bookingData && isMounted) {
-          const sortedBookings = bookingData.sort((a, b) => {
-            const dateA = a.booking_date || a.scheduled_date || '';
-            const dateB = b.booking_date || b.scheduled_date || '';
-            return dateB.localeCompare(dateA);
-          });
-
-          setBookings(sortedBookings);
-          const bookingIds = sortedBookings.map((b) => b.id);
-          await fetchFeedbacksForBookings(bookingIds);
-        }
-      } catch (err) {
-        console.error('Failed to load history data:', err);
-      }  finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchUserAndInitialData();
+    const handleFocus = () => fetchUserAndInitialData(true);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchFeedbacksForBookings]);
+  }, [fetchUserAndInitialData]);
 
   // Realtime Listener
   useEffect(() => {
@@ -167,11 +173,17 @@ function HistoryContent() {
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
           if (payload.eventType === 'UPDATE' && payload.new) {
+            const updatedBooking = payload.new as Booking;
             setBookings((prev) =>
               prev.map((item) =>
-                String(item.id) === String(payload.new.id) ? { ...item, ...payload.new } : item
+                String(item.id) === String(updatedBooking.id) ? { ...item, ...updatedBooking } : item
               )
             );
+            
+            const cleanStatus = (updatedBooking.status || '').trim().toLowerCase();
+            if (['completed', 'done', 'finished', 'success'].includes(cleanStatus)) {
+              fetchFeedbacksForBookings([updatedBooking.id]);
+            }
           } else if (payload.eventType === 'INSERT' && payload.new) {
             setBookings((prev) => [payload.new as Booking, ...prev]);
           }
@@ -204,7 +216,7 @@ function HistoryContent() {
       supabase.removeChannel(bookingChannel);
       supabase.removeChannel(feedbackChannel);
     };
-  }, []);
+  }, [fetchFeedbacksForBookings]);
 
   const groupedBookings = (bookings || []).reduce((acc, booking) => {
     const dateKey = booking?.booking_date || booking?.scheduled_date || 'Unscheduled';
@@ -216,57 +228,59 @@ function HistoryContent() {
   }, {} as Record<string, Booking[]>);
 
   return (
-    <main className="min-h-screen w-full bg-[#F8FAFC] flex flex-col justify-between items-center p-4 sm:p-8 lg:p-12 text-[#1E2B37] font-sans overflow-y-auto">
+    <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center py-4 sm:py-8 px-4 sm:px-6 text-[#1E2B37] font-sans antialiased overflow-y-auto">
       
-      {/* Container หลัก (ขนาดพอดีสายตา) */}
-      <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-between items-center space-y-6">
+      {/* Container หลัก */}
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-between items-center space-y-6">
         
         {/* Header */}
-        <div className="w-full text-center border-b border-[#E2E8F0] pb-4 shrink-0">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
+        <div className="w-full text-center pb-2 shrink-0 space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             My Bookings
           </h1>
+          <p className="text-xs sm:text-sm text-[#8E9B9E]">View and manage your booking history</p>
         </div>
 
         {/* List Container */}
-        <div className="w-full my-2 space-y-8 flex-1 flex flex-col items-center">
+        <div className="w-full space-y-6 flex-1 flex flex-col items-center">
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
-              <div className="w-8 h-8 border-3 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm font-semibold text-[#8E9B9E]">Loading bookings...</p>
+              <div className="w-8 h-8 border-2 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xs sm:text-sm font-semibold text-[#8E9B9E]">Loading bookings...</p>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="py-16 text-center flex flex-col items-center justify-center space-y-4 bg-white rounded-3xl border border-[#E2E8F0] shadow-xs p-8 w-full max-w-md">
-              <p className="text-base font-bold text-[#1E2B37]">No booking history found.</p>
+            <div className="py-12 text-center flex flex-col items-center justify-center space-y-4 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 w-full">
+              <p className="text-sm font-bold text-[#1E2B37]">No booking history found.</p>
               <button
                 type="button"
                 onClick={() => router.push('/customer/booking')}
-                className="px-6 py-3 bg-[#1E2B37] hover:bg-[#2c3d4e] text-white text-xs font-bold rounded-2xl transition cursor-pointer shadow-sm active:scale-95"
+                className="px-5 py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation active:scale-[0.98]"
               >
                 Book Service Now
               </button>
             </div>
           ) : (
             Object.entries(groupedBookings).map(([date, items]) => (
-              <div key={date} className="space-y-4 w-full flex flex-col items-center">
+              <div key={date} className="space-y-3 w-full flex flex-col items-center">
                 
-                {/* Header วันที่ */}
-                <div className="sticky top-0 bg-[#F8FAFC]/95 backdrop-blur-md py-2 z-10 border-b border-[#E2E8F0] flex items-center justify-between w-full max-w-lg px-1">
-                  <span className="text-sm font-extrabold text-[#1E2B37] tracking-wide flex items-center gap-2">
+                {/* Sticky Header วันที่ */}
+                <div className="sticky top-0 bg-white/95 backdrop-blur-md py-2 z-10 flex items-center justify-between w-full px-1">
+                  <span className="text-xs sm:text-sm font-bold text-[#1E2B37] tracking-wide flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#006AFF]"></span>
                     {date}
                   </span>
-                  <span className="text-xs font-bold text-[#8E9B9E] bg-white border border-[#E2E8F0] px-3 py-1 rounded-full shadow-2xs">
+                  <span className="text-[11px] font-semibold text-[#8E9B9E] bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-0.5 rounded-full">
                     {items.length} {items.length > 1 ? 'bookings' : 'booking'}
                   </span>
                 </div>
 
-                {/* List การ์ดจัดกึ่งกลางแน่นอน */}
-                <div className="flex flex-col items-center gap-4 w-full">
+                {/* List การ์ด */}
+                <div className="flex flex-col items-center gap-3 w-full">
                   {items.map((booking) => {
                     if (!booking) return null;
-                    const currentStatus = (booking.status || '').toLowerCase();
-                    const isCompleted = currentStatus === 'completed';
+                    
+                    const cleanStatus = (booking.status || '').trim().toLowerCase();
+                    const isCompleted = ['completed', 'done', 'finished', 'success'].includes(cleanStatus);
 
                     const rawRef = booking.booking_ref || `REF-${booking.id}`;
                     const cleanStr = rawRef.replace(/^REF-?/i, '');
@@ -296,20 +310,20 @@ function HistoryContent() {
                     return (
                       <div
                         key={booking.id}
-                        className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between items-center gap-4 hover:border-[#006AFF]/40 w-full max-w-lg"
+                        className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl transition-all flex flex-col justify-between items-center gap-3.5 w-full"
                       >
-                        <div className="space-y-3.5 w-full">
+                        <div className="space-y-3 w-full">
                           {/* Reference & Status Header */}
-                          <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
-                            <span className="text-xs font-extrabold text-[#006AFF] bg-[#006AFF]/10 px-3 py-1 rounded-lg">
+                          <div className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2.5">
+                            <span className="text-xs font-bold text-[#006AFF] bg-[#EAF3F9] px-2.5 py-1 rounded-lg">
                               {formattedRef}
                             </span>
                             <span
-                              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full capitalize ${
+                              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${
                                 isCompleted
                                   ? 'bg-[#E6F9E6] text-[#008800]'
-                                  : currentStatus === 'confirmed'
-                                  ? 'bg-[#EBF5FF] text-[#006AFF]'
+                                  : cleanStatus === 'confirmed' || cleanStatus === 'in progress'
+                                  ? 'bg-[#EAF3F9] text-[#006AFF]'
                                   : 'bg-gray-100 text-gray-600'
                               }`}
                             >
@@ -317,7 +331,7 @@ function HistoryContent() {
                                 className={`w-1.5 h-1.5 rounded-full ${
                                   isCompleted
                                     ? 'bg-[#008800]'
-                                    : currentStatus === 'confirmed'
+                                    : cleanStatus === 'confirmed' || cleanStatus === 'in progress'
                                     ? 'bg-[#006AFF]'
                                     : 'bg-gray-400'
                                 }`}
@@ -327,7 +341,7 @@ function HistoryContent() {
                           </div>
 
                           {/* Details */}
-                          <div className="space-y-2.5 text-xs">
+                          <div className="space-y-2 text-xs">
                             <div className="flex items-start justify-between gap-4">
                               <span className="font-medium text-[#8E9B9E] shrink-0">Location</span>
                               <p className="font-bold text-[#1E2B37] text-right leading-tight">
@@ -352,11 +366,11 @@ function HistoryContent() {
                         </div>
 
                         {/* Action & Feedback Area */}
-                        <div className="w-full pt-3 border-t border-gray-100 shrink-0 flex flex-col items-center justify-center">
+                        <div className="w-full pt-2.5 border-t border-[#E2E8F0] shrink-0 flex flex-col items-center justify-center">
                           {isCompleted ? (
                             existingFeedback ? (
                               <div className="space-y-2 w-full">
-                                <div className="w-full py-2 bg-[#F4F8FA] border border-[#E2E8F0] rounded-xl text-center flex items-center justify-center gap-1.5">
+                                <div className="w-full py-2 bg-white border border-[#E2E8F0] rounded-lg text-center flex items-center justify-center gap-1.5">
                                   <span className="text-xs font-bold text-[#008800]">
                                     ✓ Feedback Submitted
                                   </span>
@@ -368,7 +382,7 @@ function HistoryContent() {
                                 </div>
 
                                 {(existingFeedback.comment || existingFeedback.admin_reply) && (
-                                  <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-left space-y-2.5">
+                                  <div className="p-3 bg-white border border-[#E2E8F0] rounded-lg text-left space-y-2">
                                     {existingFeedback.comment && (
                                       <div className="space-y-0.5">
                                         <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider block">
@@ -396,15 +410,15 @@ function HistoryContent() {
                             ) : (
                               <Link
                                 href={`/customer/feedback?booking_id=${booking.id}&ref=${rawRef}`}
-                                className="w-full py-2.5 bg-[#006AFF]/10 hover:bg-[#006AFF] text-[#006AFF] hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center active:scale-98"
+                                className="w-full py-2.5 min-h-[44px] bg-[#EAF3F9] hover:bg-[#006AFF] text-[#006AFF] hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center flex items-center justify-center active:scale-[0.98] touch-manipulation"
                               >
                                 Leave Feedback
                               </Link>
                             )
                           ) : (
-                            <div className="text-center py-1">
+                            <div className="text-center py-0.5">
                               <span className="text-xs font-semibold text-[#8E9B9E] italic">
-                                {currentStatus === 'confirmed' ? 'In progress' : 'Scheduled'}
+                                {cleanStatus === 'confirmed' ? 'In progress' : 'Scheduled'}
                               </span>
                             </div>
                           )}
@@ -419,16 +433,16 @@ function HistoryContent() {
         </div>
 
         {/* Footer */}
-        <div className="w-full shrink-0 pt-6 border-t border-[#E2E8F0] space-y-2 text-center flex flex-col items-center justify-center">
+        <div className="w-full shrink-0 pt-4 space-y-2 text-center flex flex-col items-center justify-center">
           <button
             type="button"
             onClick={() => router.push('/customer/booking')}
-            className="py-1.5 px-4 text-xs font-bold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-lg hover:bg-slate-200/50"
+            className="py-2 px-4 min-h-[44px] text-xs sm:text-sm font-bold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-xl hover:bg-[#F8FAFC] active:scale-[0.98] touch-manipulation"
           >
             ← Back to Booking
           </button>
 
-          <p className="text-xs text-[#8E9B9E] font-medium">
+          <p className="text-xs text-[#94A3B8] font-medium">
             © Getaway Cleaning Service
           </p>
         </div>
@@ -440,7 +454,7 @@ function HistoryContent() {
 
 export default function HistoryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white text-xs text-[#8E9B9E]">Loading...</div>}>
       <HistoryContent />
     </Suspense>
   );

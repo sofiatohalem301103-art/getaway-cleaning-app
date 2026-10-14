@@ -2,7 +2,6 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-// ✅ เพิ่ม Suspense เข้าไป
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -20,9 +19,142 @@ const STAFF_LIST = [
 
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
+const HOLIDAY_PROPERTIES = [
+  'Beautiful Apartment in Harbour Paphos | Central',
+  'Breathtaking Seaview Apartment | Lighthouse Beach',
+  'Harbour Lights Seaview One Bedroom Apt | Paphos',
+  'One Bedroom Apartment | Lighthouse Beach',
+  'One Bedroom Apartment in Universal Paphos',
+  'Stylish One Bedroom Apartment at Paphos Harbour',
+  'Cozy Nerina Cottage | Harbour Paphos',
+  'Modern Poolside villa | Paphos',
+  'Stylish Poolside Villa | Paphos',
+  'Tropical Paradise | Harbour Paphos | Center',
+];
+
+const HOLIDAY_TIME_SLOTS = [
+  '09:00:00',
+  '10:00:00',
+  '11:00:00',
+  '12:00:00',
+  '13:00:00',
+  '14:00:00',
+  '15:00:00',
+  '16:00:00',
+];
+
 // ----------------------------------------------------------------------
 // 2. Helper Functions
 // ----------------------------------------------------------------------
+function formatSlipUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+
+  if (
+    rawUrl.startsWith('http://') || 
+    rawUrl.startsWith('https://') || 
+    rawUrl.startsWith('data:')
+  ) {
+    return rawUrl;
+  }
+
+  try {
+    let cleanPath = rawUrl.replace(/^\/+/, '').split('?')[0];
+
+    const hasExtension = /\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(cleanPath);
+    if (!hasExtension) {
+      cleanPath = `${cleanPath}.png`;
+    }
+
+    const { data } = supabase.storage.from('slips').getPublicUrl(cleanPath);
+    return data?.publicUrl || rawUrl;
+  } catch (err) {
+    console.error('Error formatting slip URL:', err);
+    return rawUrl;
+  }
+}
+
+function getValidSlipUrl(task: any): string | null {
+  if (!task) return null;
+
+  let detailsObj: any = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try {
+        detailsObj = JSON.parse(task.details);
+      } catch (e) {
+        detailsObj = {};
+      }
+    } else if (typeof task.details === 'object' && task.details !== null) {
+      detailsObj = task.details;
+    }
+  }
+
+  const targetKeys = [
+    'payment_slip', 'slip_url', 'slipurl', 'slip_image', 'slipimage',
+    'receipt_url', 'slip', 'payment_proof', 'proof_of_payment',
+    'file_url', 'image_url', 'attachment', 'image', 'url', 'proof',
+    'slip_path', 'slippath', 'file_path', 'filepath', 'path', 'receipt'
+  ];
+
+  const extractUrl = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === 'string' && val.trim()) {
+      return formatSlipUrl(val.trim());
+    }
+    return null;
+  };
+
+  for (const key of Object.keys(task)) {
+    if (targetKeys.includes(key.toLowerCase()) && task[key]) {
+      const res = extractUrl(task[key]);
+      if (res) return res;
+    }
+  }
+
+  for (const key of Object.keys(detailsObj)) {
+    if (targetKeys.includes(key.toLowerCase()) && detailsObj[key]) {
+      const res = extractUrl(detailsObj[key]);
+      if (res) return res;
+    }
+  }
+
+  const findRecursive = (obj: any): string | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    for (const k of Object.keys(obj)) {
+      if (targetKeys.includes(k.toLowerCase()) && obj[k]) {
+        const res = extractUrl(obj[k]);
+        if (res) return res;
+      }
+      if (typeof obj[k] === 'object' && obj[k] !== null) {
+        const res = findRecursive(obj[k]);
+        if (res) return res;
+      }
+    }
+    return null;
+  };
+
+  return findRecursive(task);
+}
+
+const isCardPayment = (task: any): boolean => {
+  if (!task) return false;
+  if (getValidSlipUrl(task)) return false;
+
+  const method = String(
+    task.payment_method ||
+    task.payment_type ||
+    task.gateway ||
+    task.channel ||
+    ''
+  ).toLowerCase();
+
+  return (
+    method.includes('card') ||
+    method.includes('credit') ||
+    method.includes('stripe')
+  );
+};
+
 const formatRefCode = (task: any): string => {
   if (task.booking_code) return task.booking_code;
   if (task.booking_ref) return task.booking_ref;
@@ -48,41 +180,6 @@ const formatPhoneNumberDisplay = (phoneStr: string): string => {
   return cleaned.replace(/(\d{3})(?=\d)/g, '$1 ');
 };
 
-function getValidSlipUrl(task: any): string | null {
-  if (!task) return null;
-  const rawUrl =
-    task.payment_slip ||
-    task.slip_url ||
-    task.slipUrl ||
-    task.payment_slip_url ||
-    task.slip_image ||
-    task.receipt_url ||
-    task.slip;
-
-  if (!rawUrl || typeof rawUrl !== 'string') return null;
-  return rawUrl.trim();
-}
-
-const isCardPayment = (task: any): boolean => {
-  if (!task) return false;
-  if (getValidSlipUrl(task)) return false;
-
-  const method = String(
-    task.payment_method ||
-    task.payment_type ||
-    task.gateway ||
-    task.channel ||
-    ''
-  ).toLowerCase();
-
-  return (
-    method.includes('card') ||
-    method.includes('credit') ||
-    method.includes('stripe') ||
-    (method.includes('promptpay') === false && task.is_card === true)
-  );
-};
-
 const extractProgramName = (task: any): string => {
   if (!task) return 'General cleaning';
 
@@ -102,11 +199,6 @@ const extractProgramName = (task: any): string => {
   return price > 100 ? 'Turn over Cleaning' : 'General cleaning';
 };
 
-const getLocalDateString = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
 const getCleanDate = (dateVal: any): string => {
   if (!dateVal) return '';
   return String(dateVal).split('T')[0];
@@ -114,19 +206,15 @@ const getCleanDate = (dateVal: any): string => {
 
 const extractPhoneNumber = (task: any): string => {
   if (!task) return '';
-  const phone =
+  return String(
     task.customer_phone ||
     task.phone ||
     task.phone_number ||
     task.mobile ||
     task.bookings?.customer_phone ||
     task.bookings?.phone ||
-    task.users?.phone ||
-    task.users?.phone_number ||
-    task.profiles?.phone ||
-    task.profiles?.mobile;
-
-  return phone ? String(phone) : '';
+    ''
+  );
 };
 
 const extractCustomerName = (task: any): string => {
@@ -136,14 +224,9 @@ const extractCustomerName = (task: any): string => {
     task.name ||
     task.full_name ||
     task.bookings?.customer_name ||
-    task.bookings?.name ||
-    task.bookings?.full_name ||
-    task.bookings?.guest_name ||
-    task.profiles?.full_name ||
-    task.profiles?.name ||
     '';
 
-  return rawName && rawName !== 'Guest' ? rawName : 'Sofia';
+  return rawName && rawName !== 'Guest' ? rawName : 'Admin Assigned Task';
 };
 
 const extractCustomerEmail = (task: any): string => {
@@ -152,12 +235,134 @@ const extractCustomerEmail = (task: any): string => {
     task.customer_email ||
     task.email ||
     task.bookings?.customer_email ||
-    task.bookings?.email ||
-    task.user_email ||
-    task.profiles?.email ||
     ''
   );
 };
+
+const formatTimeAMPM = (timeStr: string) => {
+  if (!timeStr) return '';
+  const [hourStr, minuteStr] = timeStr.split(':');
+  let hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  hour = hour ? hour : 12;
+  const formattedHour = hour < 10 ? `0${hour}` : hour;
+  return `${formattedHour}:${minuteStr} ${ampm}`;
+};
+
+// ----------------------------------------------------------------------
+// 2.5 Admin Review Rating Analytics Block Component
+// ----------------------------------------------------------------------
+function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
+  const validScores = feedbacks.map((f) => {
+    const raw = f.rating !== undefined && f.rating !== null ? f.rating : f.rating_score;
+    return Number(raw) || 0;
+  }).filter((score) => score > 0);
+
+  const total = validScores.length;
+
+  const avgRating = total > 0
+    ? (validScores.reduce((sum, score) => sum + score, 0) / total).toFixed(1)
+    : '0.0';
+
+  const numAvg = Number(avgRating);
+
+  const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  validScores.forEach((score) => {
+    const rounded = Math.min(5, Math.max(1, Math.round(score)));
+    distribution[rounded as 1|2|3|4|5] += 1;
+  });
+
+  const positiveCount = distribution[5] + distribution[4];
+  const positiveRate = total > 0 ? Math.round((positiveCount / total) * 100) : 0;
+
+  let statusColor = 'text-amber-600 bg-amber-50 border-amber-200';
+  let statusText = 'Stable Performance';
+  let statusIcon = '➔';
+
+  if (numAvg >= 4.5) {
+    statusColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+    statusText = 'Excellent (High Satisfaction)';
+    statusIcon = '▲';
+  } else if (numAvg < 3.8 && total > 0) {
+    statusColor = 'text-rose-700 bg-rose-50 border-rose-200';
+    statusText = 'Needs Attention (Review Dropping)';
+    statusIcon = '▼';
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      {/* Block 1: Rating Performance Analytics */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#8E9B9E]">
+            RATING PERFORMANCE ANALYTICS
+          </span>
+          <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full border flex items-center gap-1 ${statusColor}`}>
+            <span>{statusIcon}</span> {statusText}
+          </span>
+        </div>
+
+        <div className="flex items-baseline gap-3 pt-1">
+          <div className="text-3xl sm:text-4xl font-black text-[#1E2B37] tracking-tight">
+            ★ {avgRating}
+          </div>
+          <div className="text-xs text-[#8E9B9E] font-medium">
+            out of <strong className="text-[#1E2B37]">5.0</strong> ({total} total reviews)
+          </div>
+        </div>
+
+        <div className="space-y-1.5 pt-2 border-t border-[#F1F5F9]">
+          <div className="flex justify-between text-xs font-bold">
+            <span className="text-[#475569]">Satisfaction Rate (4-5 ★)</span>
+            <span className="text-[#006AFF]">{positiveRate}%</span>
+          </div>
+          <div className="w-full h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-[#006AFF] rounded-full transition-all duration-500"
+              style={{ width: `${positiveRate}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Block 2: Star Distribution Breakdown */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-[#8E9B9E] block">
+          STAR DISTRIBUTION
+        </span>
+
+        <div className="space-y-1.5">
+          {[5, 4, 3, 2, 1].map((star) => {
+            const count = distribution[star as 1|2|3|4|5];
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+
+            return (
+              <div key={star} className="flex items-center gap-2 text-xs">
+                <span className="w-8 font-bold text-[#1E2B37] text-right shrink-0">
+                  {star} ★
+                </span>
+
+                <div className="flex-1 h-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      star >= 4 ? 'bg-[#008800]' : star === 3 ? 'bg-amber-400' : 'bg-rose-500'
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+
+                <span className="w-12 text-[#8E9B9E] font-semibold text-right shrink-0">
+                  {count} ({pct}%)
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ----------------------------------------------------------------------
 // 3. FeedbackCard Component
@@ -201,39 +406,38 @@ function FeedbackCard({
   };
 
   return (
-    <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs space-y-3 text-xs text-slate-800">
-      <div className="flex justify-between items-center border-b pb-2 border-slate-100">
-        <span className="font-bold text-slate-900 text-sm">
+    <div 
+      className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
+      style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
+    >
+      <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
+        <span className="font-bold text-sm" style={{ color: '#1E1E1E' }}>
           Customer Name : {displayCustomerName}
         </span>
 
-        <div className="flex items-center gap-1 text-amber-500 font-bold">
+        <div className="flex items-center gap-1 font-bold" style={{ color: '#FFB800' }}>
           {'★'.repeat(feedback.rating || feedback.rating_score || 5)}
-          <span className="text-slate-400 text-[10px]">
+          <span className="text-[10px]" style={{ color: '#8E9B9E' }}>
             ({feedback.rating || feedback.rating_score || 5}/5)
           </span>
         </div>
       </div>
 
-      {/* 🟢 กรอบข้อความลูกค้า + ข้อความตอบกลับจากแอดมิน */}
-      <div className="bg-slate-50/80 p-3 rounded-lg border border-slate-100 space-y-2">
-        {/* ข้อความลูกค้า */}
-        <p className="text-slate-700 text-xs sm:text-sm italic">
+      <div className="p-3 rounded-lg border space-y-2" style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }}>
+        <p className="text-xs sm:text-sm italic" style={{ color: '#1E2B37' }}>
           "{feedback.comment || 'No comment provided.'}"
         </p>
 
-        {/* ข้อความที่แอดมินตอบกลับ (ถ้ามี) */}
         {hasReplied && (
-          <div className="pt-2 border-t border-slate-200 text-xs text-sky-800">
-            <span className="font-bold text-sky-900">Admin Reply: </span>
+          <div className="pt-2 border-t text-xs" style={{ borderColor: '#E2E8F0', color: '#006AFF' }}>
+            <span className="font-bold">Admin Reply: </span>
             <span>{feedback.admin_reply || replyText}</span>
           </div>
         )}
       </div>
 
-      {/* ช่องสำหรับกรอก/แก้ไขคำตอบ */}
-      <div className="pt-2 border-t border-slate-100 space-y-2">
-        <label className="font-bold text-slate-800 block">
+      <div className="pt-2 border-t space-y-2" style={{ borderColor: '#F1F5F9' }}>
+        <label className="font-bold block" style={{ color: '#1E1E1E' }}>
           {hasReplied ? 'Edit Admin Reply:' : 'Admin Reply:'}
         </label>
         <textarea
@@ -242,27 +446,27 @@ function FeedbackCard({
           onChange={(e) => setReplyText(e.target.value)}
           disabled={isLoading || isSubmitting}
           placeholder="Type your reply to customer..."
-          className="w-full p-2 sm:p-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+          className="w-full p-2 sm:p-2.5 border rounded-lg text-xs focus:outline-none focus:ring-2"
+          style={{ backgroundColor: '#FFFFFF', borderColor: '#D9D9D9', color: '#1E1E1E' }}
         ></textarea>
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           {hasReplied ? (
-            <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold">
+            <span className="text-[10px] sm:text-xs font-semibold" style={{ color: '#008800' }}>
               ✓ Replied {feedback.replied_by ? `by ${feedback.replied_by}` : ''}
             </span>
           ) : (
-            <span className="text-[10px] sm:text-xs text-slate-400">Not replied yet</span>
+            <span className="text-[10px] sm:text-xs" style={{ color: '#8E9B9E' }}>Not replied yet</span>
           )}
 
           <button
             type="button"
             onClick={handleSendReply}
             disabled={isLoading || isSubmitting}
-            className={`w-full sm:w-auto px-4 py-1.5 rounded-lg font-bold text-xs transition active:scale-95 cursor-pointer ${
-              hasReplied
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                : 'bg-sky-600 hover:bg-sky-700 text-white'
-            }`}
+            className="w-full sm:w-auto px-4 py-1.5 rounded-lg font-bold text-xs transition active:scale-95 cursor-pointer text-white"
+            style={{
+              backgroundColor: hasReplied ? '#008800' : '#006AFF'
+            }}
           >
             {isSubmitting ? 'Saving...' : hasReplied ? 'Update Reply' : 'Send Reply'}
           </button>
@@ -273,7 +477,7 @@ function FeedbackCard({
 }
 
 // ----------------------------------------------------------------------
-// 4. TaskCard Component (Clean Layout - Line-by-Line Specs Display)
+// 4. TaskCard Component
 // ----------------------------------------------------------------------
 function TaskCard({
   task,
@@ -293,7 +497,7 @@ function TaskCard({
   handleDeleteTask: (id: any) => void;
 }) {
   const currentAssigned = task.assigned_staff || task.staff_id || '';
-  const activeStaffChoice = selectedStaff !== undefined ? selectedStaff : currentAssigned;
+  const activeStaffChoice = selectedStaff !== undefined && selectedStaff !== '' ? selectedStaff : currentAssigned;
   const isPaid = task.payment_status === 'Paid / Verified' || task.status === 'Paid';
 
   const hasSelectedStaff = Boolean(activeStaffChoice);
@@ -303,7 +507,16 @@ function TaskCard({
   const displayEmail = extractCustomerEmail(task);
   const displayPhone = extractPhoneNumber(task);
 
-  // 1. Parse ข้อมูล details
+  // เช็กว่าเป็นงาน Admin
+  const isAdminTask = 
+    task.customer_name === 'Admin Assigned Task' || 
+    Boolean(task.assigned_by) || 
+    task.details?.is_admin_booking ||
+    task.details?.assigned_by_admin ||
+    task.payment_method === 'Manual Booking (By Admin)';
+
+  const slipUrl = getValidSlipUrl(task);
+
   let details: Record<string, any> = {};
   if (task.details) {
     if (typeof task.details === 'string') {
@@ -313,11 +526,64 @@ function TaskCard({
     }
   }
 
-  const isPrivateService = task.service_type === 'private' || String(task.booking_code || task.booking_ref || task.id || '').startsWith('PRV') || Boolean(task.details);
+  const propertyType = details.property_type || details.propertyType || task.property_type;
+  const bedrooms = details.bedrooms ?? task.bedrooms;
+  const bathrooms = details.bathrooms ?? task.bathrooms;
+  const balconies = details.balconies ?? details.office_balconies ?? details.verandahs ?? task.balconies;
+  
+  const officeSqm = details.office_sqm || task.office_sqm;
+  const officeToilets = details.office_toilets || task.office_toilets;
+  const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
+  const officeWindowsCount = details.office_windows_count || task.office_windows_count;
 
-  const displayProgram = isPrivateService && (details.program_name || details.program || task.service_name)
-    ? (details.program_name || details.program || task.service_name)
-    : extractProgramName(task);
+  const gardenSqm = details.garden_sqm || task.garden_sqm;
+  const gardenType = details.garden_type || task.garden_type;
+  const gardenOtherDetails = details.garden_other_details || task.garden_other_details;
+
+  const hasPrivateSpecs = Boolean(
+    propertyType || (bedrooms !== undefined && bedrooms !== null && bedrooms !== '') ||
+    (bathrooms !== undefined && bathrooms !== null && bathrooms !== '') ||
+    (balconies !== undefined && balconies !== null && balconies !== '') ||
+    officeSqm || officeToilets || officeCleanWindows ||
+    gardenSqm || gardenType || gardenOtherDetails
+  );
+
+  const isPrivateService =
+    task.service_type === 'private' ||
+    String(task.booking_code || task.booking_ref || task.id || '').startsWith('PRV') ||
+    hasPrivateSpecs;
+
+  const possibleProgramNames = [
+    details.program_name,
+    details.program_title,
+    details.program,
+    details.selectedProgram,
+    details.service_name,
+    details.title,
+    task.program_name,
+    task.program,
+    task.selected_program,
+    task.service_name,
+    task.title,
+    task.package_name,
+    task.room_type,
+    typeof extractProgramName === 'function' ? extractProgramName(task) : null,
+    task.fetched_service_name
+  ];
+
+  let foundProgram = possibleProgramNames.find(
+    (val) => Boolean(val) && String(val).trim() !== '' && String(val).trim() !== 'Cleaning Service'
+  );
+
+  if (!foundProgram) {
+    foundProgram = task.service_type || 'Cleaning Service';
+  }
+
+  if (foundProgram === 'garden' || foundProgram === 'Garden') {
+    foundProgram = 'Garden Cleaning (Upon Request)';
+  }
+
+  const displayProgram = foundProgram;
 
   const isCard =
     task.payment_method === 'card' ||
@@ -325,7 +591,6 @@ function TaskCard({
     task.paymentMethod === 'card' ||
     (typeof isCardPayment === 'function' && isCardPayment(task));
 
-  // 2. ดึงข้อมูล Address ทุกส่วน
   const addressLine = task.address_line || task.address || details.address || details.address_line || '';
   const cityArea = task.city_area || task.city || details.city_area || details.city || details.area || '';
   const building = task.building_complex || task.building || details.building_complex || details.building || details.buildingComplex || '';
@@ -340,44 +605,25 @@ function TaskCard({
   const displayAddress = addressParts.length > 0 ? addressParts.join(', ') : (task.address || '-');
   const mapsLink = details.google_maps_link || details.googleMapsLink || details.mapLink || task.map_link || task.google_maps_link;
 
-  // 3. ดึงค่าสเปกย่อยรองรับทุกบริการ
-  const propertyType = details.property_type || details.propertyType || task.property_type;
-  const bedrooms = details.bedrooms ?? task.bedrooms;
-  const bathrooms = details.bathrooms ?? task.bathrooms;
-  const balconies = details.balconies ?? details.office_balconies ?? details.verandahs ?? task.balconies;
-  
-  // Office Specs
-  const officeSqm = details.office_sqm || task.office_sqm;
-  const officeToilets = details.office_toilets || task.office_toilets;
-  const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
-  const officeWindowsCount = details.office_windows_count || task.office_windows_count;
-
-  // Garden Specs
-  const gardenSqm = details.garden_sqm || task.garden_sqm;
-  const gardenType = details.garden_type || task.garden_type;
-  const gardenOtherDetails = details.garden_other_details || task.garden_other_details;
-
-  const hasPrivateSpecs = Boolean(
-    propertyType || (bedrooms !== undefined && bedrooms !== null && bedrooms !== '') ||
-    (bathrooms !== undefined && bathrooms !== null && bathrooms !== '') ||
-    (balconies !== undefined && balconies !== null && balconies !== '') ||
-    officeSqm || officeToilets || officeCleanWindows ||
-    gardenSqm || gardenType || gardenOtherDetails
-  );
-
   return (
     <div
       className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
       style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
     >
+      {/* Ref Code Header */}
       <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
         <div className="flex items-center gap-2">
           <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
             {formatRefCode(task)}
           </span>
           {isPrivateService && (
-            <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: '#EBF5FF', color: '#1D4ED8', borderColor: '#93C5FD' }}>
               Private Home / Office
+            </span>
+          )}
+          {isAdminTask && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}>
+              Admin Direct Task
             </span>
           )}
         </div>
@@ -388,7 +634,7 @@ function TaskCard({
           </span>
           <button
             onClick={() => handleDeleteTask(task.id)}
-            className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer"
+            className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer font-bold"
             style={{ color: '#D95353' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FFE8AE')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -398,23 +644,36 @@ function TaskCard({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
-        <div className="space-y-1 w-full sm:flex-1">
+      {/* Main Grid: Details (Left) vs Payment Slip Preview (Right) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        
+        {/* Left Section: Booking Specs */}
+        <div className="md:col-span-2 space-y-1">
           <p className="font-bold text-xs sm:text-sm" style={{ color: '#2563EB' }}>
             {displayProgram}
           </p>
 
           <p style={{ color: '#1E2B37' }}>
-            Customer: <span className="font-semibold">{displayCustomerName}</span>
+            Customer: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayCustomerName}</span>
           </p>
 
-          <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
-            Email: <span className="font-medium" style={{ color: '#1E1E1E' }}>{displayEmail || 'N/A'}</span>
-          </p>
+          {/* ซ่อน Email ถ้าไม่มีข้อมูล หรือเป็น N/A */}
+          {displayEmail && 
+           displayEmail !== 'N/A' && 
+           displayEmail !== 'null' && 
+           displayEmail.trim() !== '' && (
+            <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
+              Email: <span className="font-medium" style={{ color: '#1E1E1E' }}>{displayEmail}</span>
+            </p>
+          )}
 
-          <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
-            Phone:{' '}
-            {displayPhone ? (
+          {/* ซ่อน Phone ถ้าไม่มีข้อมูล หรือเป็น N/A / No phone */}
+          {displayPhone && 
+           !displayPhone.includes('N/A') && 
+           !displayPhone.includes('No phone') && 
+           displayPhone.trim() !== '' && (
+            <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
+              Phone:{' '}
               <a
                 href={`tel:${displayPhone.replace(/\s+/g, '')}`}
                 className="font-bold hover:underline"
@@ -422,15 +681,13 @@ function TaskCard({
               >
                 {formatPhoneNumberDisplay(displayPhone)}
               </a>
-            ) : (
-              <span className="font-medium" style={{ color: '#D95353' }}>N/A (No phone)</span>
-            )}
-          </p>
+            </p>
+          )}
 
-          {/* 📌 ส่วนแสดง Address และ Google Maps Link */}
+          {/* Address & Maps */}
           <div className="pt-1 space-y-0.5">
             <p style={{ color: '#1E2B37' }}>
-              Address: <span className="font-semibold text-slate-900">{displayAddress}</span>
+              Address: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayAddress}</span>
             </p>
 
             {mapsLink && (
@@ -439,7 +696,8 @@ function TaskCard({
                   href={mapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 underline text-[11px]"
+                  className="inline-flex items-center gap-1 font-bold underline text-[11px]"
+                  style={{ color: '#006AFF' }}
                 >
                   📍 Open Location Link ↗
                 </a>
@@ -447,92 +705,120 @@ function TaskCard({
             )}
           </div>
 
-          {/* 🟢 ส่วนแสดงสเปกรายละเอียดแยกเป็นบรรทัดๆ ต่อลงมาจาก Address */}
+          {/* Detailed Specs */}
           {isPrivateService && hasPrivateSpecs && (
-            <div className="pt-1 space-y-0.5 text-[11px] text-slate-700">
-              {/* General / Home Specs */}
-              {propertyType && (
-                <p>Property Type: <strong className="text-slate-900">{propertyType}</strong></p>
-              )}
-              {bedrooms !== undefined && bedrooms !== null && bedrooms !== '' && (
-                <p>Bedrooms: <strong className="text-slate-900">{bedrooms}</strong></p>
-              )}
-              {bathrooms !== undefined && bathrooms !== null && bathrooms !== '' && (
-                <p>Bathrooms: <strong className="text-slate-900">{bathrooms}</strong></p>
-              )}
-
-              {/* Office Specs */}
-              {officeSqm && (
-                <p>Area Size: <strong className="text-slate-900">{officeSqm} m²</strong></p>
-              )}
-              {officeToilets && (
-                <p>Toilets: <strong className="text-slate-900">{officeToilets}</strong></p>
-              )}
-              {balconies !== undefined && balconies !== null && balconies !== '' && (
-                <p>Balconies / Verandahs: <strong className="text-slate-900">{balconies}</strong></p>
-              )}
-              {officeCleanWindows && (
-                <p>Window Cleaning: <strong className="text-slate-900">{officeCleanWindows === 'yes' ? `Yes (${officeWindowsCount || 0} Windows)` : 'No'}</strong></p>
-              )}
-
-              {/* Garden Specs */}
-              {gardenSqm && (
-                <p>Area Size: <strong className="text-slate-900">{gardenSqm} m²</strong></p>
-              )}
-              {gardenType && (
-                <p>Garden Type: <strong className="text-slate-900">{gardenType}</strong></p>
-              )}
-              {gardenOtherDetails && (
-                <p>Garden Note: <strong className="text-slate-900">{gardenOtherDetails}</strong></p>
-              )}
+            <div className="pt-1 space-y-0.5 text-[11px]" style={{ color: '#334155' }}>
+              {propertyType && <p>Property Type: <strong style={{ color: '#1E1E1E' }}>{propertyType}</strong></p>}
+              {bedrooms !== undefined && bedrooms !== null && bedrooms !== '' && <p>Bedrooms: <strong style={{ color: '#1E1E1E' }}>{bedrooms}</strong></p>}
+              {bathrooms !== undefined && bathrooms !== null && bathrooms !== '' && <p>Bathrooms: <strong style={{ color: '#1E1E1E' }}>{bathrooms}</strong></p>}
+              {officeSqm && <p>Area Size: <strong style={{ color: '#1E1E1E' }}>{officeSqm} m²</strong></p>}
+              {officeToilets && <p>Toilets: <strong style={{ color: '#1E1E1E' }}>{officeToilets}</strong></p>}
+              {balconies !== undefined && balconies !== null && balconies !== '' && <p>Balconies / Verandahs: <strong style={{ color: '#1E1E1E' }}>{balconies}</strong></p>}
+              {officeCleanWindows && <p>Window Cleaning: <strong style={{ color: '#1E1E1E' }}>{officeCleanWindows === 'yes' ? `Yes (${officeWindowsCount || 0} Windows)` : 'No'}</strong></p>}
+              {gardenSqm && <p>Area Size: <strong style={{ color: '#1E1E1E' }}>{gardenSqm} m²</strong></p>}
+              {gardenType && <p>Garden Type: <strong style={{ color: '#1E1E1E' }}>{gardenType}</strong></p>}
+              {gardenOtherDetails && <p>Garden Note: <strong style={{ color: '#1E1E1E' }}>{gardenOtherDetails}</strong></p>}
             </div>
           )}
 
-          {/* ราคา */}
-          <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: Number(task.price || task.amount) > 0 ? '#00CC00' : '#D97706' }}>
+          {/* Total Amount */}
+          <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: Number(task.price || task.amount) > 0 ? '#00CC00' : '#FFB800' }}>
             Amount: {Number(task.price || task.amount) > 0 ? `€${task.price || task.amount}` : 'Pending Price Quote (Direct Request)'}
           </p>
         </div>
 
-        <div className="flex sm:flex-col justify-between items-center sm:items-end w-full sm:w-auto gap-2 border-t sm:border-t-0 pt-2 sm:pt-0" style={{ borderColor: '#F1F5F9' }}>
-          <div className="flex flex-col items-end gap-1.5">
-            {isCard ? (
-              <span
-                className="font-bold px-2.5 py-1 rounded-md text-[10px] border flex items-center gap-1"
-                style={{ backgroundColor: '#EAF3F9', color: '#2563EB', borderColor: '#93C5FD' }}
+        {/* Right Section: Payment Slip Display Box */}
+        <div className="border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-3 flex flex-col justify-between" style={{ borderColor: '#E2E8F0' }}>
+          <div>
+            <span className="font-extrabold text-[10px] uppercase tracking-wider block mb-1.5" style={{ color: '#1E2B37' }}>
+              PAYMENT PROOF:
+            </span>
+
+            {slipUrl ? (
+              <div className="space-y-1.5">
+                <a
+                  href={slipUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block relative w-24 h-32 rounded-lg border-2 overflow-hidden hover:opacity-90 transition group shadow-2xs"
+                  style={{ borderColor: '#93C5FD', backgroundColor: '#F8FAFC' }}
+                  title="Click to view full size slip"
+                >
+                  <img
+                    src={slipUrl}
+                    alt="Payment Slip"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold">
+                    View ↗
+                  </div>
+                </a>
+                <a
+                  href={slipUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-bold hover:underline block"
+                  style={{ color: '#006AFF' }}
+                >
+                  Open Slip ↗
+                </a>
+              </div>
+            ) : isAdminTask ? (
+              <span 
+                className="font-bold px-2.5 py-1 rounded-md text-[10px] border inline-block"
+                style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}
+              >
+                Manual Booking (By Admin)
+              </span>
+            ) : isCard ? (
+              <span 
+                className="font-bold px-2 py-1 rounded text-[10px] border inline-block"
+                style={{ backgroundColor: '#EBF5FF', color: '#1D4ED8', borderColor: '#93C5FD' }}
               >
                 Paid via Credit Card
               </span>
-            ) : (
-              <span
-                className="font-bold px-2.5 py-1 rounded-md text-[10px] border flex items-center gap-1"
-                style={{ backgroundColor: '#FEF3C7', color: '#D97706', borderColor: '#FDE68A' }}
+            ) : isPrivateService ? (
+              <span 
+                className="font-bold px-2 py-1 rounded text-[10px] border inline-block"
+                style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}
               >
-                Direct Request
+                Unpaid / Direct Request
               </span>
+            ) : (
+              <div 
+                className="p-2 rounded text-[10px] font-medium border"
+                style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}
+              >
+                No slip uploaded yet
+              </div>
             )}
           </div>
 
-          {isPaid ? (
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded border"
-              style={{ backgroundColor: '#CDF4D3', color: '#00CC00', borderColor: '#86D892' }}
-            >
-              ✓ Paid Verified
-            </span>
-          ) : (
-            <button
-              onClick={() => handleConfirmPayment(task)}
-              disabled={isLoading}
-              className="text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50"
-              style={{ backgroundColor: '#86D892', color: '#1E1E1E', borderColor: '#00CC00' }}
-            >
-              {isLoading ? 'Processing...' : 'Confirm Payment'}
-            </button>
-          )}
+          {/* Payment Status & Confirm Button */}
+          <div className="pt-2 flex flex-col items-start md:items-end gap-1">
+            {isAdminTask ? null : isPaid ? (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                style={{ backgroundColor: '#CDF4D3', color: '#008800', borderColor: '#86D892' }}
+              >
+                ✓ Paid Verified
+              </span>
+            ) : (
+              <button
+                onClick={() => handleConfirmPayment(task)}
+                disabled={isLoading}
+                className="text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50"
+                style={{ backgroundColor: '#86D892', color: '#1E1E1E', borderColor: '#00CC00' }}
+              >
+                {isLoading ? 'Processing...' : 'Confirm Payment'}
+              </button>
+            )}
+          </div>
         </div>
+
       </div>
 
+      {/* Staff Assignment Bar */}
       <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#F1F5F9' }}>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="font-medium whitespace-nowrap" style={{ color: '#8E9B9E' }}>Assigned:</span>
@@ -560,7 +846,7 @@ function TaskCard({
             style={
               !hasSelectedStaff || (!isChangedStaff && Boolean(currentAssigned))
                 ? { backgroundColor: '#E2E8F0', color: '#8E9B9E', borderColor: '#D9D9D9' }
-                : { backgroundColor: '#006AFF', color: '#FFFFFF', borderColor: '#2563EB' }
+                : { backgroundColor: '#006AFF', color: '#FFFFFF', borderColor: '#1D4ED8' }
             }
           >
             {isLoading ? 'Processing...' : !isChangedStaff && currentAssigned ? 'Assigned' : 'Assign'}
@@ -572,7 +858,7 @@ function TaskCard({
             className="font-bold text-[11px] text-right flex items-center gap-1 px-2.5 py-1 rounded-md border"
             style={{
               backgroundColor: '#F8FAFC',
-              color: '#475569',
+              color: '#334155',
               borderColor: '#E2E8F0',
             }}
           >
@@ -585,9 +871,213 @@ function TaskCard({
 }
 
 // ----------------------------------------------------------------------
-// 5. Main Dashboard Page Component
+// 5. Modal Component
+// ----------------------------------------------------------------------
+function AssignHolidayTaskModal({ 
+  isOpen, 
+  onClose, 
+  onSuccess,
+  adminName = 'Zaza'
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSuccess?: () => void; 
+  adminName?: string;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const [selectedProperty, setSelectedProperty] = useState(HOLIDAY_PROPERTIES[0]);
+  const [programName, setProgramName] = useState('General cleaning');
+  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduledTime, setScheduledTime] = useState('09:00:00');
+  const [assignedStaff, setAssignedStaff] = useState(STAFF_LIST[0].name);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const generatedRef = `HOL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const holidayDetails = {
+      program_name: programName,
+      property: selectedProperty,
+      service_type: 'holiday',
+      assigned_by_admin: true,
+      admin_name: adminName,
+      is_admin_booking: true,
+    };
+
+    try {
+      const { error } = await supabase.from('bookings').insert([
+        {
+          booking_ref: generatedRef,
+          customer_name: 'Admin Assigned Task',
+          address_line: selectedProperty,
+          scheduled_date: scheduledDate,
+          scheduled_time: scheduledTime,
+          service_type: 'holiday',
+          service_id: null,
+          details: JSON.stringify(holidayDetails),
+          assigned_staff: assignedStaff,
+          assigned_by: adminName,
+          status: 'Assigned',
+          payment_status: 'Paid / Verified',
+          payment_method: 'Manual Booking (By Admin)',
+          price: 0,
+        },
+      ]);
+
+      if (error) {
+        alert(`Error: ${error.message}`);
+      } else {
+        alert(`Task assigned by ${adminName} successfully! Reference: ${generatedRef}`);
+        if (onSuccess) onSuccess();
+        onClose();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while assigning the task.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto font-sans">
+      <div className="bg-white rounded-[24px] max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
+        
+        {/* Modal Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[#1E2B37]">Assign Holiday Task</h2>
+            <p className="text-xs text-slate-500">
+              Assigning as <span className="font-bold text-[#1E2B37]">{adminName}</span>
+            </p>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition text-base font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Modal Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
+          
+          {/* Property Unit */}
+          <div className="space-y-1 text-left w-full min-w-0">
+            <label className="text-xs font-bold text-[#1E2B37]">Property Unit</label>
+            <select
+              value={selectedProperty}
+              onChange={(e) => setSelectedProperty(e.target.value)}
+              className="w-full max-w-full box-border px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-[16px] sm:text-xs font-semibold text-[#1E2B37] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+            >
+              {HOLIDAY_PROPERTIES.map((prop) => (
+                <option key={prop} value={prop}>{prop}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Program */}
+          <div className="space-y-1 text-left w-full min-w-0">
+            <label className="text-xs font-bold text-[#1E2B37]">Program</label>
+            <select
+              value={programName}
+              onChange={(e) => setProgramName(e.target.value)}
+              className="w-full max-w-full box-border px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-[16px] sm:text-xs font-semibold text-[#1E2B37] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+            >
+              <option value="General cleaning">General cleaning</option>
+              <option value="Turnover cleaning">Turnover cleaning</option>
+            </select>
+          </div>
+
+          {/* Scheduled Date & Working Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full min-w-0">
+            
+            {/* Scheduled Date */}
+            <div className="space-y-1 text-left w-full min-w-0">
+              <label className="text-xs font-bold text-[#1E2B37]">Scheduled Date</label>
+              <input
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                required
+                className="w-full max-w-full min-w-0 box-border px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-[16px] sm:text-xs text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition appearance-none"
+              />
+            </div>
+
+            {/* Working Time */}
+            <div className="space-y-1 text-left w-full min-w-0">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#1E2B37]">Working Time</label>
+                <span className="text-[10px] font-semibold text-[#2563EB]">09:00 AM - 04:00 PM</span>
+              </div>
+              <select
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="w-full max-w-full min-w-0 box-border px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-[16px] sm:text-xs font-bold text-[#1E2B37] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+              >
+                {HOLIDAY_TIME_SLOTS.map((time) => (
+                  <option key={time} value={time}>
+                    {formatTimeAMPM(time)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+
+          {/* Assign Staff */}
+          <div className="space-y-1 text-left w-full min-w-0">
+            <label className="text-xs font-bold text-[#1E2B37] block">Assign Staff</label>
+            <select
+              value={assignedStaff}
+              onChange={(e) => setAssignedStaff(e.target.value)}
+              className="w-full max-w-full box-border px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-[16px] sm:text-xs font-semibold text-[#1E2B37] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+            >
+              {STAFF_LIST.map((staff) => (
+                <option key={staff.id} value={staff.name}>
+                  {staff.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row-reverse items-center gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-2/3 py-3 sm:py-2.5 bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-bold rounded-2xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Confirm Task Assignment'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="w-full sm:w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 6. Main Dashboard Page Component
 // ----------------------------------------------------------------------
 function AdminDashboardContent() {
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const router = useRouter();
   const [tasks, setTasks] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -598,7 +1088,7 @@ function AdminDashboardContent() {
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const todayStr = getLocalDateString();
+  const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -608,7 +1098,8 @@ function AdminDashboardContent() {
       }
     }
   }, []);
-const handleAdminChange = (newAdmin: string) => {
+
+  const handleAdminChange = (newAdmin: string) => {
     setAdminUser(newAdmin);
     if (typeof window !== 'undefined') {
       localStorage.setItem('admin_user', newAdmin);
@@ -621,38 +1112,29 @@ const handleAdminChange = (newAdmin: string) => {
         localStorage.removeItem('admin_user');
       }
       await supabase.auth.signOut();
-      router.push('/login');
+      router.push('/admin/login');
     }
   };
 
   const loadFeedbacks = useCallback(async () => {
-  try {
-    const { data, error } = await supabase
-      .from('feedbacks')
-      .select(`
-        *,
-        bookings (
-          customer_name,
-          name,
-          full_name,
-          guest_name
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      const { data: rawData } = await supabase
+    try {
+      const { data, error } = await supabase
         .from('feedbacks')
         .select('*')
         .order('created_at', { ascending: false });
-      if (rawData) setFeedbacks(rawData);
-    } else if (data) {
-      setFeedbacks(data);
+
+      if (error) {
+        console.error('Error loading feedbacks:', error.message);
+        return;
+      }
+
+      if (data) {
+        setFeedbacks(data);
+      }
+    } catch (err) {
+      console.error('Error loading feedbacks:', err);
     }
-  } catch (err) {
-    console.error('Error loading feedbacks:', err);
-  }
-}, []);
+  }, []);
 
   const loadBookings = useCallback(async () => {
     try {
@@ -773,14 +1255,30 @@ const handleAdminChange = (newAdmin: string) => {
     if (loadingId === task.id) return;
     setLoadingId(task.id);
 
+    const finalAdmin = adminUser || (typeof window !== 'undefined' ? localStorage.getItem('admin_user') : null) || 'Sam';
+
+    const isAdminTask = 
+      task.customer_name === 'Admin Assigned Task' || 
+      Boolean(task.assigned_by) || 
+      task.details?.is_admin_booking ||
+      task.details?.assigned_by_admin ||
+      task.payment_method === 'Manual Booking (By Admin)';
+
+    const updatePayload: any = {
+      assigned_staff: staffName,
+      assigned_by: finalAdmin,
+      status: 'Assigned',
+    };
+
+    if (isAdminTask) {
+      updatePayload.payment_status = 'Paid / Verified';
+      updatePayload.payment_method = 'Manual Booking (By Admin)';
+    }
+
     try {
       const { error } = await supabase
         .from('bookings')
-        .update({
-          assigned_staff: staffName,
-          assigned_by: adminUser,
-          status: 'Assigned',
-        })
+        .update(updatePayload)
         .eq('id', task.id);
 
       if (error) throw error;
@@ -788,10 +1286,13 @@ const handleAdminChange = (newAdmin: string) => {
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === task.id
-            ? { ...t, assigned_staff: staffName, assigned_by: adminUser, status: 'Assigned' }
+            ? { ...t, ...updatePayload }
             : t
         )
       );
+
+      alert(`Successfully assigned task to ${staffName} (Admin: ${finalAdmin})`);
+
     } catch (err: any) {
       alert('Failed to assign task: ' + err.message);
     } finally {
@@ -820,24 +1321,24 @@ const handleAdminChange = (newAdmin: string) => {
   };
 
   const handleReplyFeedback = async (feedback: any, replyText: string) => {
-  try {
-    const { error } = await supabase
-      .from('feedbacks')
-      .update({
-        admin_reply: replyText,
-        replied_at: new Date().toISOString(),
-      })
-      .eq('id', feedback.id);
+    try {
+      const { error } = await supabase
+        .from('feedbacks')
+        .update({
+          admin_reply: replyText,
+          replied_at: new Date().toISOString(),
+        })
+        .eq('id', feedback.id);
 
-    if (error) {
-      alert(`Failed to save reply: ${error.message}`);
-    } else {
-      loadFeedbacks();
+      if (error) {
+        alert(`Failed to save reply: ${error.message}`);
+      } else {
+        loadFeedbacks();
+      }
+    } catch (err) {
+      console.error('Error replying feedback:', err);
     }
-  } catch (err) {
-    console.error('Error replying feedback:', err);
-  }
-};
+  };
 
   const staffStatusMap = useMemo(() => {
     const map: { [key: string]: { count: number; isBusy: boolean } } = {};
@@ -890,32 +1391,46 @@ const handleAdminChange = (newAdmin: string) => {
   }, [tasks, todayStr]);
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-800 p-2 sm:p-4 md:p-6 font-sans">
+    <div className="min-h-screen p-2 sm:p-4 md:p-6 font-sans" style={{ backgroundColor: '#F8FAFC', color: '#1E1E1E' }}>
       <div className="max-w-7xl mx-auto space-y-4">
         
-        <div className="text-xs font-semibold text-slate-500 pl-1">
+        <div className="text-xs font-semibold pl-1" style={{ color: '#8E9B9E' }}>
           Admin Dashboard
         </div>
 
-        {/* 1. Header Box */}
+        {/* Header Box */}
         <div 
           className="rounded-2xl border shadow-sm p-4 sm:p-5 space-y-3"
           style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}
         >
-          <h1 
-            className="text-lg sm:text-xl font-bold tracking-tight"
-            style={{ color: '#1E1E1E' }}
-          >
-            Getaway Admin Dashboard
-          </h1>
-          <p 
-            className="text-xs font-medium"
-            style={{ color: '#8E9B9E' }}
-          >
-            Task Management & Dispatch System (Realtime)
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 
+                className="text-lg sm:text-xl font-bold tracking-tight"
+                style={{ color: '#1E1E1E' }}
+              >
+                Getaway Admin Dashboard
+              </h1>
+              <p 
+                className="text-xs font-medium"
+                style={{ color: '#8E9B9E' }}
+              >
+                Task Management & Dispatch System (Realtime)
+              </p>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsAssignModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 active:scale-95 text-white font-bold rounded-xl text-xs sm:text-sm transition shadow-xs self-start sm:self-auto cursor-pointer"
+              style={{ backgroundColor: '#006AFF' }}
+            >
+              <span className="text-base font-black leading-none">+</span>
+              Assign Holiday Task
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1 border-t" style={{ borderColor: '#F1F5F9' }}>
             <div 
               className="flex items-center border rounded-xl px-2.5 py-1.5 text-xs font-medium"
               style={{ backgroundColor: '#F1F5F9', borderColor: '#D9D9D9', color: '#1E2B37' }}
@@ -938,10 +1453,9 @@ const handleAdminChange = (newAdmin: string) => {
             <button
               type="button"
               onClick={handleLogout}
-              className="font-bold text-xs px-3.5 py-1.5 rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs border"
+              className="font-bold text-xs px-3.5 py-1.5 rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs border text-white"
               style={{
                 backgroundColor: '#D95353',
-                color: '#FFFFFF',
                 borderColor: '#E87171'
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C94A4E')}
@@ -955,9 +1469,9 @@ const handleAdminChange = (newAdmin: string) => {
           </div>
         </div>
 
-        {/* 2. Task Management & Dispatch System */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3 space-y-2">
-          <h2 className="text-[11px] sm:text-xs font-bold text-slate-700">
+        {/* Task Management & Dispatch System */}
+        <div className="rounded-xl border shadow-xs p-3 space-y-2" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}>
+          <h2 className="text-[11px] sm:text-xs font-bold" style={{ color: '#1E2B37' }}>
             Task Management & Dispatch System (Realtime)
           </h2>
 
@@ -969,30 +1483,30 @@ const handleAdminChange = (newAdmin: string) => {
               return (
                 <div
                   key={staff.id}
-                  className="bg-slate-50/80 border border-slate-200/70 rounded-lg p-1.5 sm:p-2 space-y-1 transition-all hover:bg-white hover:border-slate-300"
+                  className="border rounded-lg p-1.5 sm:p-2 space-y-1 transition-all"
+                  style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-[11px] sm:text-xs text-slate-800 truncate">
+                    <span className="font-bold text-[11px] sm:text-xs truncate" style={{ color: '#1E1E1E' }}>
                       {staff.name}
                     </span>
                     <span
                       className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${
-                        isBusy
-                          ? 'bg-amber-400 border border-amber-500 animate-pulse'
-                          : 'bg-emerald-500 border border-emerald-600'
+                        isBusy ? 'animate-pulse' : ''
                       }`}
+                      style={{
+                        backgroundColor: isBusy ? '#FFB800' : '#008800'
+                      }}
                     ></span>
                   </div>
                   
-                  <p className={`text-[9px] sm:text-[10px] leading-none ${
-                    isBusy ? 'text-amber-600 font-bold' : 'text-slate-400 font-normal'
-                  }`}>
+                  <p className="text-[9px] sm:text-[10px] leading-none font-semibold" style={{ color: isBusy ? '#FFB800' : '#8E9B9E' }}>
                     {isBusy ? 'In Progress' : 'Available'}
                   </p>
                   
-                  <div className="border-t border-slate-200/50 pt-1 flex justify-between items-center text-[9px] sm:text-[10px] text-slate-500">
+                  <div className="border-t pt-1 flex justify-between items-center text-[9px] sm:text-[10px]" style={{ borderColor: '#E2E8F0', color: '#8E9B9E' }}>
                     <span>Done :</span>
-                    <span className="font-semibold text-slate-800">{staffData.count}</span>
+                    <span className="font-semibold" style={{ color: '#1E1E1E' }}>{staffData.count}</span>
                   </div>
                 </div>
               );
@@ -1000,49 +1514,53 @@ const handleAdminChange = (newAdmin: string) => {
           </div>
         </div>
 
-        {/* 3. Navigation Tabs */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2.5 sm:p-3">
+        {/* Navigation Tabs */}
+        <div className="rounded-2xl border shadow-sm p-2.5 sm:p-3" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab('history')}
-              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+              className="py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer"
+              style={
                 activeTab === 'history'
-                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+                  ? { backgroundColor: '#EBF5FF', borderColor: '#93C5FD', color: '#006AFF', fontWeight: 'bold' }
+                  : { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E2B37' }
+              }
             >
               History ({historyTasks.length})
             </button>
 
             <button
               onClick={() => setActiveTab('today')}
-              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+              className="py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer"
+              style={
                 activeTab === 'today'
-                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+                  ? { backgroundColor: '#EBF5FF', borderColor: '#93C5FD', color: '#006AFF', fontWeight: 'bold' }
+                  : { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E2B37' }
+              }
             >
               Today ({todayTasks.length})
             </button>
 
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+              className="py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer"
+              style={
                 activeTab === 'upcoming'
-                  ? 'bg-sky-50 border-sky-300 font-bold text-sky-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+                  ? { backgroundColor: '#EBF5FF', borderColor: '#93C5FD', color: '#006AFF', fontWeight: 'bold' }
+                  : { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E2B37' }
+              }
             >
               Upcoming ({upcomingTasks.length})
             </button>
 
             <button
               onClick={() => setActiveTab('feedback')}
-              className={`py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer ${
+              className="py-1.5 px-1 sm:px-2 rounded-xl border text-[11px] sm:text-xs text-center font-medium transition cursor-pointer"
+              style={
                 activeTab === 'feedback'
-                  ? 'bg-amber-50 border-amber-300 font-bold text-amber-800'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+                  ? { backgroundColor: '#FFE8AE', borderColor: '#FFC943', color: '#1E1E1E', fontWeight: 'bold' }
+                  : { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }
+              }
             >
               Feedback ({feedbacks.length})
             </button>
@@ -1069,7 +1587,7 @@ const handleAdminChange = (newAdmin: string) => {
                 ))}
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+              <div className="border rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm font-medium shadow-sm" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#8E9B9E' }}>
                 No tasks scheduled for today.
               </div>
             )
@@ -1088,8 +1606,8 @@ const handleAdminChange = (newAdmin: string) => {
                   }, {})
                 ).map(([date, tasksGroup]) => (
                   <div key={date} className="space-y-2.5">
-                    <div className="flex justify-center border-b border-slate-200/80 pb-1.5 my-1.5">
-                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                    <div className="flex justify-center border-b pb-1.5 my-1.5" style={{ borderColor: '#E2E8F0' }}>
+                      <span className="text-[10px] font-semibold border px-2 py-0.5 rounded" style={{ backgroundColor: '#F1F5F9', borderColor: '#D9D9D9', color: '#1E2B37' }}>
                         {date}
                       </span>
                     </div>
@@ -1112,7 +1630,7 @@ const handleAdminChange = (newAdmin: string) => {
                 ))}
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+              <div className="border rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm font-medium shadow-sm" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#8E9B9E' }}>
                 No upcoming tasks found.
               </div>
             )
@@ -1131,8 +1649,8 @@ const handleAdminChange = (newAdmin: string) => {
                   }, {})
                 ).map(([date, tasksGroup]) => (
                   <div key={date} className="space-y-2.5">
-                    <div className="flex justify-center border-b border-slate-200/80 pb-1.5 my-1.5">
-                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                    <div className="flex justify-center border-b pb-1.5 my-1.5" style={{ borderColor: '#E2E8F0' }}>
+                      <span className="text-[10px] font-semibold border px-2 py-0.5 rounded" style={{ backgroundColor: '#F1F5F9', borderColor: '#D9D9D9', color: '#1E2B37' }}>
                         {date}
                       </span>
                     </div>
@@ -1155,7 +1673,7 @@ const handleAdminChange = (newAdmin: string) => {
                 ))}
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-500 font-medium shadow-sm">
+              <div className="border rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm font-medium shadow-sm" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#8E9B9E' }}>
                 No history tasks found.
               </div>
             )
@@ -1163,37 +1681,50 @@ const handleAdminChange = (newAdmin: string) => {
 
           {/* Feedback Tab */}
           {activeTab === 'feedback' && (
-            feedbacks.length > 0 ? (
-              <div className="space-y-3">
-                {feedbacks.map((fb) => (
-                  <FeedbackCard
-                    key={fb.id}
-                    feedback={fb}
-                    isLoading={loadingId === fb.id}
-                    onReply={handleReplyFeedback}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm text-slate-600 font-medium shadow-sm">
-                No customer feedbacks available yet.
-              </div>
-            )
+            <div className="space-y-4">
+              {/* 🟢 แสดง Analytics Blocks สรุปดาวและแนวโน้มรีวิว */}
+              <AdminReviewAnalytics feedbacks={feedbacks} />
+
+              {feedbacks.length > 0 ? (
+                <div className="space-y-3">
+                  {feedbacks.map((fb) => (
+                    <FeedbackCard
+                      key={fb.id}
+                      feedback={fb}
+                      isLoading={loadingId === fb.id}
+                      onReply={handleReplyFeedback}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="border rounded-2xl p-12 sm:p-16 text-center text-xs sm:text-sm font-medium shadow-sm" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#8E9B9E' }}>
+                  No customer feedbacks available yet.
+                </div>
+              )}
+            </div>
           )}
+          
         </div>
 
       </div>
+
+      {/* Assign Holiday Task Modal */}
+      <AssignHolidayTaskModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onSuccess={loadBookings}
+      />
     </div>
   );
 }
 
 // ----------------------------------------------------------------------
-// 6. Export Component wrapped in Suspense Boundary
+// Export Component
 // ----------------------------------------------------------------------
 export default function AdminDashboardPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen text-slate-500 font-medium text-sm">
+      <div className="flex items-center justify-center min-h-screen font-medium text-sm" style={{ color: '#8E9B9E' }}>
         Loading Admin Dashboard...
       </div>
     }>

@@ -48,13 +48,30 @@ function FeedbackFormContent() {
   const [pastFeedbacks, setPastFeedbacks] = useState<PastFeedback[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
 
+  // ป้องกัน iOS Auto-Zoom เฉพาะหน้านี้โดยฉับพลันเมื่อเริ่มโหลด
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
+    }
+    const originalContent = meta.content;
+    meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+
+    return () => {
+      if (meta && originalContent) {
+        meta.content = originalContent;
+      }
+    };
+  }, []);
+
   const formatRef = (refStr: string) => {
     if (!refStr) return '';
     const cleanStr = refStr.replace(/^REF-?/i, '');
     return `REF-${cleanStr.slice(0, 8).toUpperCase()}`;
   };
 
-  // ดึงรายละเอียดที่อยู่อย่างละเอียด
   const parseLocationDetails = (booking: any, detailsObj: any = {}) => {
     const addressLine = booking?.address_line || booking?.address || detailsObj?.address || detailsObj?.address_line || '';
     const cityArea = booking?.city_area || booking?.city || detailsObj?.city_area || detailsObj?.city || detailsObj?.area || '';
@@ -65,7 +82,6 @@ function FeedbackFormContent() {
     return { addressLine, cityArea, building, houseApt, mapsLink };
   };
 
-  // ดึงประวัติ Feedback ทั้งหมด
   const fetchPastFeedbacks = useCallback(async (userId?: string) => {
     try {
       setLoadingHistory(true);
@@ -204,34 +220,34 @@ function FeedbackFormContent() {
   const currentDisplayRating = hoverRating || rating;
 
   return (
-    // 📌 ปรับ bg-white ให้เข้ากับส่วน Header
-    <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center p-4 sm:p-6 lg:p-8 text-[#1E2B37] font-sans">
-      <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center space-y-4 my-auto">
+    <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center py-4 sm:py-8 px-4 sm:px-6 text-[#1E2B37] font-sans antialiased overflow-y-auto">
+      <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center space-y-6 my-auto">
         
         {/* Header */}
-        <div className="w-full text-center border-b border-[#E2E8F0] pb-3 shrink-0">
-          <h1 className="text-lg sm:text-xl font-extrabold text-[#1E2B37] tracking-tight">
+        <div className="w-full text-center pb-2 shrink-0 space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             Service Feedback & Reviews
           </h1>
+          <p className="text-xs sm:text-sm text-[#8E9B9E]">Share your experience to help us improve</p>
         </div>
 
-        {/* Layout 2 คอลัมน์ (ซ้าย 7 | ขวา 5) */}
+        {/* Layout 2 คอลัมน์ */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 w-full items-start">
           
           {/* ================= ฝั่งซ้าย: ฟอร์มส่ง ================= */}
-          <div className="md:col-span-7 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs space-y-4">
+          <div className="md:col-span-7 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
             
-            <div className="border-b border-gray-200/80 pb-3 space-y-2">
+            <div className="border-b border-[#E2E8F0] pb-3 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider block">
                   Booking Details
                 </span>
-                <span className="text-xs font-extrabold text-[#006AFF] bg-[#006AFF]/10 px-2.5 py-0.5 rounded-md">
+                <span className="text-xs font-bold text-[#006AFF] bg-[#EAF3F9] px-2.5 py-0.5 rounded-lg">
                   {bookingRef || 'N/A'}
                 </span>
               </div>
 
-              {/* แสดงรายละเอียด Location ละเอียดทีละบรรทัด */}
+              {/* Location Details */}
               <div className="bg-white p-3.5 rounded-xl border border-[#E2E8F0] space-y-2 text-xs">
                 <div className="space-y-1">
                   <span className="font-bold text-[#1E2B37] block">Location Details:</span>
@@ -251,14 +267,14 @@ function FeedbackFormContent() {
                   
                   {bookingDetails.mapsLink && (
                     <p className="pt-1">
-                      <a href={bookingDetails.mapsLink} target="_blank" rel="noopener noreferrer" className="text-[#006AFF] underline font-bold text-[11px]">
+                      <a href={bookingDetails.mapsLink} target="_blank" rel="noopener noreferrer" className="text-[#006AFF] underline font-bold text-[11px] touch-manipulation">
                         Open Location Link (Google Maps) ↗
                       </a>
                     </p>
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-gray-100 space-y-1">
+                <div className="pt-2 border-t border-[#F1F5F9] space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Program:</span>
                     <span className="font-bold text-[#1E2B37]">{bookingDetails.program || '-'}</span>
@@ -280,7 +296,7 @@ function FeedbackFormContent() {
 
             {isSubmitted ? (
               <div className="py-6 text-center space-y-3">
-                <div className="w-10 h-10 bg-[#E6F9E6] text-[#008800] rounded-full flex items-center justify-center text-lg mx-auto">
+                <div className="w-10 h-10 bg-[#E6F9E6] text-[#008800] rounded-full flex items-center justify-center text-lg mx-auto font-bold">
                   ✓
                 </div>
                 <p className="text-xs font-bold text-[#1E2B37]">Feedback Submitted!</p>
@@ -290,7 +306,7 @@ function FeedbackFormContent() {
                 <button
                   type="button"
                   onClick={() => router.push('/customer/history')}
-                  className="w-full py-2 bg-[#1E2B37] text-white text-xs font-bold rounded-lg hover:bg-[#2c3d4e] transition cursor-pointer"
+                  className="w-full py-2.5 min-h-[44px] bg-[#1E2B37] text-white text-xs font-bold rounded-xl hover:bg-[#2c3d4e] transition cursor-pointer touch-manipulation active:scale-[0.98]"
                 >
                   Back to My Bookings
                 </button>
@@ -310,7 +326,7 @@ function FeedbackFormContent() {
                           onClick={() => setRating(star)}
                           onMouseEnter={() => setHoverRating(star)}
                           onMouseLeave={() => setHoverRating(0)}
-                          className="text-3xl transition-transform active:scale-90 focus:outline-none cursor-pointer"
+                          className="text-3xl transition-transform active:scale-90 focus:outline-none cursor-pointer touch-manipulation p-1"
                         >
                           <span className={isFilled ? 'text-[#FFB800]' : 'text-gray-200'}>
                             ★
@@ -334,9 +350,9 @@ function FeedbackFormContent() {
                   </span>
                 </div>
 
-                {/* Comment */}
+                {/* Comment Field (ตัวหนังสือและ Placeholder เล็กพอดี 12px ทรงกรอบไม่เพี้ยน ไม่ซูมหน้าจอแน่นอน) */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-[#1E2B37]">
+                  <label className="text-xs font-bold text-[#1E2B37]">
                     Your Comments & Suggestions
                   </label>
                   <textarea
@@ -344,7 +360,7 @@ function FeedbackFormContent() {
                     placeholder="Tell us what you liked or how we can improve..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    className="w-full p-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-xs font-medium text-[#1E2B37] placeholder-[#8E9B9E] focus:outline-none focus:ring-1 focus:ring-[#006AFF] transition resize-none touch-manipulation"
+                    className="w-full p-3 bg-white border border-[#E2E8F0] rounded-xl text-[12px] sm:text-xs font-medium text-[#1E2B37] placeholder:text-[12px] sm:placeholder:text-xs placeholder-[#8E9B9E] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition resize-none touch-manipulation"
                   />
                 </div>
 
@@ -353,7 +369,7 @@ function FeedbackFormContent() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-2.5 bg-[#1E2B37] hover:bg-[#2c3d4e] text-white font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50 active:scale-98 shadow-xs"
+                    className="w-full py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white font-bold rounded-xl text-xs sm:text-sm transition cursor-pointer disabled:opacity-50 active:scale-[0.98] touch-manipulation"
                   >
                     {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
                   </button>
@@ -361,7 +377,7 @@ function FeedbackFormContent() {
                   <button
                     type="button"
                     onClick={() => router.push('/customer/history')}
-                    className="w-full py-1.5 text-[11px] font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer text-center block"
+                    className="w-full py-2 min-h-[44px] text-xs font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer text-center block rounded-xl hover:bg-white active:scale-[0.98] touch-manipulation"
                   >
                     ← Back to Bookings
                   </button>
@@ -371,13 +387,13 @@ function FeedbackFormContent() {
           </div>
 
           {/* ================= ฝั่งขวา: ประวัติ ================= */}
-          <div className="md:col-span-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs space-y-3 min-h-[380px] flex flex-col justify-between">
+          <div className="md:col-span-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-3 min-h-[380px] flex flex-col justify-between">
             <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-gray-200/80 pb-2">
+              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
                 <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider">
                   Past Feedback History
                 </span>
-                <span className="text-[11px] font-bold text-[#006AFF] bg-[#006AFF]/10 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-bold text-[#006AFF] bg-[#EAF3F9] px-2 py-0.5 rounded-lg">
                   {pastFeedbacks.length} submitted
                 </span>
               </div>
@@ -408,23 +424,22 @@ function FeedbackFormContent() {
                           </span>
                           <div className="flex items-center gap-0.5 text-[#FFB800] text-xs">
                             {'★'.repeat(item.rating || 0)}
-                            {'☆'.repeat(5 - (item.rating || 0))}
+                            {'☆'.repeat(Math.max(0, 5 - (item.rating || 0)))}
                             <span className="text-[10px] font-bold text-[#1E2B37] ml-1">
                               ({item.rating}/5)
                             </span>
                           </div>
                         </div>
 
-                        {/* Location แบบรายละเอียด */}
                         {fullLocStr && (
-                          <div className="text-[10px] text-slate-600 bg-[#F8FAFC] p-2 rounded-lg border border-slate-100 space-y-0.5">
+                          <div className="text-[10px] text-slate-600 bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0] space-y-0.5">
                             <p className="font-bold text-slate-800">Location:</p>
                             <p className="leading-snug">{fullLocStr}</p>
                           </div>
                         )}
 
                         {item.comment && (
-                          <p className="text-[#1E2B37] font-medium leading-tight text-[11px] italic bg-[#F8FAFC] p-2 rounded-lg border border-gray-100">
+                          <p className="text-[#1E2B37] font-medium leading-tight text-[11px] italic bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0]">
                             "{item.comment}"
                           </p>
                         )}
@@ -443,7 +458,7 @@ function FeedbackFormContent() {
         </div>
 
         {/* Footer */}
-        <p className="text-[11px] text-[#8E9B9E] font-medium text-center pt-2 border-t border-[#E2E8F0]/60">
+        <p className="text-[11px] text-[#94A3B8] font-medium text-center pt-2">
           © Getaway Cleaning Service
         </p>
       </div>
@@ -453,7 +468,7 @@ function FeedbackFormContent() {
 
 export default function FeedbackPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white text-xs">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white text-xs text-[#8E9B9E]">Loading...</div>}>
       <FeedbackFormContent />
     </Suspense>
   );
