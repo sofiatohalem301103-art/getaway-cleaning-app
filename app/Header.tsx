@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -20,7 +20,7 @@ const COUNTRY_CODES = [
   { code: '+66', flag: '🇹🇭' },
 ];
 
-export default function Header({ title = 'Booking Service' }: HeaderProps) {
+function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -425,5 +425,13 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
         </div>
       )}
     </>
+  );
+}
+
+export default function Header(props: HeaderProps) {
+  return (
+    <Suspense fallback={null}>
+      <HeaderContent {...props} />
+    </Suspense>
   );
 }

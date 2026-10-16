@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import Header from "./Header";
 
@@ -25,11 +26,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      {/* 🟢 ใช้ min-h-screen และ bg-[#F8FAFC] เพื่อรองรับการสกอร์ลทุกหน้าและไม่มีสีขาวโผล่ล่างสุด */}
       <body className="min-h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 m-0 p-0 antialiased">
-        <Header />
+        <Suspense fallback={<div className="h-16 bg-[#F8FAFC]" />}>
+          <Header />
+        </Suspense>
+        
         <main className="flex-1 w-full flex flex-col bg-[#F8FAFC]">
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </main>
       </body>
     </html>

@@ -1,6 +1,9 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useMemo } from 'react';
+
 
 export default function StartCustomerPage() {
   const tomorrowDateString = useMemo(() => {

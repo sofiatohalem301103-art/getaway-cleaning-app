@@ -25,7 +25,12 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-} as any; // ใส่ as any เพื่อให้ยอมรับ property eslint โดยไม่ติด Type Error
+
+  // ป้องกันปัญหา Prerender / Static Generation Error บน Vercel
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+} as any;
 
 // ใส่ค่า eslint เพิ่มเติมหลังจากสร้าง object
 (nextConfig as any).eslint = {
