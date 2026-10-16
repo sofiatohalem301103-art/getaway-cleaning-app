@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // ปิดปุ่ม Dev Indicator (ตัว N)
   devIndicators: false,
 
   allowedDevOrigins: [
@@ -21,18 +20,16 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // ข้ามการตรวจ TypeScript Error ระหว่าง Build
   typescript: {
     ignoreBuildErrors: true,
   },
 
-  // ป้องกันปัญหา Prerender / Static Generation Error บน Vercel
+  // ปิดการแจ้งเตือน CSR Bailout และช่วยข้าม Prerender bail
   experimental: {
     missingSuspenseWithCSRBailout: false,
   },
 } as any;
 
-// ใส่ค่า eslint เพิ่มเติมหลังจากสร้าง object
 (nextConfig as any).eslint = {
   ignoreDuringBuilds: true,
 };
