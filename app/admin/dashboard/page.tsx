@@ -1,11 +1,10 @@
 'use client';
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+
+export const dynamic = 'force-dynamic';
 
 // ----------------------------------------------------------------------
 // 1. Constants & Lists
@@ -1085,7 +1084,7 @@ function AssignHolidayTaskModal({
 }
 
 // ----------------------------------------------------------------------
-// 6. Main Dashboard Page Component
+// 6. Main Dashboard Content Component
 // ----------------------------------------------------------------------
 function AdminDashboardContent() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -1147,10 +1146,8 @@ function AdminDashboardContent() {
     }
   }, []);
 
-  // 🟢 ฟังก์ชันโหลด Bookings แบบแยก Query (ปลอดภัยจาก Foreign Key Error 100%)
   const loadBookings = useCallback(async () => {
     try {
-      // 1. ดึงข้อมูล Bookings ทั้งหมด
       const { data: bookingData, error } = await supabase
         .from('bookings')
         .select('*')
@@ -1162,7 +1159,6 @@ function AdminDashboardContent() {
       }
 
       if (bookingData) {
-        // 2. ดึง user IDs ที่มีอยู่ทั้งหมดเพื่อไปค้นหาจากตาราง users
         const userIds = Array.from(
           new Set(
             bookingData
@@ -1187,7 +1183,6 @@ function AdminDashboardContent() {
           }
         }
 
-        // 3. ดึงบริการ Services Map
         const serviceIds = Array.from(
           new Set(bookingData.map((b) => b.service_id).filter(Boolean))
         );
@@ -1208,7 +1203,6 @@ function AdminDashboardContent() {
           }
         }
 
-        // 4. Map ประกบข้อมูลลูกค้าและบริการเข้าด้วยกันอย่างสมบูรณ์
         const enrichedTasks = bookingData.map((task) => {
           const uId = task.user_id || task.customer_id || task.created_by;
           const userRel = uId ? usersMap[uId] : null;
@@ -1376,6 +1370,7 @@ function AdminDashboardContent() {
         .update({
           admin_reply: replyText,
           replied_at: new Date().toISOString(),
+          replied_by: adminUser,
         })
         .eq('id', feedback.id);
 
