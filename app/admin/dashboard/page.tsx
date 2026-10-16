@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
