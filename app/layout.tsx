@@ -18,8 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Getaway Cleaning",
-  description: "Professional cleaning services",
+  title: "Getaway Cleaning | Professional Cleaning Services in Cyprus",
+  description: "Book professional home, office, turnover, and holiday apartment cleaning services with Getaway Cleaning. Fast, reliable, and easy online booking.",
+  keywords: ["cleaning service", "Paphos cleaning", "holiday home cleaning", "Getaway Cleaning", "turnover cleaning"],
 };
 
 export default function RootLayout({
