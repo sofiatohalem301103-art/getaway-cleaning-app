@@ -1,25 +1,20 @@
+'use client';
+
+import Link from 'next/link';
+
 export const dynamic = 'force-dynamic';
 
 export default function NotFound() {
   return (
-    <div style={{ padding: '80px 20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#0F172A' }}>404 - Page Not Found</h1>
-      <p style={{ color: '#64748B', marginTop: '10px' }}>The page you are looking for does not exist.</p>
-      <a 
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+      <h2 className="text-3xl font-bold text-slate-800 mb-2">404 - Page Not Found</h2>
+      <p className="text-slate-500 mb-6">Could not find the requested resource.</p>
+      <Link 
         href="/customer/booking" 
-        style={{ 
-          display: 'inline-block', 
-          marginTop: '20px', 
-          padding: '12px 24px', 
-          backgroundColor: '#0F172A', 
-          color: '#ffffff', 
-          borderRadius: '12px', 
-          textDecoration: 'none',
-          fontWeight: 'bold'
-        }}
+        className="px-6 py-3 bg-[#0F172A] text-white font-semibold rounded-xl hover:bg-[#1E293B] transition"
       >
-        Go to Booking
-      </a>
+        Return to Booking
+      </Link>
     </div>
   );
 }
