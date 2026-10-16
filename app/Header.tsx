@@ -203,7 +203,9 @@ export default function Header({ title = 'Booking Service' }: HeaderProps) {
     }
   };
 
+  // ซ่อน Header เมื่ออยู่ที่หน้าแรก (/), หน้า admin, staff หรือ auth
   if (
+    pathname === '/' ||
     pathname?.startsWith('/admin') ||
     pathname?.startsWith('/staff') ||
     pathname?.startsWith('/auth')

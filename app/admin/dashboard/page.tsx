@@ -211,6 +211,8 @@ const extractPhoneNumber = (task: any): string => {
     task.phone ||
     task.phone_number ||
     task.mobile ||
+    task.users?.phone ||
+    task.users?.phone_number ||
     task.bookings?.customer_phone ||
     task.bookings?.phone ||
     ''
@@ -223,10 +225,11 @@ const extractCustomerName = (task: any): string => {
     task.customer_name ||
     task.name ||
     task.full_name ||
+    task.users?.full_name ||
     task.bookings?.customer_name ||
     '';
 
-  return rawName && rawName !== 'Guest' ? rawName : 'Admin Assigned Task';
+  return rawName;
 };
 
 const extractCustomerEmail = (task: any): string => {
@@ -234,6 +237,7 @@ const extractCustomerEmail = (task: any): string => {
   return (
     task.customer_email ||
     task.email ||
+    task.users?.email ||
     task.bookings?.customer_email ||
     ''
   );
@@ -292,7 +296,6 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-      {/* Block 1: Rating Performance Analytics */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-xs font-bold uppercase tracking-wider text-[#8E9B9E]">
@@ -326,7 +329,6 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
         </div>
       </div>
 
-      {/* Block 2: Star Distribution Breakdown */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-2">
         <span className="text-xs font-bold uppercase tracking-wider text-[#8E9B9E] block">
           STAR DISTRIBUTION
@@ -388,7 +390,7 @@ function FeedbackCard({
   }, [feedback.admin_reply, feedback.replied_at]);
 
   const hasReplied = localReplied || Boolean(feedback.admin_reply || feedback.replied_at);
-  const displayCustomerName = extractCustomerName(feedback);
+  const displayCustomerName = extractCustomerName(feedback) || 'Guest Customer';
 
   const handleSendReply = async () => {
     if (!replyText.trim()) return alert('Please enter a reply message.');
@@ -503,12 +505,11 @@ function TaskCard({
   const hasSelectedStaff = Boolean(activeStaffChoice);
   const isChangedStaff = activeStaffChoice !== currentAssigned;
 
-  const displayCustomerName = extractCustomerName(task);
-  const displayEmail = extractCustomerEmail(task);
-  const displayPhone = extractPhoneNumber(task);
+  const displayCustomerName = task.display_customer_name || extractCustomerName(task);
+  const displayEmail = task.display_email || extractCustomerEmail(task);
+  const displayPhone = task.display_phone || extractPhoneNumber(task);
 
-  // เช็กว่าเป็นงาน Admin
-  const isAdminTask = 
+  const isAdminTask = task.is_admin_created || 
     task.customer_name === 'Admin Assigned Task' || 
     Boolean(task.assigned_by) || 
     task.details?.is_admin_booking ||
@@ -610,7 +611,6 @@ function TaskCard({
       className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
       style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
     >
-      {/* Ref Code Header */}
       <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
         <div className="flex items-center gap-2">
           <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
@@ -644,10 +644,7 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Main Grid: Details (Left) vs Payment Slip Preview (Right) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        
-        {/* Left Section: Booking Specs */}
         <div className="md:col-span-2 space-y-1">
           <p className="font-bold text-xs sm:text-sm" style={{ color: '#2563EB' }}>
             {displayProgram}
@@ -657,9 +654,9 @@ function TaskCard({
             Customer: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayCustomerName}</span>
           </p>
 
-          {/* ซ่อน Email ถ้าไม่มีข้อมูล หรือเป็น N/A */}
           {displayEmail && 
            displayEmail !== 'N/A' && 
+           displayEmail !== '-' && 
            displayEmail !== 'null' && 
            displayEmail.trim() !== '' && (
             <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
@@ -667,15 +664,15 @@ function TaskCard({
             </p>
           )}
 
-          {/* ซ่อน Phone ถ้าไม่มีข้อมูล หรือเป็น N/A / No phone */}
           {displayPhone && 
            !displayPhone.includes('N/A') && 
+           !displayPhone.includes('-') && 
            !displayPhone.includes('No phone') && 
            displayPhone.trim() !== '' && (
             <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
               Phone:{' '}
               <a
-                href={`tel:${displayPhone.replace(/\s+/g, '')}`}
+                href={`tel:${String(displayPhone).replace(/\s+/g, '')}`}
                 className="font-bold hover:underline"
                 style={{ color: '#006AFF' }}
               >
@@ -684,7 +681,6 @@ function TaskCard({
             </p>
           )}
 
-          {/* Address & Maps */}
           <div className="pt-1 space-y-0.5">
             <p style={{ color: '#1E2B37' }}>
               Address: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayAddress}</span>
@@ -705,7 +701,6 @@ function TaskCard({
             )}
           </div>
 
-          {/* Detailed Specs */}
           {isPrivateService && hasPrivateSpecs && (
             <div className="pt-1 space-y-0.5 text-[11px]" style={{ color: '#334155' }}>
               {propertyType && <p>Property Type: <strong style={{ color: '#1E1E1E' }}>{propertyType}</strong></p>}
@@ -721,13 +716,11 @@ function TaskCard({
             </div>
           )}
 
-          {/* Total Amount */}
           <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: Number(task.price || task.amount) > 0 ? '#00CC00' : '#FFB800' }}>
             Amount: {Number(task.price || task.amount) > 0 ? `€${task.price || task.amount}` : 'Pending Price Quote (Direct Request)'}
           </p>
         </div>
 
-        {/* Right Section: Payment Slip Display Box */}
         <div className="border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-3 flex flex-col justify-between" style={{ borderColor: '#E2E8F0' }}>
           <div>
             <span className="font-extrabold text-[10px] uppercase tracking-wider block mb-1.5" style={{ color: '#1E2B37' }}>
@@ -794,7 +787,6 @@ function TaskCard({
             )}
           </div>
 
-          {/* Payment Status & Confirm Button */}
           <div className="pt-2 flex flex-col items-start md:items-end gap-1">
             {isAdminTask ? null : isPaid ? (
               <span
@@ -815,10 +807,8 @@ function TaskCard({
             )}
           </div>
         </div>
-
       </div>
 
-      {/* Staff Assignment Bar */}
       <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#F1F5F9' }}>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="font-medium whitespace-nowrap" style={{ color: '#8E9B9E' }}>Assigned:</span>
@@ -877,7 +867,7 @@ function AssignHolidayTaskModal({
   isOpen, 
   onClose, 
   onSuccess,
-  adminName = 'Zaza'
+  adminName = 'Sam'
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -891,6 +881,10 @@ function AssignHolidayTaskModal({
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [scheduledTime, setScheduledTime] = useState('09:00:00');
   const [assignedStaff, setAssignedStaff] = useState(STAFF_LIST[0].name);
+
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
 
   if (!isOpen) return null;
 
@@ -909,11 +903,15 @@ function AssignHolidayTaskModal({
       is_admin_booking: true,
     };
 
+    const finalCustomerName = guestName.trim() ? guestName.trim() : 'Direct Booking (Admin)';
+
     try {
       const { error } = await supabase.from('bookings').insert([
         {
           booking_ref: generatedRef,
-          customer_name: 'Admin Assigned Task',
+          customer_name: finalCustomerName,
+          customer_phone: guestPhone.trim() || null,
+          customer_email: guestEmail.trim() || null,
           address_line: selectedProperty,
           scheduled_date: scheduledDate,
           scheduled_time: scheduledTime,
@@ -947,8 +945,6 @@ function AssignHolidayTaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto font-sans">
       <div className="bg-white rounded-[24px] max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
-        
-        {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[#1E2B37]">Assign Holiday Task</h2>
@@ -965,10 +961,34 @@ function AssignHolidayTaskModal({
           </button>
         </div>
 
-        {/* Modal Form */}
         <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
-          
-          {/* Property Unit */}
+          <div className="p-3 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-2">
+            <span className="text-[11px] font-bold text-blue-900 block">Customer Information (Optional)</span>
+            <input
+              type="text"
+              placeholder="Guest/Customer Name (e.g. John Doe)"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Phone (e.g. +357 99 123456)"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
+              />
+              <input
+                type="email"
+                placeholder="Email Address"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1 text-left w-full min-w-0">
             <label className="text-xs font-bold text-[#1E2B37]">Property Unit</label>
             <select
@@ -982,7 +1002,6 @@ function AssignHolidayTaskModal({
             </select>
           </div>
 
-          {/* Program */}
           <div className="space-y-1 text-left w-full min-w-0">
             <label className="text-xs font-bold text-[#1E2B37]">Program</label>
             <select
@@ -995,10 +1014,7 @@ function AssignHolidayTaskModal({
             </select>
           </div>
 
-          {/* Scheduled Date & Working Time */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full min-w-0">
-            
-            {/* Scheduled Date */}
             <div className="space-y-1 text-left w-full min-w-0">
               <label className="text-xs font-bold text-[#1E2B37]">Scheduled Date</label>
               <input
@@ -1010,7 +1026,6 @@ function AssignHolidayTaskModal({
               />
             </div>
 
-            {/* Working Time */}
             <div className="space-y-1 text-left w-full min-w-0">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-[#1E2B37]">Working Time</label>
@@ -1028,10 +1043,8 @@ function AssignHolidayTaskModal({
                 ))}
               </select>
             </div>
-
           </div>
 
-          {/* Assign Staff */}
           <div className="space-y-1 text-left w-full min-w-0">
             <label className="text-xs font-bold text-[#1E2B37] block">Assign Staff</label>
             <select
@@ -1047,7 +1060,6 @@ function AssignHolidayTaskModal({
             </select>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row-reverse items-center gap-2 pt-3 border-t border-slate-100">
             <button
               type="submit"
@@ -1065,9 +1077,7 @@ function AssignHolidayTaskModal({
               Cancel
             </button>
           </div>
-
         </form>
-
       </div>
     </div>
   );
@@ -1136,33 +1146,47 @@ function AdminDashboardContent() {
     }
   }, []);
 
+  // 🟢 ฟังก์ชันโหลด Bookings แบบแยก Query (ปลอดภัยจาก Foreign Key Error 100%)
   const loadBookings = useCallback(async () => {
     try {
+      // 1. ดึงข้อมูล Bookings ทั้งหมด
       const { data: bookingData, error } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          users (
-            id,
-            phone,
-            phone_number,
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .order('scheduled_date', { ascending: true });
 
       if (error) {
-        const { data: fallbackData } = await supabase
-          .from('bookings')
-          .select('*')
-          .order('scheduled_date', { ascending: true });
-          
-        if (fallbackData) setTasks(fallbackData);
+        console.error('Error fetching bookings:', error.message);
         return;
       }
 
       if (bookingData) {
+        // 2. ดึง user IDs ที่มีอยู่ทั้งหมดเพื่อไปค้นหาจากตาราง users
+        const userIds = Array.from(
+          new Set(
+            bookingData
+              .map((b) => b.user_id || b.customer_id || b.created_by)
+              .filter(Boolean)
+          )
+        );
+
+        let usersMap: Record<string, any> = {};
+
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('id, full_name, email, phone, phone_number')
+            .in('id', userIds);
+
+          if (usersData) {
+            usersMap = usersData.reduce((acc, u) => {
+              acc[u.id] = u;
+              return acc;
+            }, {} as Record<string, any>);
+          }
+        }
+
+        // 3. ดึงบริการ Services Map
         const serviceIds = Array.from(
           new Set(bookingData.map((b) => b.service_id).filter(Boolean))
         );
@@ -1183,10 +1207,33 @@ function AdminDashboardContent() {
           }
         }
 
-        const enrichedTasks = bookingData.map((task) => ({
-          ...task,
-          fetched_service_name: task.service_id ? servicesMap[task.service_id] : '',
-        }));
+        // 4. Map ประกบข้อมูลลูกค้าและบริการเข้าด้วยกันอย่างสมบูรณ์
+        const enrichedTasks = bookingData.map((task) => {
+          const uId = task.user_id || task.customer_id || task.created_by;
+          const userRel = uId ? usersMap[uId] : null;
+
+          const isAdminCreated = 
+            task.customer_name === 'Admin Assigned Task' || 
+            Boolean(task.assigned_by) || 
+            task.payment_method === 'Manual Booking (By Admin)';
+
+          let customerName = task.customer_name || task.guest_name;
+          if (!customerName || customerName === 'Admin Assigned Task') {
+            customerName = userRel?.full_name || (isAdminCreated ? 'Direct Booking (Admin)' : 'Guest Customer');
+          }
+
+          const customerEmail = task.customer_email || task.email || userRel?.email || '-';
+          const customerPhone = task.customer_phone || task.phone || userRel?.phone || userRel?.phone_number || '-';
+
+          return {
+            ...task,
+            fetched_service_name: task.service_id ? servicesMap[task.service_id] : '',
+            display_customer_name: customerName,
+            display_email: customerEmail,
+            display_phone: customerPhone,
+            is_admin_created: isAdminCreated
+          };
+        });
 
         setTasks(enrichedTasks);
       }
@@ -1258,6 +1305,7 @@ function AdminDashboardContent() {
     const finalAdmin = adminUser || (typeof window !== 'undefined' ? localStorage.getItem('admin_user') : null) || 'Sam';
 
     const isAdminTask = 
+      task.is_admin_created ||
       task.customer_name === 'Admin Assigned Task' || 
       Boolean(task.assigned_by) || 
       task.details?.is_admin_booking ||
@@ -1682,7 +1730,6 @@ function AdminDashboardContent() {
           {/* Feedback Tab */}
           {activeTab === 'feedback' && (
             <div className="space-y-4">
-              {/* 🟢 แสดง Analytics Blocks สรุปดาวและแนวโน้มรีวิว */}
               <AdminReviewAnalytics feedbacks={feedbacks} />
 
               {feedbacks.length > 0 ? (
@@ -1713,6 +1760,7 @@ function AdminDashboardContent() {
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         onSuccess={loadBookings}
+        adminName={adminUser}
       />
     </div>
   );

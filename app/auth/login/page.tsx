@@ -46,10 +46,10 @@ export default function LoginPage() {
         <div className="hidden lg:flex lg:col-span-7 flex-col justify-center space-y-4 pr-4">
           <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-[#1E2B37] tracking-tight leading-[1.2]">
             Book your cleaning service <br />
-            <span className="text-slate-700">in just a few clicks.</span>
+            <span className="text-[#1E2B37]">with absolute confidence.</span>
           </h1>
           <p className="text-sm lg:text-base text-slate-500 font-normal max-w-lg leading-relaxed">
-            Experience effortless home cleaning with our trusted & background-checked professional maids.
+            Trusted housekeeping experts dedicated to making your home impeccably clean and inviting.
           </p>
         </div>
 
@@ -71,7 +71,6 @@ export default function LoginPage() {
               <div className="space-y-1.5 text-left">
                 <label className="text-xs font-semibold text-[#1E2B37] px-0.5">Email Address</label>
                 
-                {/* 🟢 text-[16px] ป้องกัน iOS Safari Auto-Zoom เวลาพิมพ์ */}
                 <input
                   type="email"
                   value={email}
@@ -150,7 +149,7 @@ export default function LoginPage() {
       {/* Footer */}
       <footer className="w-full text-center py-2 max-w-7xl mx-auto shrink-0">
         <p className="text-[11px] text-slate-400 font-medium">
-          © Getaway Cleaning Service
+          © {new Date().getFullYear()} Getaway Cleaning Service
         </p>
       </footer>
 
