@@ -233,7 +233,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🟢 [จุดที่เพิ่มใหม่] ถ้ามีส่งตัวแปร otp มา ให้ส่งอีเมลรหัส OTP 6 หลักทันที
+    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก
     if (body.otp) {
       const targetEmail = cleanText(body.email, '');
       if (!targetEmail) {
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
       `;
 
       const otpEmailData = await resend.emails.send({
-        from: 'Getaway Cleaning <onboarding@resend.dev>',
+        from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
         to: [targetEmail],
         subject: `[${body.otp}] Your Verification Code - Getaway Cleaning`,
         html: otpHtml,
@@ -272,7 +272,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'OTP sent successfully', otpEmailData });
     }
 
-    // 🔵 [ส่วนเดิม] ถ้าไม่มีตัวแปร otp จะทำกระบวนการสร้าง Sales Receipt PDF และส่งอีเมลยืนยันการชำระเงินปกติ
+    // 🔵 ส่วนการส่ง Sales Receipt PDF และส่งอีเมลยืนยันการชำระเงิน
     const { 
       userId,
       email, 
@@ -386,7 +386,7 @@ export async function POST(req: Request) {
     `;
 
     const emailData = await resend.emails.send({
-      from: 'Getaway Cleaning <onboarding@resend.dev>',
+      from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
       to: [validEmail],
       subject: `Payment Confirmed & Receipt [${cleanRef}] - Getaway Cleaning`,
       html: customerEmailHtml,

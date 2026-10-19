@@ -2,10 +2,24 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useMemo } from 'react';
-
+import React, { useMemo, useState, useEffect } from 'react';
 
 export default function StartCustomerPage() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const tomorrowDateString = useMemo(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -24,12 +38,22 @@ export default function StartCustomerPage() {
   return (
     <main className="min-h-screen w-full bg-[#F8FAFC] text-[#1E2B37] font-sans antialiased">
       
-      {/* ================= NAVIGATION BAR ================= */}
-      <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-xs">
-        <div className="max-w-7xl mx-auto px-6 sm:px-12 h-20 flex items-center justify-between">
+      {/* ================= NAVIGATION BAR (SMART STICKY HEADER) ================= */}
+      <nav 
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+          isScrolled 
+            ? 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80 py-0' 
+            : 'bg-white/80 backdrop-blur-md border-b border-slate-100 py-2'
+        }`}
+      >
+        <div 
+          className={`max-w-7xl mx-auto px-6 sm:px-12 flex items-center justify-between transition-all duration-300 ${
+            isScrolled ? 'h-14 sm:h-16' : 'h-16 sm:h-20'
+          }`}
+        >
           
-          <a href="#home" className="flex items-center gap-2">
-            <span className="text-xl font-black tracking-tight text-slate-900">
+          <a href="#home" className="flex items-center gap-2 group">
+            <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 group-hover:opacity-90 transition">
               GETAWAY <span className="text-[#006AFF]">CLEANING</span>
             </span>
           </a>
@@ -44,7 +68,11 @@ export default function StartCustomerPage() {
           <div>
             <a 
               href={getBookingUrl()}
-              className="px-6 py-2.5 bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold text-sm rounded-full shadow-md shadow-blue-500/20 transition"
+              className={`inline-flex items-center justify-center bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-full shadow-md shadow-blue-500/20 transition-all duration-300 ${
+                isScrolled 
+                  ? 'px-5 py-1.5 text-xs' 
+                  : 'px-6 py-2.5 text-sm'
+              }`}
             >
               Book Now
             </a>
@@ -230,7 +258,7 @@ export default function StartCustomerPage() {
         </div>
       </section>
 
-      {/* ================= SECTION 4: 4 SERVICE PROGRAMS (พร้อมรูปภาพประกอบสไตล์มินิมอล) ================= */}
+      {/* ================= SECTION 4: 4 SERVICE PROGRAMS ================= */}
       <section id="services" className="py-20 px-6 sm:px-12 bg-white">
         <div className="max-w-7xl mx-auto space-y-16">
           
