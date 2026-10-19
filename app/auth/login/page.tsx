@@ -35,7 +35,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="w-full min-h-[calc(100dvh-80px)] bg-white sm:bg-[#F8FAFC] flex flex-col justify-between p-4 sm:p-6 lg:p-8 text-[#1E2B37] font-sans antialiased box-border">
+    <main className="w-full min-h-screen bg-white flex flex-col justify-between p-4 sm:p-6 lg:p-8 text-[#1E2B37] font-sans antialiased box-border">
       
       {/* Container หลัก */}
       <div className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-4">
