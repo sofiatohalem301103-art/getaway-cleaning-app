@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 interface StaffUser {
   id: string;
+  code?: string;
   name: string;
 }
 
@@ -135,11 +136,10 @@ export default function StaffDashboardPage() {
         const targetName = cleanStr(staffName);
 
         const myTasks = enrichedData.filter((item: any) => {
-          const valCleanerId = cleanStr(item.cleaner_id || item.staff_id || item.assigned_to);
-          const valCleanerName = cleanStr(item.cleaner_name || item.staff_name || item.assigned_staff);
+          const valCleaner = cleanStr(item.assigned_staff || item.cleaner_id || item.staff_id);
 
-          const isIdMatch = Boolean(valCleanerId) && (valCleanerId === targetId || valCleanerId === targetName);
-          const isNameMatch = Boolean(valCleanerName) && (valCleanerName === targetName || valCleanerName === targetId);
+          const isIdMatch = Boolean(valCleaner) && (valCleaner === targetId || valCleaner === targetName);
+          const isNameMatch = Boolean(valCleaner) && (valCleaner === targetName || valCleaner === targetId);
 
           return isIdMatch || isNameMatch;
         });
@@ -186,11 +186,9 @@ export default function StaffDashboardPage() {
           const nameFromBookingId = item.booking_id ? customerNameMap[String(item.booking_id)] : null;
           const finalName = directName || joinedBookingName || nameFromBookingId || 'Guest';
 
-          // 🟢 แปลง Rating ให้เป็น Number ที่แม่นยำ
           const rawRating = item.rating !== undefined && item.rating !== null ? item.rating : item.rating_score;
           const cleanRating = Number(rawRating) || 0;
 
-          // 🟢 สกัด Ref Code ให้สั้นกระชับ 4-6 หลัก
           const rawRef = item.booking_ref || item.bookings?.booking_ref || item.bookings?.booking_code;
           const formattedRef = formatRefCode(rawRef, item.booking_id);
 
@@ -260,9 +258,7 @@ export default function StaffDashboardPage() {
 
     setLoadingId(taskId);
     try {
-      let dbStatus = nextStatus;
-      if (nextStatus === 'In Progress') dbStatus = 'in_progress';
-      if (nextStatus === 'Completed') dbStatus = 'completed';
+      let dbStatus = nextStatus.toLowerCase().replace(/\s+/g, '_');
 
       const { error } = await supabase.from('bookings').update({ status: dbStatus }).eq('id', taskId);
       if (error) throw error;
@@ -301,10 +297,9 @@ export default function StaffDashboardPage() {
 
   if (!currentStaff) return null;
 
-  const completedTasks = tasks.filter((t) => t.status === 'Completed' || t.status === 'completed');
-  const activeTasks = tasks.filter((t) => t.status !== 'Completed' && t.status !== 'completed');
+  const completedTasks = tasks.filter((t) => String(t.status).toLowerCase() === 'completed' || String(t.status).toLowerCase() === 'done');
+  const activeTasks = tasks.filter((t) => String(t.status).toLowerCase() !== 'completed' && String(t.status).toLowerCase() !== 'done');
   
-  // 🟢 คำนวณเฉลี่ยเฉพาะรายการที่มีเรตติ้งจริงมากกว่า 0
   const validFeedbacks = feedbacks.filter((f) => Number(f.rating || 0) > 0);
   const avgRating = validFeedbacks.length > 0
     ? (validFeedbacks.reduce((acc, curr) => acc + Number(curr.rating || 0), 0) / validFeedbacks.length).toFixed(1)
@@ -323,7 +318,7 @@ export default function StaffDashboardPage() {
 
         {/* 1. Header Box */}
         <div 
-          className="rounded-2xl border shadow-sm p-4 sm:p-5 space-y-3"
+          className="rounded-2xl border shadow-xs p-4 sm:p-5 space-y-3"
           style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -350,8 +345,6 @@ export default function StaffDashboardPage() {
                 backgroundColor: '#D95353',
                 borderColor: '#E87171'
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C94A4E')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#D95353')}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -431,7 +424,7 @@ export default function StaffDashboardPage() {
         </div>
 
         {/* 3. Navigation Tabs */}
-        <div className="rounded-2xl border shadow-sm p-2.5 sm:p-3" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}>
+        <div className="rounded-2xl border shadow-xs p-2.5 sm:p-3" style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}>
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab('history')}
@@ -487,7 +480,8 @@ export default function StaffDashboardPage() {
               </div>
             ) : (
               activeTasks.map((task) => {
-                const isInProgress = task.status === 'In Progress' || task.status === 'in_progress';
+                const st = String(task.status || '').toLowerCase();
+                const isInProgress = st === 'in_progress' || st === 'in progress';
                 const isProcessing = loadingId === task.id;
 
                 let details: Record<string, any> = {};
@@ -520,7 +514,7 @@ export default function StaffDashboardPage() {
                 const guestName = details.customer_name || details.guest_name || details.name || details.full_name || details.customer || task.customer_name || task.guest_name || task.full_name || task.name || task.customer || task.client_name || 'Guest';
                 const customerPhone = task.customer_phone || task.phone || details.customer_phone || details.phone || '';
 
-                const addressLine = details.address || details.address_line || task.address_line || task.address || '';
+                const addressLine = task.address_line || details.address || details.address_line || task.address || '';
                 const cityArea = details.city_area || details.city || details.area || task.city_area || task.city || '';
                 const building = details.building_complex || details.building || details.buildingComplex || task.building_complex || task.building || '';
                 const houseApt = details.house_apt || details.apartment_house_no || details.apartmentHouseNo || task.house_apt || task.apartment_house_no || '';
@@ -559,7 +553,6 @@ export default function StaffDashboardPage() {
                             REF-{taskRefCode}
                           </span>
 
-                          {/* แสดงป้ายชื่อ Admin */}
                           {assignedByAdmin && (
                             <span className="text-[10px] font-extrabold text-[#475569] bg-[#F1F5F9] border border-[#E2E8F0] px-2.5 py-1 rounded-md inline-block">
                               Assigned by: <strong className="text-[#1E2B37] font-bold">{assignedByAdmin}</strong>
@@ -732,7 +725,6 @@ export default function StaffDashboardPage() {
                           REF-{historyRefCode}
                         </span>
 
-                        {/* แสดงชื่อ Admin ใน History */}
                         {historyAdmin && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
                             By: {historyAdmin}

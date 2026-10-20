@@ -44,7 +44,7 @@ const formatPhoneNumberDisplay = (phoneStr: string) => {
   return cleaned.replace(/(\d{2,3})(?=(\d{3})+(?!\d))/g, '$1 ');
 };
 
-function PrivateConfirmationContent() {
+function ConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -71,8 +71,10 @@ function PrivateConfirmationContent() {
   useEffect(() => {
     setIsMounted(true);
 
-    // 📌 สุ่ม Reference Number แบบ PRV-XXXXXX ถ้าไม่มีในระบบ
-    const generated = `PRV-${Math.floor(100000 + Math.random() * 900000)}`;
+    // ตรวจจับ Prefix ให้ตรงกับพารามิเตอร์ที่ส่งมา (HOL หรือ PRV)
+    const paramRef = searchParams.get('ref') || searchParams.get('bookingRef');
+    const isHolidayParam = paramRef?.startsWith('HOL') || searchParams.has('price');
+    const generated = `${isHolidayParam ? 'HOL' : 'PRV'}-${Math.floor(100000 + Math.random() * 900000)}`;
     setRandomRef(generated);
 
     if (typeof window !== 'undefined') {
@@ -173,7 +175,10 @@ function PrivateConfirmationContent() {
     loadCustomerProfile();
   }, [searchParams]);
 
-  // 1. Google Maps Link
+  // 1. ดึงข้อมูลที่อยู่ + Google Maps Link
+  const address = getParam('address') || sessionData?.address || sessionData?.property || '';
+  const building = getParam('building') || sessionData?.buildingComplex || sessionData?.building || '';
+  const aptNo = getParam('aptNo') || sessionData?.apartmentHouseNo || sessionData?.aptNo || '';
   const mapsLink = 
     getParam('mapsLink') || 
     getParam('mapLink') || 
@@ -182,19 +187,26 @@ function PrivateConfirmationContent() {
     sessionData?.mapLink || 
     '';
 
+  const fullAddress = [address, building, aptNo ? `Apt/House: ${aptNo}` : ''].filter(Boolean).join(', ') || 'Address not specified';
+
   // 2. ดึงข้อมูลโปรแกรม และ แปลงเป็นชื่อเต็ม
-  const rawProgram = getParam('program') || sessionData?.program || sessionData?.selectedPrivateProgram || 'general';
+  const rawProgram = getParam('program') || sessionData?.program || sessionData?.selectedPrivateProgram || 'turnover';
   const fullProgramName = PROGRAM_FULL_NAMES[rawProgram.toLowerCase()] || rawProgram;
 
   const rawDate = getParam('date') || sessionData?.date || '';
   const time = getParam('time') || getParam('timeSlot') || sessionData?.timeSlot || sessionData?.time || '-';
   
-  // 📌 ใช้ Ref แบบสุ่มที่สร้างไว้
-  const bookingRef = getParam('bookingRef') || getParam('ref') || sessionData?.bookingRef || randomRef;
+  // Ref
+  const bookingRef = getParam('ref') || getParam('bookingRef') || sessionData?.bookingRef || randomRef;
+  const isHoliday = bookingRef.startsWith('HOL');
 
-  // 3. ดึงสเปกเฉพาะของแต่ละโปรแกรม
+  // ราคา
+  const priceParam = getParam('price') || sessionData?.price || sessionData?.totalAmount;
+  const numericPrice = priceParam ? Number(priceParam) : 0;
+
+  // 3. ดึงสเปกเฉพาะ
   const propertyType = getParam('propertyType') || sessionData?.propertyType || '';
-  const bedrooms = getParam('bedrooms') || sessionData?.bedrooms || '';
+  const bedrooms = getParam('room') || getParam('bedrooms') || sessionData?.bedrooms || sessionData?.room || '';
   const bathrooms = getParam('bathrooms') || sessionData?.bathrooms || '';
   const balconies = getParam('balconies') || sessionData?.balconies || sessionData?.officeBalconies || '';
 
@@ -249,17 +261,21 @@ function PrivateConfirmationContent() {
 
         {/* Title */}
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1E2B37] mb-2 text-center tracking-tight">
-          Request Submitted!
+          {isHoliday ? 'Booking Confirmed!' : 'Request Submitted!'}
         </h2>
         <p className="text-xs sm:text-sm md:text-base text-slate-500 mb-6 sm:mb-8 text-center font-medium max-w-md">
-          Thank you. Your private service request has been sent directly to our admin team.
+          {isHoliday 
+            ? 'Thank you for your payment. Your booking has been successfully confirmed.' 
+            : 'Thank you. Your private service request has been sent directly to our admin team.'}
         </p>
 
-        {/* Status Alert Box - บังคับให้อยู่บรรทัดเดียวกันทั้งหมด */}
-        <div className="w-full max-w-2xl mx-auto p-3 bg-slate-50 border border-slate-200 rounded-xl text-center mb-8">
-          <p className="text-xs font-medium text-slate-600 sm:whitespace-nowrap overflow-x-auto">
-            Our admin team will review your property details and contact you shortly with a confirmation.
-          </p>
+        {/* Status Alert Box */}
+        <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl px-5 py-4 mb-8 text-center">
+          <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-700 leading-relaxed block">
+            {isHoliday
+              ? 'Our team will handle your cleaning according to the scheduled date and time.'
+              : 'Our admin team will review your property details and contact you shortly with a confirmation.'}
+          </span>
         </div>
 
         {/* Details Container */}
@@ -267,12 +283,15 @@ function PrivateConfirmationContent() {
           
           {/* Booking Ref */}
           <div className="flex justify-between items-center border-b border-[#CBD5E1] pb-4">
-            <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">
-              Request Ref
-            </span>
-            <span className="text-sm sm:text-base md:text-lg font-bold font-mono text-[#0F172A]">
-              {bookingRef}
-            </span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                {isHoliday ? 'Booking Ref' : 'Request Ref'}
+              </span>
+              <span className={`text-[10px] sm:text-xs text-white px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${isHoliday ? 'bg-blue-600' : 'bg-slate-800'}`}>
+                {isHoliday ? 'Holiday Home' : 'Private / Office'}
+              </span>
+            </div>
+            <span className="text-sm sm:text-base md:text-lg font-bold font-mono text-[#0F172A]">{bookingRef}</span>
           </div>
 
           {/* Customer Information */}
@@ -297,6 +316,14 @@ function PrivateConfirmationContent() {
                 </span>
               </div>
             )}
+
+            <div className="border-t border-[#E2E8F0] my-3 sm:my-4" />
+
+            {/* Address & Google Maps */}
+            <div className="flex justify-between items-start gap-4">
+              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Address / Property</span>
+              <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A] leading-relaxed max-w-[65%]">{fullAddress}</span>
+            </div>
 
             {mapsLink && (
               <div className="flex justify-between items-center gap-4">
@@ -328,8 +355,8 @@ function PrivateConfirmationContent() {
             )}
             {bedrooms && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Bedrooms</span>
-                <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{bedrooms}</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Bedrooms / Unit</span>
+                <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{bedrooms} Bedroom(s)</span>
               </div>
             )}
             {bathrooms && (
@@ -377,14 +404,21 @@ function PrivateConfirmationContent() {
 
             {/* Service Date & Time Slot */}
             <div className="flex justify-between items-center gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Preferred Date</span>
+              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Scheduled Date</span>
               <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{formatDate(rawDate)}</span>
             </div>
             
             <div className="flex justify-between items-center gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Preferred Time</span>
+              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Scheduled Time</span>
               <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">{time}</span>
             </div>
+
+            {numericPrice > 0 && (
+              <div className="flex justify-between items-center gap-4 pt-2 border-t border-[#E2E8F0]">
+                <span className="text-xs sm:text-sm md:text-base font-bold text-[#006AFF] shrink-0">Total Paid Amount</span>
+                <span className="text-base sm:text-lg md:text-xl font-black text-[#006AFF]">€{numericPrice.toFixed(2)}</span>
+              </div>
+            )}
 
             {notes && (
               <div className="flex justify-between items-start gap-4 pt-1">
@@ -409,7 +443,7 @@ function PrivateConfirmationContent() {
   );
 }
 
-export default function PrivateConfirmationPage() {
+export default function ConfirmationPage() {
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center text-[#1E2B37] font-sans">
       <Suspense fallback={
@@ -417,7 +451,7 @@ export default function PrivateConfirmationPage() {
           Loading confirmation...
         </div>
       }>
-        <PrivateConfirmationContent />
+        <ConfirmationContent />
       </Suspense>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 function VerifyOtpContent() {
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
@@ -144,7 +145,7 @@ function VerifyOtpContent() {
     }
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (document.activeElement instanceof HTMLElement) {
@@ -170,7 +171,38 @@ function VerifyOtpContent() {
       sessionStorage.removeItem('sent_otp');
       sessionStorage.removeItem('sent_otp_email');
       sessionStorage.removeItem('otp_expires_at');
+      
       localStorage.setItem('user_is_authenticated', 'true');
+      localStorage.setItem('user_email', email);
+
+      // ✅ บันทึก/อัปเดตข้อมูลผู้ใช้ในตาราง users ของ Supabase
+      if (supabase && email) {
+        try {
+          // ตรวจสอบว่ามีผู้ใช้นี้ในตาราง users หรือยัง
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, full_name, phone')
+            .eq('email', email)
+            .maybeSingle();
+
+          if (!existingUser) {
+            // สร้าง User ใหม่
+            const { data: newUser } = await supabase
+              .from('users')
+              .insert([{ email, role: 'customer' }])
+              .select()
+              .single();
+
+            if (newUser) {
+              localStorage.setItem('user', JSON.stringify(newUser));
+            }
+          } else {
+            localStorage.setItem('user', JSON.stringify(existingUser));
+          }
+        } catch (err) {
+          console.error('Database Sync Error:', err);
+        }
+      }
 
       window.location.href = '/customer/booking';
     } else {
@@ -181,7 +213,7 @@ function VerifyOtpContent() {
   return (
     <main className="min-h-[calc(100vh-80px)] w-full bg-white sm:bg-[#F8FAFC] flex flex-col justify-between p-0 sm:p-6 text-[#1E2B37] font-sans antialiased">
       
-      {/* Container หลัก: กำหนด Padding และแนวตั้งให้ยืดขยายอย่างสมดุล */}
+      {/* Container หลัก */}
       <div className="w-full max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 flex flex-col items-center justify-start">
         
         {/* การ์ด OTP */}

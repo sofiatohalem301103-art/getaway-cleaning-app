@@ -48,7 +48,6 @@ const PROPERTY_DATA: PropertyCategory[] = [
   },
 ];
 
-// Class ป้องกัน Auto-zoom บน Mobile (บังคับ text-base / 16px เสมอ)
 const INPUT_BASE_CLASSES =
   'w-full px-3.5 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base font-medium text-[#1E2B37] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
 
@@ -1084,8 +1083,8 @@ function BookingForm() {
               .maybeSingle();
 
             if (profile) {
-              name = profile.full_name || profile.name || name;
-              phone = profile.phone || profile.mobile || phone;
+              name = profile.full_name || name;
+              phone = profile.phone_number || phone;
             }
           }
         }
@@ -1266,11 +1265,19 @@ function BookingForm() {
       formattedProgramName = selectedPrivateProgram ? privateProgramNames[selectedPrivateProgram] : 'Private Service';
     }
 
+    const fullAddress = [
+      privateAddress,
+      privateBuildingComplex ? `Building: ${privateBuildingComplex}` : '',
+      privateApartmentHouseNo ? `Unit: ${privateApartmentHouseNo}` : '',
+      googleMapsLink ? `Map: ${googleMapsLink}` : '',
+    ].filter(Boolean).join(', ');
+
     const formData = selectedService === 'holiday' 
       ? {
           service: 'holiday',
           property: selectedProperty,
           program: selectedProgram,
+          program_name: formattedProgramName,
           date: selectedDate,
           timeSlot: selectedTime,
           price: calculatedPrice,
@@ -1282,23 +1289,23 @@ function BookingForm() {
       : {
           service: 'private',
           address: privateAddress,
+          fullAddress,
           buildingComplex: privateBuildingComplex,
           apartmentHouseNo: privateApartmentHouseNo,
           mapLink: googleMapsLink,
-          mapsLink: googleMapsLink,
-          googleMapsLink: googleMapsLink,
           program: selectedPrivateProgram,
+          program_name: formattedProgramName,
           propertyType: privatePropertyType,
           bedrooms: privateBedrooms,
           bathrooms: privateBathrooms,
           balconies: privateBalconies,
-          officeSquareMeters: officeSquareMeters,
-          officeToilets: officeToilets,
-          officeBalconies: officeBalconies,
-          officeCleanWindows: officeCleanWindows,
+          officeSquareMeters,
+          officeToilets,
+          officeBalconies,
+          officeCleanWindows,
           officeWindowsCount: officeCleanWindows === 'yes' ? officeWindowsCount : null,
-          gardenSquareMeters: gardenSquareMeters,
-          gardenType: gardenType,
+          gardenSquareMeters,
+          gardenType,
           gardenOtherDetails: gardenType === 'other' ? gardenOtherDetails : '',
           date: selectedDate,
           timeSlot: selectedTime,
@@ -1341,12 +1348,8 @@ function BookingForm() {
         balconies: privateBalconies,
         address: privateAddress,
         building_complex: privateBuildingComplex,
-        buildingComplex: privateBuildingComplex,
         apartment_house_no: privateApartmentHouseNo,
-        apartmentHouseNo: privateApartmentHouseNo,
         google_maps_link: googleMapsLink,
-        googleMapsLink: googleMapsLink,
-        mapLink: googleMapsLink,
         office_sqm: officeSquareMeters,
         office_toilets: officeToilets,
         office_balconies: officeBalconies,
@@ -1355,23 +1358,26 @@ function BookingForm() {
         garden_sqm: gardenSquareMeters,
         garden_type: gardenType,
         garden_other_details: gardenType === 'other' ? gardenOtherDetails : '',
+        customer_name: customerInfo.name,
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
       };
 
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+
         const { data, error } = await supabase.from('bookings').insert([
           {
             booking_ref: generatedRef,
-            customer_name: customerInfo.name || null,
-            email: customerInfo.email || null,
-            phone: customerInfo.phone || null,
-            address_line: privateAddress || '',
+            user_id: user?.id || null,
+            customer_id: user?.id || null,
+            address_line: fullAddress || privateAddress || '',
             scheduled_date: selectedDate || null,
             scheduled_time: validScheduledTime,
             service_type: 'private',
+            program_name: formattedProgramName,
             details: JSON.stringify(privateDetails),
-            price: 0,
-            payment_method: 'direct_request',
-            payment_status: 'pending',
+            total_amount: 0,
             status: 'pending',
           },
         ]).select();
@@ -1402,7 +1408,6 @@ function BookingForm() {
 
   return (
     <main className="min-h-screen w-full bg-white py-4 sm:py-8">
-      {/* ลบกรอบลอยและเงาโดยรอบออกทั้งหมดเพื่อ Flat Clean UI */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1">

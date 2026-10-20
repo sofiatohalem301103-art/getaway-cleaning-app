@@ -37,7 +37,7 @@ function FeedbackFormContent() {
     date?: string;
     specs?: string;
   }>({});
-  const [customerData, setCustomerData] = useState<{ user_id?: string }>({});
+  const [customerData, setCustomerData] = useState<{ user_id?: string; customer_name?: string }>({});
 
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -137,7 +137,8 @@ function FeedbackFormContent() {
         }
         
         const uId = data.user_id || data.customer_id;
-        setCustomerData({ user_id: uId });
+        const cName = data.customer_name || data.name || data.full_name;
+        setCustomerData({ user_id: uId, customer_name: cName });
 
         let detailsObj: any = {};
         if (data.details) {
@@ -147,9 +148,9 @@ function FeedbackFormContent() {
         }
 
         const locDetails = parseLocationDetails(data, detailsObj);
-        const prog = data.program || data.package_name || data.service_name || detailsObj.program_name || 'Standard Cleaning';
-        const tm = data.booking_time || data.scheduled_time || '-';
-        const dt = data.booking_date || data.scheduled_date || '-';
+        const prog = data.program_name || detailsObj.program_name || data.program || data.package_name || data.service_name || 'Standard Cleaning';
+        const tm = data.scheduled_time || data.booking_time || '-';
+        const dt = data.scheduled_date || data.booking_date || '-';
 
         const specsArr = [];
         if (detailsObj.property_type) specsArr.push(`Type: ${detailsObj.property_type}`);
@@ -195,6 +196,7 @@ function FeedbackFormContent() {
         rating: rating,
         comment: comment,
         customer_id: customerData.user_id || null,
+        customer_name: customerData.customer_name || null,
         created_at: new Date().toISOString(),
       };
 
@@ -350,7 +352,7 @@ function FeedbackFormContent() {
                   </span>
                 </div>
 
-                {/* Comment Field (ตัวหนังสือและ Placeholder เล็กพอดี 12px ทรงกรอบไม่เพี้ยน ไม่ซูมหน้าจอแน่นอน) */}
+                {/* Comment Field */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#1E2B37]">
                     Your Comments & Suggestions
@@ -412,6 +414,8 @@ function FeedbackFormContent() {
                   {pastFeedbacks.map((item) => {
                     const loc = item.location_details;
                     const fullLocStr = [loc?.addressLine, loc?.cityArea, loc?.building, loc?.houseApt].filter(Boolean).join(', ');
+                    const starsFilled = Number(item.rating || 0);
+                    const starsEmpty = Math.max(0, 5 - starsFilled);
 
                     return (
                       <div
@@ -423,8 +427,8 @@ function FeedbackFormContent() {
                             {formatRef(String(item.booking_ref || item.booking_id))}
                           </span>
                           <div className="flex items-center gap-0.5 text-[#FFB800] text-xs">
-                            {'★'.repeat(item.rating || 0)}
-                            {'☆'.repeat(Math.max(0, 5 - (item.rating || 0)))}
+                            {'★'.repeat(starsFilled)}
+                            <span className="text-gray-300">{'★'.repeat(starsEmpty)}</span>
                             <span className="text-[10px] font-bold text-[#1E2B37] ml-1">
                               ({item.rating}/5)
                             </span>

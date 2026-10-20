@@ -8,24 +8,21 @@ import { supabase } from '@/lib/supabaseClient';
 interface Booking {
   id: string | number;
   booking_ref?: string;
-  room_name?: string;
-  location?: string;
-  property_name?: string;
-  room?: string;
-  room_type?: string;
-  address?: string;
   address_line?: string;
+  address?: string;
+  location?: string;
+  program_name?: string;
+  program?: string;
   package_name?: string;
   service_name?: string;
-  program?: string;
-  booking_date?: string;
   scheduled_date?: string;
-  booking_time?: string;
+  booking_date?: string;
   scheduled_time?: string;
+  booking_time?: string;
   status: string;
+  customer_id?: string;
   user_id?: string;
-  customer_email?: string;
-  email?: string;
+  details?: any;
 }
 
 interface Feedback {
@@ -76,7 +73,7 @@ function HistoryContent() {
     }
   }, []);
 
-  // ฟังก์ชันดึงข้อมูลผู้ใช้และการจองทั้งหมด (แก้ไข Query ให้ปลอดภัยขึ้น)
+  // ฟังก์ชันดึงข้อมูลผู้ใช้และการจองทั้งหมด
   const fetchUserAndInitialData = useCallback(async (isMounted = true) => {
     try {
       if (isMounted) setLoading(true);
@@ -90,37 +87,36 @@ function HistoryContent() {
       } catch (e) {}
 
       const currentUserId = user?.id || storedUser?.id || null;
-      const email = user?.email || storedUser?.email || localStorage.getItem('user_email');
 
       if (isMounted) setUserId(currentUserId);
-
-      // 🟢 ปรับเปลี่ยนโครงสร้าง Query ป้องกัน Column Not Found Error
-      let query = supabase.from('bookings').select('*');
-
-      const conditions: string[] = [];
-      if (currentUserId) {
-        conditions.push(`user_id.eq.${currentUserId}`);
-      }
-      if (email && email.trim() !== '') {
-        conditions.push(`customer_email.eq.${email}`);
-      }
 
       let bookingData: Booking[] | null = null;
       let bookingError = null;
 
-      if (conditions.length > 0) {
-        const { data, error } = await query.or(conditions.join(','));
+      if (currentUserId) {
+        // 🟢 ค้นหาจาก customer_id หรือ user_id ในตาราง bookings
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('*')
+          .or(`customer_id.eq.${currentUserId},user_id.eq.${currentUserId}`)
+          .order('created_at', { ascending: false });
+
         bookingData = data as Booking[];
         bookingError = error;
       } else {
-        const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
+        // Fallback หากไม่มี ID ดึง 20 รายการล่าสุด
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
         bookingData = data as Booking[];
         bookingError = error;
       }
 
       if (bookingError) {
         console.error('Error fetching bookings:', bookingError.message);
-        // กรณี Query Error ให้พยายามดึงข้อมูลแบบ Fallback ทันทีเพื่อไม่ให้หน้าจอค้าง
         const { data: fallbackData } = await supabase
           .from('bookings')
           .select('*')
@@ -132,8 +128,8 @@ function HistoryContent() {
         }
       } else if (bookingData && isMounted) {
         const sortedBookings = [...bookingData].sort((a, b) => {
-          const dateA = a.booking_date || a.scheduled_date || '';
-          const dateB = b.booking_date || b.scheduled_date || '';
+          const dateA = a.scheduled_date || a.booking_date || '';
+          const dateB = b.scheduled_date || b.booking_date || '';
           return dateB.localeCompare(dateA);
         });
 
@@ -219,7 +215,7 @@ function HistoryContent() {
   }, [fetchFeedbacksForBookings]);
 
   const groupedBookings = (bookings || []).reduce((acc, booking) => {
-    const dateKey = booking?.booking_date || booking?.scheduled_date || 'Unscheduled';
+    const dateKey = booking?.scheduled_date || booking?.booking_date || 'Unscheduled';
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }
@@ -286,23 +282,32 @@ function HistoryContent() {
                     const cleanStr = rawRef.replace(/^REF-?/i, '');
                     const formattedRef = `REF-${cleanStr.slice(0, 8).toUpperCase()}`;
 
+                    let detailsObj: Record<string, any> = {};
+                    if (booking.details) {
+                      if (typeof booking.details === 'string') {
+                        try { detailsObj = JSON.parse(booking.details); } catch (e) {}
+                      } else if (typeof booking.details === 'object') {
+                        detailsObj = booking.details;
+                      }
+                    }
+
                     const locationText =
                       booking.address_line ||
-                      booking.location ||
-                      booking.room_name ||
-                      booking.property_name ||
-                      booking.room ||
-                      booking.room_type ||
+                      detailsObj.address ||
+                      detailsObj.address_line ||
                       booking.address ||
+                      booking.location ||
                       '-';
 
                     const programName =
+                      booking.program_name ||
+                      detailsObj.program_name ||
                       booking.program ||
                       booking.package_name ||
                       booking.service_name ||
                       'Standard Cleaning';
 
-                    const bookingTime = booking.booking_time || booking.scheduled_time || '-';
+                    const bookingTime = booking.scheduled_time || booking.booking_time || '-';
 
                     const existingFeedback = submittedFeedbacks[String(booking.id)];
                     const displayRating = existingFeedback?.rating ?? existingFeedback?.rating_score;
@@ -322,7 +327,7 @@ function HistoryContent() {
                               className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${
                                 isCompleted
                                   ? 'bg-[#E6F9E6] text-[#008800]'
-                                  : cleanStatus === 'confirmed' || cleanStatus === 'in progress'
+                                  : cleanStatus === 'confirmed' || cleanStatus === 'in_progress' || cleanStatus === 'assigned'
                                   ? 'bg-[#EAF3F9] text-[#006AFF]'
                                   : 'bg-gray-100 text-gray-600'
                               }`}
@@ -331,7 +336,7 @@ function HistoryContent() {
                                 className={`w-1.5 h-1.5 rounded-full ${
                                   isCompleted
                                     ? 'bg-[#008800]'
-                                    : cleanStatus === 'confirmed' || cleanStatus === 'in progress'
+                                    : cleanStatus === 'confirmed' || cleanStatus === 'in_progress' || cleanStatus === 'assigned'
                                     ? 'bg-[#006AFF]'
                                     : 'bg-gray-400'
                                 }`}

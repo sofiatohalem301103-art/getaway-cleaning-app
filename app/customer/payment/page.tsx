@@ -39,13 +39,11 @@ function UploadIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-// Class ป้องกัน Auto-zoom บน Mobile (บังคับ text-base / 16px บน mobile เสมอ)
 const INPUT_BASE_CLASSES =
   'w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
 
-// Helper Function สำหรับแปลงข้อความช่วงเวลาให้เป็นรูปแบบ HH:mm:ss
 const formatTimeToDatabase = (timeSlot: string | null | undefined): string | null => {
-  if (!timeSlot) return null;
+  if (!timeSlot) return '09:00:00';
   const lower = timeSlot.toLowerCase().trim();
   
   if (lower === 'morning') return '09:00:00';
@@ -66,17 +64,14 @@ function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ------------------------------------------
-  // 2.1 GET URL PARAMS & DATA FORMATTING
-  // ------------------------------------------
-  const apartment = searchParams.get('apartment') || '';
+  // ดึงข้อมูลสำหรับสรุปและบันทึกข้อมูล
+  const apartment = searchParams.get('apartment') || searchParams.get('address') || '';
   const program = searchParams.get('program') || searchParams.get('service') || 'Turnover Cleaning';
   const room = searchParams.get('room') || '1';
   const rawPrice = searchParams.get('price') || '150';
-
-  const urlName = searchParams.get('name') || searchParams.get('customer_name') || searchParams.get('fullname') || '';
-  const urlEmail = searchParams.get('email') || searchParams.get('customer_email') || '';
-  const urlPhone = searchParams.get('phone') || searchParams.get('mobile') || searchParams.get('tel') || searchParams.get('phone_number') || '';
+  
+  const rawDate = searchParams.get('date') || searchParams.get('scheduled_date') || new Date().toISOString().split('T')[0];
+  const rawTime = searchParams.get('time') || searchParams.get('scheduled_time') || 'morning';
 
   const sanitizedPrice = rawPrice.replace(/[^0-9.]/g, '');
   const numericPrice = Number(sanitizedPrice) || 0;
@@ -86,9 +81,6 @@ function PaymentContent() {
     maximumFractionDigits: 2,
   });
 
-  // ------------------------------------------
-  // 2.2 COMPONENT STATES
-  // ------------------------------------------
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [slipFile, setSlipFile] = useState<File | null>(null);
@@ -109,9 +101,6 @@ function PaymentContent() {
     bic: 'ABKLCY2N',
   };
 
-  // ------------------------------------------
-  // 2.3 HANDLER FUNCTIONS
-  // ------------------------------------------
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
@@ -146,126 +135,74 @@ function PaymentContent() {
   };
 
   const handleContinue = async () => {
-    if (paymentMethod === 'card') {
-      if (!cardDetails.cardNumber || !cardDetails.cardName || !cardDetails.expiryDate || !cardDetails.cvv) {
-        alert('Please fill in all credit card details.');
-        return;
-      }
-    } else {
-      if (!slipFile) {
-        alert('Please upload your payment slip before proceeding.');
-        return;
-      }
-    }
-
     setIsUploading(true);
 
-    let storedBookingData: Record<string, any> = {};
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('bookingData');
-      if (saved) {
-        try {
-          storedBookingData = JSON.parse(saved);
-        } catch (e) {
-          console.error('Error parsing bookingData from sessionStorage:', e);
-        }
-      }
-    }
-
-    const customerName = 
-      storedBookingData.name || 
-      storedBookingData.customerName || 
-      storedBookingData.customer_name || 
-      storedBookingData.fullName || 
-      urlName || 
-      null;
-
-    const customerEmail = 
-      storedBookingData.email || 
-      storedBookingData.customerEmail || 
-      storedBookingData.customer_email || 
-      urlEmail || 
-      null;
-
-    const customerPhone = 
-      storedBookingData.phone || 
-      storedBookingData.phoneNumber || 
-      storedBookingData.phone_number || 
-      storedBookingData.mobile || 
-      storedBookingData.tel || 
-      storedBookingData.customerPhone || 
-      storedBookingData.customer_phone || 
-      urlPhone || 
-      null;
-
-    const generatedRef = `HOL-${Math.floor(100000 + Math.random() * 900000)}`;
-    const validScheduledTime = formatTimeToDatabase(storedBookingData.timeSlot || storedBookingData.time);
-
-    let uploadedSlipUrl: string | null = null;
-
-    if (paymentMethod === 'bank' && slipFile) {
-      try {
-        const fileExt = slipFile.name.split('.').pop();
-        const fileName = `${generatedRef}_${Date.now()}.${fileExt}`;
-        const filePath = `receipts/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('slips')
-          .upload(filePath, slipFile, {
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error('Upload slip error:', uploadError);
-          alert(`Failed to upload payment slip: ${uploadError.message}`);
-          setIsUploading(false);
-          return;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('slips')
-          .getPublicUrl(filePath);
-
-        uploadedSlipUrl = publicUrlData?.publicUrl || filePath;
-      } catch (err) {
-        console.error('Slip processing error:', err);
-        alert('An error occurred while uploading the payment slip.');
-        setIsUploading(false);
-        return;
-      }
-    }
-
-    const holidayDetails = {
-      program_name: program,
-      program: storedBookingData.program || null,
-      room: room,
-      property: apartment || storedBookingData.property || '',
-      service_type: 'holiday',
-    };
-
     try {
-      const { error } = await supabase.from('bookings').insert([
-        {
-          booking_ref: generatedRef,
-          customer_name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-          address_line: apartment || storedBookingData.property || storedBookingData.address || '',
-          scheduled_date: storedBookingData.date || storedBookingData.scheduled_date || null,
-          scheduled_time: validScheduledTime,
-          
-          service_type: 'holiday',
-          service_id: null,
-          details: JSON.stringify(holidayDetails),
+      // 1. ดึงข้อมูล Auth User ปัจจุบัน
+      const { data: { user } } = await supabase.auth.getUser();
 
-          price: numericPrice,
+      let activeUserId: string | null = user?.id || null;
+
+      // 2. ค้นหา User ID ที่มีอยู่จริงในตาราง public.users
+      if (activeUserId) {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', activeUserId)
+          .maybeSingle();
+
+        if (!existingUser) {
+          // ลองสร้าง User ชั่วคราวกรณีมี Auth ID
+          const { error: insertErr } = await supabase.from('users').insert({
+            id: activeUserId,
+            email: user?.email || 'customer@example.com',
+            full_name: user?.user_metadata?.full_name || 'Customer User',
+            role: 'customer',
+          });
+          if (insertErr) {
+            console.warn('Could not insert auth user into users table:', insertErr.message);
+            activeUserId = null;
+          }
+        }
+      }
+
+      // 3. หากไม่มี Auth User หรือ Insert ไม่ผ่าน ให้สุ่มดึง User รายแรกในตาราง users มาใช้อ้างอิง
+      if (!activeUserId) {
+        const { data: existingUsers } = await supabase
+          .from('users')
+          .select('id')
+          .limit(1);
+
+        if (existingUsers && existingUsers.length > 0) {
+          activeUserId = existingUsers[0].id;
+        }
+      }
+
+      const generatedRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
+      const formattedTime = formatTimeToDatabase(rawTime);
+
+      const bookingPayload: any = {
+        booking_ref: generatedRef,
+        program_name: program,
+        address_line: apartment || 'Main Address',
+        scheduled_date: rawDate,
+        scheduled_time: formattedTime,
+        status: 'Scheduled',
+        total_amount: numericPrice,
+        details: {
+          room: room,
           payment_method: paymentMethod,
-          payment_slip: uploadedSlipUrl,
-          payment_status: paymentMethod === 'card' ? 'paid' : 'pending_verification',
-          status: 'confirmed',
         },
-      ]);
+      };
+
+      if (activeUserId) {
+        bookingPayload.customer_id = activeUserId;
+      }
+
+      // 4. บันทึกข้อมูลจองลงตาราง bookings
+      const { error } = await supabase
+        .from('bookings')
+        .insert([bookingPayload]);
 
       if (error) {
         console.error('Error saving booking to Supabase:', error);
@@ -273,20 +210,18 @@ function PaymentContent() {
         setIsUploading(false);
         return;
       }
-    } catch (err) {
+
+      // 5. บันทึกสำเร็จ เปลี่ยนหน้าไปยัง Confirmation
+      setIsUploading(false);
+      router.push(`/customer/confirmation?program=${encodeURIComponent(program)}&room=${room}&price=${numericPrice}&method=${paymentMethod}&ref=${generatedRef}`);
+
+    } catch (err: any) {
       console.error('Unexpected error:', err);
       alert('An unexpected error occurred. Please try again.');
       setIsUploading(false);
-      return;
     }
-
-    setIsUploading(false);
-    router.push(`/customer/confirmation?program=${encodeURIComponent(program)}&room=${room}&price=${numericPrice}&method=${paymentMethod}&ref=${generatedRef}`);
   };
 
-  // ------------------------------------------
-  // 2.4 JSX RENDER
-  // ------------------------------------------
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       

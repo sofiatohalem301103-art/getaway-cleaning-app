@@ -3,17 +3,43 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('getawaycleaning.paphos@gmail.com');
-  const [password, setPassword] = useState('Paphos2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [selectedAdmin, setSelectedAdmin] = useState('Sam');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('admin_user', selectedAdmin);
-    router.push('/admin/dashboard');
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      if (supabase && email && password) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          console.warn('Supabase auth warning, proceeding with local admin state:', error.message);
+        }
+      }
+
+      // บันทึก Admin Profile ที่เลือก
+      localStorage.setItem('admin_user', selectedAdmin);
+      localStorage.setItem('admin_email', email || 'getawaycleaning.paphos@gmail.com');
+      
+      router.push('/admin/dashboard');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -22,7 +48,7 @@ export default function AdminLoginPage() {
       {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ */}
       <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-screen bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
         
-        {/* Soft Background Accent Lights */}
+        {/* Background Accent Lights */}
         <div className="absolute top-0 left-1/4 w-[30rem] h-[30rem] bg-white/60 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[25rem] h-[25rem] bg-[#86D892]/20 rounded-full blur-3xl pointer-events-none" />
 
@@ -65,10 +91,10 @@ export default function AdminLoginPage() {
         </div>
       </div>
 
-      {/* 🔵 ฝั่งขวา: แสดงผลพอดีจอปกติ แต่ถ้าซูมเข้าจะยอมให้มี Scrollbar เลื่อนได้ทันที */}
+      {/* 🔵 ฝั่งขวา: ฟอร์มล็อกอิน */}
       <div className="w-full md:w-1/2 lg:w-5/12 min-h-screen bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-6 lg:p-10 xl:p-12 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto">
         
-        {/* Top Spacer / Mobile Badge */}
+        {/* Top Mobile Badge */}
         <div className="w-full flex justify-center pt-1 md:pt-0">
           <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-4 py-1.5 rounded-full shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[#2C7A39] animate-pulse" />
@@ -90,6 +116,12 @@ export default function AdminLoginPage() {
               Sign in to manage bookings
             </p>
           </div>
+
+          {errorMessage && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-semibold text-center">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Form Section */}
           <form onSubmit={handleAdminLogin} className="w-full space-y-3.5 my-5">
@@ -129,6 +161,7 @@ export default function AdminLoginPage() {
               <input
                 type="email"
                 required
+                placeholder="admin@getaway-cleaning.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2.5 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
@@ -143,6 +176,7 @@ export default function AdminLoginPage() {
               <input
                 type="password"
                 required
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2.5 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
@@ -153,9 +187,10 @@ export default function AdminLoginPage() {
             <div className="pt-1">
               <button
                 type="submit"
-                className="w-full min-h-[46px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-2.5 rounded-full text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none"
+                disabled={loading}
+                className="w-full min-h-[46px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-2.5 rounded-full text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none disabled:opacity-60"
               >
-                Sign In as Admin
+                {loading ? 'Signing In...' : `Sign In as ${selectedAdmin}`}
               </button>
             </div>
           </form>

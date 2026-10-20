@@ -303,25 +303,30 @@ export async function POST(req: Request) {
     const numAmount = parseFloat(String(amount || '').replace(/[^0-9.]/g, '') || '0.00');
     const formattedAmount = numAmount.toFixed(2);
 
-    // 1. บันทึก / อัปเดต รายการจองลง Supabase
+    const bookingDetails = {
+      customer_name: validCustomerName,
+      customer_email: validEmail,
+      customer_phone: validPhone,
+      payment_method: validPaymentMethod,
+      payment_status: 'paid',
+    };
+
+    // 1. บันทึก / อัปเดต รายการจองลง Supabase ตาม Master Schema ใหม่
     const { error: dbError } = await supabaseServer
       .from('bookings')
       .upsert(
         [
           {
             user_id: userId || null,
+            customer_id: userId || null,
             booking_ref: cleanRef,
-            customer_name: validCustomerName,
-            email: validEmail,
-            phone: validPhone,
-            location: validRoom,
-            program: selectedProgram,
-            scheduled_date: validDate,
-            scheduled_time: validTime,
-            amount: numAmount,
-            payment_method: validPaymentMethod,
-            payment_status: 'PAID',
-            status: 'CONFIRMED',
+            address_line: validRoom,
+            program_name: selectedProgram,
+            scheduled_date: validDate !== '-' ? validDate : null,
+            scheduled_time: validTime !== '-' ? validTime : null,
+            total_amount: numAmount,
+            details: JSON.stringify(bookingDetails),
+            status: 'confirmed',
             updated_at: new Date().toISOString()
           }
         ],

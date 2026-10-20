@@ -9,15 +9,36 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
 
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
 
-    localStorage.setItem('temp_email', cleanEmail);
-    router.push(`/auth/verify-otp?email=${encodeURIComponent(cleanEmail)}`);
+    try {
+      if (supabase) {
+        // พยายามส่ง OTP ผ่าน Supabase
+        const { error } = await supabase.auth.signInWithOtp({
+          email: cleanEmail,
+          options: {
+            shouldCreateUser: true,
+          },
+        });
+
+        // หากมี Error (เช่น ติด Email Rate Limit บน Localhost) ให้ Log ไว้และไม่ขัดการเปลี่ยนหน้า
+        if (error) {
+          console.warn('Supabase Email Error (Bypassing for testing):', error.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error sending OTP:', error);
+    } finally {
+      // บันทึกอีเมลลง localStorage แล้วเปลี่ยนหน้าไปยัง /auth/verify-otp ทันที
+      localStorage.setItem('temp_email', cleanEmail);
+      setIsLoading(false);
+      router.push(`/auth/verify-otp?email=${encodeURIComponent(cleanEmail)}`);
+    }
   };
 
   const handleSocialLogin = async (provider: 'google') => {

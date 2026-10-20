@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const STAFF_DATABASE = [
-  { id: 'GW-S1', name: 'Staff 01', password: 'Getaway01' },
-  { id: 'GW-S2', name: 'Staff 02', password: 'Getaway02' },
-  { id: 'GW-S3', name: 'Staff 03', password: 'Getaway03' },
-  { id: 'GW-S4', name: 'Staff 04', password: 'Getaway04' },
-  { id: 'GW-S5', name: 'Staff 05', password: 'Getaway05' },
+  { id: 'GW-S1', code: 'GW - S1', name: 'GW - S1', password: 'Getaway01' },
+  { id: 'GW-S2', code: 'GW - S2', name: 'GW - S2', password: 'Getaway02' },
+  { id: 'GW-S3', code: 'GW - S3', name: 'GW - S3', password: 'Getaway03' },
+  { id: 'GW-S4', code: 'GW - S4', name: 'GW - S4', password: 'Getaway04' },
+  { id: 'GW-S5', code: 'GW - S5', name: 'GW - S5', password: 'Getaway05' },
 ];
 
 export default function StaffLoginPage() {
@@ -45,15 +45,18 @@ export default function StaffLoginPage() {
     e.preventDefault();
     setErrorMessage('');
 
-    const formattedInputId = staffId.trim();
+    const formattedInputId = staffId.trim().replace(/\s+/g, '');
     const formattedPassword = password.trim();
 
-    const foundStaff = STAFF_DATABASE.find(
-      (staff) => staff.id === formattedInputId && staff.password === formattedPassword
-    );
+    const foundStaff = STAFF_DATABASE.find((staff) => {
+      const cleanDbId = staff.id.replace(/\s+/g, '');
+      return cleanDbId === formattedInputId && staff.password === formattedPassword;
+    });
 
     if (foundStaff) {
       localStorage.setItem('currentStaff', JSON.stringify(foundStaff));
+      localStorage.setItem('staff_id', foundStaff.id);
+      localStorage.setItem('staff_name', foundStaff.name);
       router.push('/staff/dashboard');
     } else {
       setErrorMessage('Invalid Staff ID or Password. Please try again.');
@@ -63,7 +66,7 @@ export default function StaffLoginPage() {
   return (
     <main className="w-full min-h-screen flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation">
       
-      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ (โทนเขียว-ฟ้า สำหรับ Staff Portal) */}
+      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ */}
       <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-screen bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
         
         {/* Soft Background Accent Lights */}
@@ -109,10 +112,10 @@ export default function StaffLoginPage() {
         </div>
       </div>
 
-      {/* 🔵 ฝั่งขวา: ฟอร์ม Staff Login (จัดกึ่งกลางพอดีจอปกติ ซูมแล้วเลื่อนได้) */}
+      {/* 🔵 ฝั่งขวา: ฟอร์ม Staff Login */}
       <div className="w-full md:w-1/2 lg:w-5/12 min-h-screen bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-6 lg:p-10 xl:p-12 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto">
         
-        {/* Top Spacer / Mobile Badge */}
+        {/* Top Mobile Badge */}
         <div className="w-full flex justify-center pt-1 md:pt-0">
           <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-4 py-1.5 rounded-full shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[#2C7A39] animate-pulse" />
@@ -138,7 +141,7 @@ export default function StaffLoginPage() {
           {/* Form Section */}
           <div className="w-full my-5">
             {errorMessage && (
-              <div className="w-full bg-[#EF8B8D]/20 border border-[#C94A4E]/60 text-[#C94A4E] text-xs py-2.5 px-4 rounded-2xl mb-4 text-center font-bold shadow-xs animate-shake">
+              <div className="w-full bg-[#EF8B8D]/20 border border-[#C94A4E]/60 text-[#C94A4E] text-xs py-2.5 px-4 rounded-2xl mb-4 text-center font-bold shadow-xs">
                 {errorMessage}
               </div>
             )}
