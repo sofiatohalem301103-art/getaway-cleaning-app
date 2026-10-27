@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   description: "Book professional home, office, turnover, and holiday apartment cleaning services with Getaway Cleaning. Fast, reliable, and easy online booking.",
   keywords: ["cleaning service", "Paphos cleaning", "holiday home cleaning", "Getaway Cleaning", "turnover cleaning"],
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: "/house-logo.png",
+    shortcut: "/house-logo.png",
+    apple: "/house-logo.png",
   },
 };
 
