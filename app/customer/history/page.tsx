@@ -36,6 +36,20 @@ interface Feedback {
   created_at?: string;
 }
 
+// Helper แสดงผลวันที่แบบ Pure String ไม่โดน Timezone Shift
+const formatDateDisplay = (dateString: string) => {
+  if (!dateString || dateString === 'Unscheduled') return dateString || '-';
+  const cleanDate = String(dateString).split('T')[0];
+  const [year, month, day] = cleanDate.split('-');
+  
+  if (!year || !month || !day) return dateString;
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthName = months[parseInt(month, 10) - 1] || month;
+  
+  return `${parseInt(day, 10)} ${monthName} ${year}`;
+};
+
 function HistoryContent() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -215,7 +229,9 @@ function HistoryContent() {
   }, [fetchFeedbacksForBookings]);
 
   const groupedBookings = (bookings || []).reduce((acc, booking) => {
-    const dateKey = booking?.scheduled_date || booking?.booking_date || 'Unscheduled';
+    const rawDateVal = booking?.scheduled_date || booking?.booking_date || 'Unscheduled';
+    const dateKey = String(rawDateVal).split('T')[0];
+    
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }
@@ -263,7 +279,7 @@ function HistoryContent() {
                 <div className="sticky top-0 bg-white/95 backdrop-blur-md py-2 z-10 flex items-center justify-between w-full px-1">
                   <span className="text-xs sm:text-sm font-bold text-[#1E2B37] tracking-wide flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#006AFF]"></span>
-                    {date}
+                    {formatDateDisplay(date)}
                   </span>
                   <span className="text-[11px] font-semibold text-[#8E9B9E] bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-0.5 rounded-full">
                     {items.length} {items.length > 1 ? 'bookings' : 'booking'}

@@ -362,7 +362,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
 
   return (
     <div className="pt-5 border-t border-[#E2E8F0] space-y-5">
-      {/* Address Input */}
       <div className="space-y-1.5">
         <div>
           <label htmlFor="address-input" className="text-base font-bold text-[#1E2B37] block">
@@ -382,7 +381,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         />
       </div>
 
-      {/* Building / Complex & Apartment / House No. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-1.5">
           <label htmlFor="building-input" className="text-base font-bold text-[#1E2B37] block">
@@ -419,7 +417,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       </div>
 
-      {/* Google Maps Link */}
       <div className="space-y-1.5">
         <div>
           <label htmlFor="map-input" className="text-base font-bold text-[#1E2B37] block">
@@ -439,7 +436,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         />
       </div>
 
-      {/* Private Service Program Selection */}
       <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
         <div>
           <label className="text-base font-bold text-[#1E2B37] block">
@@ -509,7 +505,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       </div>
 
-      {/* Choose Type Of Property */}
       {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && (
         <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
           <div>
@@ -553,7 +548,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       )}
 
-      {/* Choose How Many Bedroom(s) */}
       {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
         <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
           <div>
@@ -586,7 +580,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       )}
 
-      {/* Choose How Many Bathroom(s) */}
       {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
         <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
           <div>
@@ -619,7 +612,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       )}
 
-      {/* Choose How Many Balconies / Verandahs */}
       {(selectedPrivateProgram === 'general' || selectedPrivateProgram === 'deep') && propertyType && (
         <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
           <div>
@@ -652,7 +644,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </div>
       )}
 
-      {/* Office Cleaning Specifics */}
       {selectedPrivateProgram === 'office' && (
         <>
           <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
@@ -745,7 +736,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             </div>
           </div>
 
-          {/* Would you like to clean the windows? */}
           <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
             <div>
               <label className="text-base font-bold text-[#1E2B37] block">
@@ -787,7 +777,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             </div>
           </div>
 
-          {/* How Many Windows? */}
           {officeCleanWindows === 'yes' && (
             <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
               <div>
@@ -822,7 +811,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
         </>
       )}
 
-      {/* Garden Cleaning Specifics */}
       {selectedPrivateProgram === 'garden' && (
         <>
           <div className="space-y-2.5 pt-4 border-t border-[#E2E8F0]">
@@ -873,7 +861,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onGardenTypeChange(opt.value as 'weeds' | 'trees' | 'other')}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     gardenType === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
@@ -1076,15 +1064,15 @@ function BookingForm() {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             email = user.email || email;
-            const { data: profile } = await supabase
-              .from('profiles')
+            const { data: userRecord } = await supabase
+              .from('users')
               .select('*')
               .eq('id', user.id)
               .maybeSingle();
 
-            if (profile) {
-              name = profile.full_name || name;
-              phone = profile.phone_number || phone;
+            if (userRecord) {
+              name = userRecord.full_name || name;
+              phone = userRecord.phone || phone;
             }
           }
         }
@@ -1207,30 +1195,30 @@ function BookingForm() {
     e.preventDefault();
 
     if (!selectedDate) {
-      alert("กรุณาเลือกวันที่ต้องการรับบริการ");
+      alert("Please select a service date.");
       return;
     }
     if (!selectedTime) {
-      alert("กรุณาเลือกรอบเวลาที่ต้องการ");
+      alert("Please select a preferred time slot.");
       return;
     }
 
     if (selectedService === 'holiday') {
       if (!selectedProperty) {
-        alert("กรุณาเลือกอสังหาริมทรัพย์ / Property");
+        alert("Please select a property.");
         return;
       }
       if (!selectedProgram) {
-        alert("กรุณาเลือกโปรแกรมทำความสะอาด");
+        alert("Please select a cleaning program.");
         return;
       }
     } else {
       if (!selectedPrivateProgram) {
-        alert("กรุณาเลือกแพ็กเกจบริการทำความสะอาดบ้าน/ออฟฟิศ");
+        alert("Please select a service program for private cleaning.");
         return;
       }
       if (!privateAddress.trim()) {
-        alert("กรุณาระบุที่อยู่สำหรับให้บริการ");
+        alert("Please provide the service address.");
         return;
       }
     }
@@ -1251,18 +1239,37 @@ function BookingForm() {
     }
 
     let formattedProgramName = '';
+    let serviceSearchName = '';
+
     if (selectedService === 'holiday') {
       formattedProgramName = selectedProgram === 'general'
         ? 'General Cleaning'
         : 'Turnover Cleaning (Cleaning & change all sheets and towels)';
+      
+      const pName = selectedProgram === 'general' ? 'General Cleaning' : 'Turnover Cleaning';
+      serviceSearchName = `${roomCount} Bedroom - ${pName}`;
     } else {
       const privateProgramNames = {
         general: 'Private Home - General Cleaning',
         deep: 'Private Home - Deep Cleaning',
-        office: 'Office Cleaning',
-        garden: 'Garden Maintenance',
+        office: 'Private Home - Office Cleaning',
+        garden: 'Private Home - Garden Cleaning',
       };
       formattedProgramName = selectedPrivateProgram ? privateProgramNames[selectedPrivateProgram] : 'Private Service';
+      serviceSearchName = formattedProgramName;
+    }
+
+    let matchedServiceId: string | null = null;
+    if (supabase && serviceSearchName) {
+      const { data: serviceRecord } = await supabase
+        .from('services')
+        .select('id')
+        .eq('name', serviceSearchName)
+        .maybeSingle();
+
+      if (serviceRecord?.id) {
+        matchedServiceId = serviceRecord.id;
+      }
     }
 
     const fullAddress = [
@@ -1272,12 +1279,40 @@ function BookingForm() {
       googleMapsLink ? `Map: ${googleMapsLink}` : '',
     ].filter(Boolean).join(', ');
 
+    try {
+      if (supabase && customerInfo.email) {
+        const { data: { user } } = await supabase.auth.getUser();
+        let targetUserId = user?.id;
+
+        if (!targetUserId) {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', customerInfo.email.trim().toLowerCase())
+            .maybeSingle();
+
+          targetUserId = existingUser?.id || crypto.randomUUID();
+        }
+
+        await supabase.from('users').upsert([{
+          id: targetUserId,
+          email: customerInfo.email.trim().toLowerCase(),
+          full_name: customerInfo.name || null,
+          phone: customerInfo.phone || null,
+          role: 'customer',
+        }]);
+      }
+    } catch (syncErr) {
+      console.warn('Sync users table error:', syncErr);
+    }
+
     const formData = selectedService === 'holiday' 
       ? {
           service: 'holiday',
           property: selectedProperty,
           program: selectedProgram,
           program_name: formattedProgramName,
+          service_id: matchedServiceId,
           date: selectedDate,
           timeSlot: selectedTime,
           price: calculatedPrice,
@@ -1295,6 +1330,7 @@ function BookingForm() {
           mapLink: googleMapsLink,
           program: selectedPrivateProgram,
           program_name: formattedProgramName,
+          service_id: matchedServiceId,
           propertyType: privatePropertyType,
           bedrooms: privateBedrooms,
           bathrooms: privateBathrooms,
@@ -1321,9 +1357,12 @@ function BookingForm() {
 
       const queryParams = new URLSearchParams({
         program: formattedProgramName,
+        service_id: matchedServiceId || '',
         room: roomCount,
         price: calculatedPrice.toString(),
         apartment: selectedProperty || '',
+        date: selectedDate,
+        time: selectedTime || 'morning',
         name: customerInfo.name || '',
         email: customerInfo.email || '',
         phone: customerInfo.phone || '',
@@ -1365,17 +1404,37 @@ function BookingForm() {
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        let validUserId: string | null = null;
+
+        if (user?.id) {
+          const { data: userExist } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (userExist) {
+            validUserId = user.id;
+          }
+        }
 
         const { data, error } = await supabase.from('bookings').insert([
           {
             booking_ref: generatedRef,
-            user_id: user?.id || null,
-            customer_id: user?.id || null,
+            service_id: matchedServiceId,
+            user_id: validUserId,
+            customer_id: validUserId,
+            address: privateAddress || fullAddress || '',
             address_line: fullAddress || privateAddress || '',
             scheduled_date: selectedDate || null,
+            booking_date: selectedDate ? new Date(selectedDate).toISOString() : null,
             scheduled_time: validScheduledTime,
             service_type: 'private',
             program_name: formattedProgramName,
+            customer_phone: customerInfo.phone || null,
+            customer_name: customerInfo.name || null,
+            customer_email: customerInfo.email || null,
+            notes: gardenType === 'other' ? gardenOtherDetails : null,
             details: JSON.stringify(privateDetails),
             total_amount: 0,
             status: 'pending',
@@ -1384,7 +1443,7 @@ function BookingForm() {
         
         if (error) {
           console.error('Supabase Insert Error Detail:', error);
-          alert(`เกิดข้อผิดพลาดจาก Supabase: ${error.message} (${error.details || ''})`);
+          alert(`Error from Supabase: ${error.message} (${error.details || ''})`);
           return;
         }
 
@@ -1407,6 +1466,7 @@ function BookingForm() {
   };
 
   return (
+    /* 🟢 ปรับเปลี่ยนจาก bg-[#FAFAFA] เป็น bg-white เพื่อความราบรื่นไร้รอยต่อกับ Navbar */
     <main className="min-h-screen w-full bg-white py-4 sm:py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-5">

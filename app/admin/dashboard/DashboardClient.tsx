@@ -46,6 +46,24 @@ const HOLIDAY_TIME_SLOTS = [
 // ----------------------------------------------------------------------
 // 2. Helper Functions
 // ----------------------------------------------------------------------
+const getLocalToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const formatDateDisplay = (dateString: string) => {
+  if (!dateString) return '-';
+  const cleanDate = String(dateString).split('T')[0];
+  const [year, month, day] = cleanDate.split('-');
+  
+  if (!year || !month || !day) return dateString;
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthName = months[parseInt(month, 10) - 1] || month;
+  
+  return `${parseInt(day, 10)} ${monthName} ${year}`;
+};
+
 function formatSlipUrl(rawUrl: string): string {
   if (!rawUrl) return '';
 
@@ -211,23 +229,86 @@ const getCleanDate = (dateVal: any): string => {
 
 const extractPhoneNumber = (task: any): string => {
   if (!task) return '';
-  return String(
+  let detailsObj: any = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try { detailsObj = JSON.parse(task.details); } catch (e) {}
+    } else if (typeof task.details === 'object' && task.details !== null) {
+      detailsObj = task.details;
+    }
+  }
+
+  const phone = 
     task.customer_phone ||
     task.phone ||
     task.phone_number ||
+    detailsObj.customer_phone ||
+    detailsObj.customerPhone ||
+    detailsObj.phone ||
+    detailsObj.phone_number ||
+    detailsObj.phoneNumber ||
+    detailsObj.user_phone ||
     task.users?.phone ||
-    ''
-  );
+    task.profiles?.phone;
+
+  return phone ? String(phone).trim() : '';
 };
 
 const extractCustomerName = (task: any): string => {
   if (!task) return 'Guest Customer';
-  return task.customer_name || task.name || task.users?.full_name || '';
+
+  let detailsObj: any = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try { detailsObj = JSON.parse(task.details); } catch (e) {}
+    } else if (typeof task.details === 'object' && task.details !== null) {
+      detailsObj = task.details;
+    }
+  }
+
+  const name = 
+    task.customer_name ||
+    task.guest_name ||
+    task.full_name ||
+    task.name ||
+    detailsObj.customer_name ||
+    detailsObj.customerName ||
+    detailsObj.guest_name ||
+    detailsObj.guestName ||
+    detailsObj.full_name ||
+    detailsObj.fullName ||
+    detailsObj.name ||
+    detailsObj.user_name ||
+    task.users?.full_name ||
+    task.users?.name ||
+    task.profiles?.full_name ||
+    task.profiles?.name;
+
+  return name ? String(name).trim() : 'Guest Customer';
 };
 
 const extractCustomerEmail = (task: any): string => {
   if (!task) return '';
-  return task.customer_email || task.email || task.users?.email || '';
+  let detailsObj: any = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try { detailsObj = JSON.parse(task.details); } catch (e) {}
+    } else if (typeof task.details === 'object' && task.details !== null) {
+      detailsObj = task.details;
+    }
+  }
+
+  const email = 
+    task.customer_email ||
+    task.email ||
+    detailsObj.customer_email ||
+    detailsObj.customerEmail ||
+    detailsObj.email ||
+    detailsObj.user_email ||
+    task.users?.email ||
+    task.profiles?.email;
+
+  return email ? String(email).trim() : '';
 };
 
 const formatTimeAMPM = (timeStr: string) => {
@@ -239,6 +320,17 @@ const formatTimeAMPM = (timeStr: string) => {
   hour = hour ? hour : 12;
   const formattedHour = hour < 10 ? `0${hour}` : hour;
   return `${formattedHour}:${minuteStr} ${ampm}`;
+};
+
+const groupBookingsByDate = (taskList: any[]) => {
+  return taskList.reduce((acc: { [key: string]: any[] }, task) => {
+    const dateKey = getCleanDate(task.scheduled_date) || 'Unscheduled';
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(task);
+    return acc;
+  }, {});
 };
 
 // ----------------------------------------------------------------------
@@ -482,7 +574,7 @@ function TaskCard({
   if (task.details) {
     if (typeof task.details === 'string') {
       try { details = JSON.parse(task.details); } catch (e) { details = {}; }
-    } else if (typeof task.details === 'object') {
+    } else if (typeof task.details === 'object' && task.details !== null) {
       details = task.details;
     }
   }
@@ -491,120 +583,136 @@ function TaskCard({
   const hasSelectedStaff = Boolean(activeStaffChoice);
   const isChangedStaff = activeStaffChoice !== currentAssigned;
 
-  const displayCustomerName = task.display_customer_name || extractCustomerName(task);
-  const displayEmail = task.display_email || extractCustomerEmail(task);
-  const displayPhone = task.display_phone || extractPhoneNumber(task);
+  const displayCustomerName = extractCustomerName(task);
+  const displayEmail = extractCustomerEmail(task);
+  const displayPhone = extractPhoneNumber(task);
 
   const isAdminTask = Boolean(details.is_admin_booking || details.assigned_by_admin);
   const slipUrl = getValidSlipUrl(task);
 
-  const propertyType = details.property_type || details.propertyType;
-  const bedrooms = details.bedrooms;
-  const bathrooms = details.bathrooms;
-  const balconies = details.balconies;
+  const isHolidayHome = task.service_type === 'holiday' || String(task.booking_ref || '').startsWith('BK') || String(task.booking_ref || '').startsWith('HOL') || Boolean(details.property);
+  const isPrivateService = !isHolidayHome && (task.service_type === 'private' || String(task.booking_ref || '').startsWith('PRV') || Boolean(details.property_type || details.bedrooms));
 
-  const officeSqm = details.office_sqm;
-  const officeToilets = details.office_toilets;
-  const officeCleanWindows = details.office_clean_windows;
-  const officeWindowsCount = details.office_windows_count;
+  const propertyType = details.property_type || details.propertyType || details.property_category || details.service_type || task.property_type;
+  const rawBedrooms = details.room ?? details.bedrooms ?? details.bedrooms_unit ?? details.unit ?? details.bedroom ?? details.bedrooms_count ?? task.room_count ?? task.bedrooms;
+  const rawBathrooms = details.bathrooms ?? details.bathroom ?? task.bathrooms;
+  const rawBalconies = details.balconies ?? details.balcony ?? details.office_balconies ?? details.verandahs ?? task.balconies;
 
-  const gardenSqm = details.garden_sqm;
-  const gardenType = details.garden_type;
-  const gardenOtherDetails = details.garden_other_details;
+  const officeSqm = details.office_sqm || details.sqm || task.office_sqm;
+  const officeToilets = details.office_toilets || task.office_toilets;
+  const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
 
-  const hasPrivateSpecs = Boolean(
-    propertyType || bedrooms || bathrooms || balconies ||
+  const gardenSqm = details.garden_sqm || details.area_size || details.garden_size || task.garden_sqm || task.area_size;
+  const gardenType = details.garden_type || task.garden_type;
+  const gardenOtherDetails = details.garden_other_details || details.garden_notes || details.notes || details.special_request || details.comment || task.notes || task.special_request || task.garden_other_details;
+
+  const houseApt = details.house_apt || details.apartment_house_no || details.apartmentHouseNo || details.unit || task.house_apt;
+  const building = details.building_complex || details.building || details.buildingComplex || task.building_complex;
+  const cityArea = details.city_area || details.city || details.area || task.city_area;
+
+  const hasServiceSpecs = Boolean(
+    propertyType || 
+    (rawBedrooms !== undefined && rawBedrooms !== null && String(rawBedrooms) !== '') ||
+    (rawBathrooms !== undefined && rawBathrooms !== null && String(rawBathrooms) !== '') ||
+    (rawBalconies !== undefined && rawBalconies !== null && String(rawBalconies) !== '') ||
     officeSqm || officeToilets || officeCleanWindows ||
     gardenSqm || gardenType || gardenOtherDetails
   );
 
-  const isPrivateService = String(task.booking_ref || '').startsWith('PRV') || hasPrivateSpecs;
-
-  const displayProgram = task.program_name || details.program_name || extractProgramName(task);
-
+  const displayProgram = task.program_name || details.program_name || details.selected_program || extractProgramName(task);
   const isCard = details.payment_method === 'card' || isCardPayment(task);
-  const displayAddress = task.address_line || details.address || '-';
-  const mapsLink = details.google_maps_link || details.mapLink;
+  const displayAddress = task.address || task.address_line || details.address || details.address_line || details.full_address || details.property || '-';
+  const mapsLink = details.google_maps_link || details.mapLink || details.google_maps;
   const amountVal = Number(task.total_amount || 0);
 
+  const cardKeyId = task.id || task.booking_id || task.booking_ref;
+
   return (
-    <div
-      className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
-      style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
-    >
-      <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-xs sm:text-sm" style={{ color: '#006AFF' }}>
+    <div className="p-4 sm:p-5 rounded-xl border shadow-xs space-y-4 text-xs bg-white border-slate-200 text-slate-800">
+      
+      {/* Header */}
+      <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-xs sm:text-sm text-slate-900">
             {formatRefCode(task)}
           </span>
+
           {isPrivateService && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: '#EBF5FF', color: '#1D4ED8', borderColor: '#93C5FD' }}>
-              Private Home / Office
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-200">
+              PRIVATE / CUSTOM (QUOTATION REQUIRED)
             </span>
           )}
+
           {isAdminTask && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200">
               Admin Direct Task
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className="text-[10px] sm:text-xs" style={{ color: '#8E9B9E' }}>
-            {getCleanDate(task.scheduled_date)} | {task.scheduled_time || '-'}
+          <span className="text-[10px] sm:text-xs font-semibold text-slate-600">
+            {formatDateDisplay(task.scheduled_date)} | {task.scheduled_time || '-'}
           </span>
           <button
-            onClick={() => handleDeleteTask(task.id)}
-            className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer font-bold"
-            style={{ color: '#D95353' }}
+            onClick={() => handleDeleteTask(cardKeyId)}
+            className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer font-bold text-slate-900 hover:text-red-600"
           >
             Delete
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="md:col-span-2 space-y-1">
-          <p className="font-bold text-xs sm:text-sm" style={{ color: '#2563EB' }}>
-            {displayProgram}
-          </p>
-
-          <p style={{ color: '#1E2B37' }}>
-            Customer: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayCustomerName}</span>
-          </p>
-
-          {displayEmail && displayEmail !== '-' && (
-            <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
-              Email: <span className="font-medium" style={{ color: '#1E1E1E' }}>{displayEmail}</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Main Details */}
+        <div className="md:col-span-2 space-y-3">
+          <div>
+            <p className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug">
+              {displayProgram}
             </p>
-          )}
-
-          {displayPhone && displayPhone !== '-' && (
-            <p className="text-[11px]" style={{ color: '#8E9B9E' }}>
-              Phone:{' '}
-              <a
-                href={`tel:${String(displayPhone).replace(/\s+/g, '')}`}
-                className="font-bold hover:underline"
-                style={{ color: '#006AFF' }}
-              >
-                {formatPhoneNumberDisplay(displayPhone)}
-              </a>
+            <p className="text-slate-700 mt-1.5 leading-relaxed">
+              Customer: <span className="font-bold text-slate-900">{displayCustomerName}</span>
             </p>
-          )}
+          </div>
 
-          <div className="pt-1 space-y-0.5">
-            <p style={{ color: '#1E2B37' }}>
-              Address: <span className="font-semibold" style={{ color: '#1E1E1E' }}>{displayAddress}</span>
+          <div className="space-y-2 text-slate-700 leading-relaxed">
+            {displayEmail && displayEmail !== '-' && (
+              <p className="text-xs">
+                Email: <span className="font-medium text-slate-900">{displayEmail}</span>
+              </p>
+            )}
+
+            {displayPhone && displayPhone !== '-' && (
+              <p className="text-xs">
+                Phone:{' '}
+                <a
+                  href={`tel:${String(displayPhone).replace(/\s+/g, '')}`}
+                  className="font-bold text-slate-900 hover:underline"
+                >
+                  {formatPhoneNumberDisplay(displayPhone)}
+                </a>
+              </p>
+            )}
+
+            <p className="text-xs">
+              Address: <span className="font-bold text-slate-900">{displayAddress}</span>
             </p>
+
+            {!isHolidayHome && (building || houseApt || cityArea) && !displayAddress.includes(building || '___') && (
+              <p className="text-[11px] text-slate-500 leading-normal">
+                {building && <span>Building: <strong className="text-slate-800">{building}</strong> </span>}
+                {houseApt && <span>| Apt/House No: <strong className="text-slate-800">{houseApt}</strong> </span>}
+                {cityArea && <span>| Area: <strong className="text-slate-800">{cityArea}</strong></span>}
+              </p>
+            )}
 
             {mapsLink && (
-              <p className="pt-0.5">
+              <p className="pt-1">
                 <a
                   href={mapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-bold underline text-[11px]"
-                  style={{ color: '#006AFF' }}
+                  className="inline-flex items-center gap-1 font-bold underline text-xs text-[#006AFF] hover:text-blue-800"
                 >
                   📍 Open Location Link ↗
                 </a>
@@ -612,55 +720,109 @@ function TaskCard({
             )}
           </div>
 
-          <p className="font-bold pt-1 text-xs sm:text-sm" style={{ color: amountVal > 0 ? '#00CC00' : '#FFB800' }}>
+          {isPrivateService && hasServiceSpecs && (
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 mt-3">
+              <span className="font-extrabold text-[10px] text-slate-600 uppercase tracking-wider block">
+                📋 SERVICE SPECS & DETAILS (FOR QUOTATION):
+              </span>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {propertyType && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Property Type: <strong className="text-slate-900 capitalize">{propertyType}</strong>
+                  </span>
+                )}
+                {rawBedrooms !== undefined && rawBedrooms !== null && String(rawBedrooms) !== '' && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Bedrooms / Unit: <strong className="text-slate-900">{rawBedrooms} {typeof rawBedrooms === 'number' || !isNaN(Number(rawBedrooms)) ? 'Bedroom(s)' : ''}</strong>
+                  </span>
+                )}
+                {rawBathrooms !== undefined && rawBathrooms !== null && String(rawBathrooms) !== '' && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Bathrooms: <strong className="text-slate-900">{rawBathrooms}</strong>
+                  </span>
+                )}
+                {rawBalconies !== undefined && rawBalconies !== null && String(rawBalconies) !== '' && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Balconies / Verandahs: <strong className="text-slate-900">{rawBalconies}</strong>
+                  </span>
+                )}
+                {officeSqm && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Office Area: <strong className="text-slate-900">{officeSqm} m²</strong>
+                  </span>
+                )}
+                {officeToilets && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Toilets: <strong className="text-slate-900">{officeToilets}</strong>
+                  </span>
+                )}
+                {gardenSqm && (
+                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                    Garden Area: <strong className="text-slate-900">{gardenSqm} m²</strong>
+                  </span>
+                )}
+              </div>
+
+              {gardenOtherDetails && (
+                <p className="text-[11px] text-amber-900 bg-amber-50 p-2.5 rounded border border-amber-200 leading-relaxed">
+                  <strong>Special Note / Request:</strong> {gardenOtherDetails}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Amount */}
+          <p className="font-bold pt-2 text-xs sm:text-sm text-slate-900">
             Amount: {amountVal > 0 ? `€${amountVal}` : 'Pending Price Quote (Direct Request)'}
           </p>
         </div>
 
-        <div className="border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-3 flex flex-col justify-between" style={{ borderColor: '#E2E8F0' }}>
+        {/* Payment Proof Column */}
+        <div className="border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-4 flex flex-col justify-between border-slate-200">
           <div>
-            <span className="font-extrabold text-[10px] uppercase tracking-wider block mb-1.5" style={{ color: '#1E2B37' }}>
+            <span className="font-extrabold text-[10px] uppercase tracking-wider block mb-2 text-slate-500">
               PAYMENT PROOF:
             </span>
 
             {slipUrl ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <a
                   href={slipUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block relative w-24 h-32 rounded-lg border-2 overflow-hidden hover:opacity-90 transition group shadow-2xs"
-                  style={{ borderColor: '#93C5FD', backgroundColor: '#F8FAFC' }}
+                  className="block relative w-24 h-32 rounded-lg border-2 border-blue-300 overflow-hidden hover:opacity-90 transition shadow-2xs bg-slate-50"
                 >
                   <img
                     src={slipUrl}
                     alt="Payment Slip"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
                   />
                 </a>
               </div>
             ) : isCard ? (
-              <span className="font-bold px-2 py-1 rounded text-[10px] border inline-block" style={{ backgroundColor: '#EBF5FF', color: '#1D4ED8', borderColor: '#93C5FD' }}>
+              <span className="font-bold px-2.5 py-1 rounded text-[10px] border inline-block bg-blue-50 text-blue-700 border-blue-200">
                 Paid via Credit Card
               </span>
             ) : (
-              <div className="p-2 rounded text-[10px] font-medium border" style={{ backgroundColor: '#FFE8AE', color: '#1E1E1E', borderColor: '#FFC943' }}>
+              <div className="p-2 rounded text-[10px] font-medium border bg-amber-50 text-amber-900 border-amber-200">
                 No slip uploaded
               </div>
             )}
           </div>
 
-          <div className="pt-2 flex flex-col items-start md:items-end gap-1">
+          <div className="pt-3 flex flex-col items-start md:items-end gap-1.5">
             {isPaid ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: '#CDF4D3', color: '#008800', borderColor: '#86D892' }}>
+              <span className="text-[10px] font-bold px-3 py-1.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
                 ✓ Paid Verified
               </span>
             ) : (
               <button
                 onClick={() => handleConfirmPayment(task)}
                 disabled={isLoading}
-                className="text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50"
-                style={{ backgroundColor: '#86D892', color: '#1E1E1E', borderColor: '#00CC00' }}
+                className="text-[10px] sm:text-[11px] font-bold px-3.5 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
               >
                 {isLoading ? 'Processing...' : 'Confirm Payment'}
               </button>
@@ -669,16 +831,16 @@ function TaskCard({
         </div>
       </div>
 
-      <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderColor: '#F1F5F9' }}>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="font-medium whitespace-nowrap" style={{ color: '#8E9B9E' }}>Assigned:</span>
+      {/* Staff Assignment */}
+      <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <span className="font-medium whitespace-nowrap text-slate-500">Assigned:</span>
 
           <select
             value={activeStaffChoice}
-            onChange={(e) => handleSelectStaffLocal(task.id, e.target.value)}
+            onChange={(e) => handleSelectStaffLocal(cardKeyId, e.target.value)}
             disabled={isLoading}
-            className="flex-1 sm:flex-none border rounded px-2 py-1 text-xs focus:outline-none cursor-pointer"
-            style={{ backgroundColor: '#FFFFFF', borderColor: '#D9D9D9', color: '#1E1E1E' }}
+            className="flex-1 sm:flex-none border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none cursor-pointer bg-white text-slate-800"
           >
             <option value="">Select Staff...</option>
             {STAFF_LIST.map((staff) => (
@@ -692,19 +854,18 @@ function TaskCard({
             type="button"
             onClick={() => handleDispatchTask(task, activeStaffChoice)}
             disabled={!hasSelectedStaff || isLoading || (!isChangedStaff && Boolean(currentAssigned))}
-            className="px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60"
-            style={
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60 ${
               !hasSelectedStaff || (!isChangedStaff && Boolean(currentAssigned))
-                ? { backgroundColor: '#E2E8F0', color: '#8E9B9E', borderColor: '#D9D9D9' }
-                : { backgroundColor: '#006AFF', color: '#FFFFFF', borderColor: '#1D4ED8' }
-            }
+                ? 'bg-slate-200 text-slate-400 border-slate-300'
+                : 'bg-[#006AFF] text-white border-blue-700 hover:bg-blue-700'
+            }`}
           >
             {isLoading ? 'Processing...' : !isChangedStaff && currentAssigned ? 'Assigned' : 'Assign'}
           </button>
         </div>
 
         {currentAssigned && (
-          <span className="font-bold text-[11px] text-right flex items-center gap-1 px-2.5 py-1 rounded-md border" style={{ backgroundColor: '#F8FAFC', color: '#334155', borderColor: '#E2E8F0' }}>
+          <span className="font-bold text-[11px] text-right flex items-center gap-1 px-3 py-1 rounded-md border bg-slate-50 text-slate-700 border-slate-200">
             ✓ Assigned to {currentAssigned}
           </span>
         )}
@@ -728,7 +889,7 @@ function AssignHolidayTaskModal({
 
   const [selectedProperty, setSelectedProperty] = useState(HOLIDAY_PROPERTIES[0]);
   const [programName, setProgramName] = useState('General cleaning');
-  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduledDate, setScheduledDate] = useState(getLocalToday());
   const [scheduledTime, setScheduledTime] = useState('09:00:00');
   const [assignedStaff, setAssignedStaff] = useState(STAFF_LIST[0].name);
 
@@ -745,24 +906,29 @@ function AssignHolidayTaskModal({
       service_type: 'holiday',
       assigned_by_admin: true,
       admin_name: adminName,
+      customer_name: 'Direct Booking (Admin)',
+      assigned_staff: assignedStaff,
       is_admin_booking: true,
       payment_status: 'Paid / Verified',
       payment_method: 'Manual Booking (By Admin)',
     };
 
     try {
+      // 🟢 Insert แบบกระจายเต็มลงทุกคอลัมน์หลัก ไม่ปล่อยให้ขึ้น NULL
       const { error } = await supabase.from('bookings').insert([
         {
           booking_ref: generatedRef,
-          customer_name: 'Direct Booking (Admin)',
+          address: selectedProperty,
           address_line: selectedProperty,
+          service_type: 'holiday',
           program_name: programName,
           scheduled_date: scheduledDate,
+          booking_date: scheduledDate ? new Date(scheduledDate).toISOString() : null,
           scheduled_time: scheduledTime,
           total_amount: 0,
-          details: JSON.stringify(holidayDetails),
           assigned_staff: assignedStaff,
           status: 'confirmed',
+          details: JSON.stringify(holidayDetails),
         },
       ]);
 
@@ -811,7 +977,13 @@ function AssignHolidayTaskModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
             <div className="space-y-1 text-left">
               <label className="text-xs font-bold text-[#1E2B37]">Scheduled Date</label>
-              <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-[#1E2B37]" />
+              <input 
+                type="date" 
+                value={scheduledDate} 
+                onChange={(e) => setScheduledDate(e.target.value)} 
+                required 
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-[#1E2B37]" 
+              />
             </div>
             <div className="space-y-1 text-left">
               <label className="text-xs font-bold text-[#1E2B37]">Working Time</label>
@@ -846,12 +1018,12 @@ function AdminDashboardContent() {
   const router = useRouter();
   const [tasks, setTasks] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'history' | 'feedback'>('today');
+  const [activeTab, setActiveTab] = useState<'history' | 'today' | 'upcoming' | 'feedback'>('today');
   const [adminUser, setAdminUser] = useState<string>('Sam');
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalToday();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -890,11 +1062,63 @@ function AdminDashboardContent() {
 
   const loadBookings = useCallback(async () => {
     try {
-      const { data: bookingData, error } = await supabase.from('bookings').select('*').order('scheduled_date', { ascending: true });
-      if (error) return console.error('Error fetching bookings:', error.message);
+      const { data: bookingData, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('scheduled_date', { ascending: true });
 
-      if (bookingData) {
-        setTasks(bookingData);
+      if (error) {
+        console.error('Error fetching bookings:', error.message);
+        return;
+      }
+
+      if (bookingData && bookingData.length > 0) {
+        const userIds = Array.from(
+          new Set(
+            bookingData
+              .map((b) => b.customer_id || b.user_id)
+              .filter(Boolean)
+          )
+        );
+
+        let usersMap: Record<string, any> = {};
+        let profilesMap: Record<string, any> = {};
+
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('*')
+            .in('id', userIds);
+
+          if (usersData) {
+            usersData.forEach((u) => { usersMap[u.id] = u; });
+          }
+
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userIds);
+
+          if (profilesData) {
+            profilesData.forEach((p) => { profilesMap[p.id] = p; });
+          }
+        }
+
+        const enrichedBookings = bookingData.map((b) => {
+          const targetId = b.customer_id || b.user_id;
+          const userObj = targetId ? usersMap[targetId] : null;
+          const profileObj = targetId ? profilesMap[targetId] : null;
+
+          return {
+            ...b,
+            users: userObj || profileObj,
+            profiles: profileObj || userObj,
+          };
+        });
+
+        setTasks(enrichedBookings);
+      } else {
+        setTasks([]);
       }
     } catch (err) {
       console.error('Error loading bookings:', err);
@@ -921,8 +1145,11 @@ function AdminDashboardContent() {
   };
 
   const handleConfirmPayment = async (task: any) => {
-    if (loadingId === task.id) return; 
-    setLoadingId(task.id);
+    const targetId = task.id || task.booking_id;
+    if (!targetId) return alert('Error: Booking ID not found.');
+
+    if (loadingId === targetId) return; 
+    setLoadingId(targetId);
 
     try {
       let currentDetails: Record<string, any> = {};
@@ -937,19 +1164,31 @@ function AdminDashboardContent() {
         payment_status: 'Paid / Verified'
       };
 
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          status: 'confirmed',
-          details: JSON.stringify(updatedDetails) 
-        })
-        .eq('id', task.id);
+      let isSuccess = false;
 
-      if (error) throw error;
+      if (task.id) {
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed', details: JSON.stringify(updatedDetails) })
+          .eq('id', task.id);
+        if (!error) isSuccess = true;
+      }
+
+      if (!isSuccess && task.booking_ref) {
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed', details: JSON.stringify(updatedDetails) })
+          .eq('booking_ref', task.booking_ref);
+        if (!error) isSuccess = true;
+      }
+
+      if (!isSuccess) throw new Error('Could not update payment status in Supabase.');
 
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
-          t.id === task.id ? { ...t, status: 'confirmed', details: updatedDetails } : t
+          (t.id === targetId || t.booking_id === targetId || t.booking_ref === task.booking_ref)
+            ? { ...t, status: 'confirmed', details: updatedDetails } 
+            : t
         )
       );
     } catch (err: any) {
@@ -959,10 +1198,20 @@ function AdminDashboardContent() {
     }
   };
 
+  // 🟢 ฟังก์ชัน Assign สตาฟ (ปรับให้อัปเดตกระจายลงทุกคอลัมน์หลักทันที)
   const handleDispatchTask = async (task: any, staffName: string) => {
     if (!staffName) return alert('Please select a staff member first.');
-    if (loadingId === task.id) return;
-    setLoadingId(task.id);
+
+    const targetId = task.id || task.booking_id;
+    const targetRef = task.booking_ref || task.booking_code;
+
+    if (!targetId && !targetRef) {
+      return alert('Error: Booking ID not found.');
+    }
+
+    const processKey = targetId || targetRef;
+    if (loadingId === processKey) return;
+    setLoadingId(processKey);
 
     const finalAdmin = adminUser || 'Sam';
 
@@ -975,34 +1224,80 @@ function AdminDashboardContent() {
 
     const updatedDetails = {
       ...currentDetails,
+      assigned_staff: staffName,
+      staff_name: staffName,
       assigned_by: finalAdmin,
-      payment_status: 'Paid / Verified'
+      payment_status: currentDetails.payment_status || 'Paid / Verified'
     };
 
+    // 🟢 กระจายค่าลงทุกคอลัมน์ใน Supabase ไม่ปล่อยให้เป็น NULL
     const updatePayload: any = {
       assigned_staff: staffName,
-      status: 'assigned',
-      details: JSON.stringify(updatedDetails)
+      status: 'confirmed',
+      details: JSON.stringify(updatedDetails),
+
+      address: task.address || currentDetails.address || currentDetails.address_line || task.address_line || null,
+      address_line: task.address_line || task.address || currentDetails.address || currentDetails.address_line || null,
+      service_type: task.service_type || currentDetails.service_type || 'holiday',
+      notes: currentDetails.notes || currentDetails.garden_other_details || currentDetails.special_request || task.notes || null,
+      program_name: task.program_name || currentDetails.program_name || 'General cleaning',
     };
 
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update(updatePayload)
-        .eq('id', task.id);
+    const rawDate = task.scheduled_date || currentDetails.scheduled_date || currentDetails.booking_date;
+    if (rawDate) {
+      updatePayload.scheduled_date = rawDate;
+      updatePayload.booking_date = new Date(rawDate).toISOString();
+    }
 
-      if (error) throw error;
+    try {
+      let isUpdated = false;
+
+      if (task.id) {
+        const { error, data } = await supabase
+          .from('bookings')
+          .update(updatePayload)
+          .eq('id', task.id)
+          .select();
+
+        if (!error && data && data.length > 0) {
+          isUpdated = true;
+        }
+      }
+
+      if (!isUpdated && targetRef) {
+        const { error, data } = await supabase
+          .from('bookings')
+          .update(updatePayload)
+          .eq('booking_ref', targetRef)
+          .select();
+
+        if (!error && data && data.length > 0) {
+          isUpdated = true;
+        }
+      }
+
+      if (!isUpdated) {
+        const primaryCol = task.id ? 'id' : 'booking_ref';
+        const primaryVal = task.id ? task.id : targetRef;
+        const { error: finalErr } = await supabase
+          .from('bookings')
+          .update(updatePayload)
+          .eq(primaryCol, primaryVal);
+
+        if (finalErr) throw finalErr;
+      }
 
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
-          t.id === task.id
-            ? { ...t, assigned_staff: staffName, status: 'assigned', details: updatedDetails }
+          (t.id === targetId || t.booking_id === targetId || t.booking_ref === targetRef)
+            ? { ...t, ...updatePayload, details: updatedDetails }
             : t
         )
       );
 
-      alert(`Successfully assigned task to ${staffName} (Admin: ${finalAdmin})`);
+      alert(`Successfully assigned task to ${staffName}`);
     } catch (err: any) {
+      console.error('Failed to assign:', err);
       alert('Failed to assign task: ' + err.message);
     } finally {
       setLoadingId(null);
@@ -1014,9 +1309,17 @@ function AdminDashboardContent() {
     if (!window.confirm('Are you sure you want to delete this booking?')) return;
 
     try {
-      const { error } = await supabase.from('bookings').delete().eq('id', taskId);
-      if (error) throw error;
-      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+      let isDeleted = false;
+
+      const { error: err1 } = await supabase.from('bookings').delete().eq('id', taskId);
+      if (!err1) isDeleted = true;
+
+      if (!isDeleted) {
+        const { error: err2 } = await supabase.from('bookings').delete().eq('booking_ref', taskId);
+        if (!err2) isDeleted = true;
+      }
+
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId && task.booking_ref !== taskId));
     } catch (err: any) {
       alert('Failed to delete task: ' + err.message);
     }
@@ -1075,9 +1378,54 @@ function AdminDashboardContent() {
     return tasks.filter((t) => {
       const taskDate = getCleanDate(t.scheduled_date);
       const st = String(t.status || '').toLowerCase();
-      return taskDate < todayStr || st === 'completed';
+      return (taskDate < todayStr && taskDate !== '') || st === 'completed' || st === 'done';
     });
   }, [tasks, todayStr]);
+
+  const renderGroupedTasks = (taskList: any[]) => {
+    const grouped = groupBookingsByDate(taskList);
+    const sortedDates = Object.keys(grouped).sort();
+
+    if (sortedDates.length === 0) {
+      return (
+        <div className="border border-slate-200 rounded-2xl p-12 text-center text-xs text-slate-400 bg-white">
+          No tasks found.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {sortedDates.map((dateKey) => (
+          <div key={dateKey} className="space-y-3">
+            <div className="flex items-center gap-3 my-3">
+              <div className="h-[1px] flex-1 bg-slate-200"></div>
+              <div className="bg-slate-100 border border-slate-300 text-slate-700 font-extrabold px-3.5 py-1 rounded-xl text-xs shadow-2xs">
+                 📅 {formatDateDisplay(dateKey)}
+              </div>
+              <div className="h-[1px] flex-1 bg-slate-200"></div>
+            </div>
+
+            {grouped[dateKey].map((task) => {
+              const taskKey = task.id || task.booking_id || task.booking_ref;
+              return (
+                <TaskCard
+                  key={taskKey}
+                  task={task}
+                  selectedStaff={selectedStaffMap[taskKey] || ''}
+                  isLoading={loadingId === taskKey}
+                  handleSelectStaffLocal={handleSelectStaffLocal}
+                  handleConfirmPayment={handleConfirmPayment}
+                  handleDispatchTask={handleDispatchTask}
+                  handleDeleteTask={handleDeleteTask}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6 font-sans" style={{ backgroundColor: '#F8FAFC', color: '#1E1E1E' }}>
@@ -1098,7 +1446,7 @@ function AdminDashboardContent() {
             <button
               type="button"
               onClick={() => setIsAssignModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#006AFF] text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#006AFF] text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer hover:bg-blue-700 transition"
             >
               <span className="text-base font-black leading-none">+</span>
               Assign Holiday Task
@@ -1120,26 +1468,44 @@ function AdminDashboardContent() {
             <button
               type="button"
               onClick={handleLogout}
-              className="font-bold text-xs px-3.5 py-1.5 rounded-xl text-white bg-red-600 hover:bg-red-700 cursor-pointer"
+              className="font-bold text-xs px-3.5 py-1.5 rounded-xl text-white bg-red-600 hover:bg-red-700 cursor-pointer transition"
             >
               Logout
             </button>
           </div>
         </div>
 
-        {/* Staff Overview */}
+        {/* SYSTEM OVERVIEW */}
         <div className="rounded-xl border shadow-xs p-3 space-y-2 bg-white border-slate-200">
-          <h2 className="text-[11px] sm:text-xs font-bold text-[#1E2B37]">Staff Work Status</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <h2 className="text-[11px] sm:text-xs font-bold text-[#1E2B37]">
+            SYSTEM OVERVIEW
+          </h2>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2">
             {STAFF_LIST.map((staff) => {
               const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
               return (
-                <div key={staff.id} className="border rounded-lg p-2 bg-slate-50 border-slate-200">
+                <div 
+                  key={staff.id} 
+                  className="border rounded-lg p-1.5 sm:p-2 space-y-1 transition-all bg-[#F8FAFC] border-slate-200"
+                >
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-xs">{staff.name}</span>
-                    <span className={`w-2 h-2 rounded-full ${staffData.isBusy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-600'}`}></span>
+                    <span className="font-bold text-[11px] sm:text-xs truncate text-[#1E1E1E]">
+                      {staff.name}
+                    </span>
+                    <span className={`w-2 h-2 rounded-full inline-block ${staffData.isBusy ? 'bg-amber-400 animate-pulse' : 'bg-[#008800]'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-500">{staffData.isBusy ? 'In Progress' : 'Available'}</p>
+
+                  <div className="border-t pt-1 flex justify-between items-center text-[9px] sm:text-[10px] border-slate-200">
+                    <span className={`font-bold ${staffData.isBusy ? 'text-amber-600' : 'text-[#008800]'}`}>
+                      {staffData.isBusy ? 'In Progress' : 'Available'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[9px] sm:text-[10px] text-[#8E9B9E]">
+                    <span>Done :</span>
+                    <span className="font-bold text-[#1E2B37]">{staffData.count}</span>
+                  </div>
                 </div>
               );
             })}
@@ -1149,41 +1515,57 @@ function AdminDashboardContent() {
         {/* Navigation Tabs */}
         <div className="rounded-2xl border shadow-xs p-3 bg-white border-slate-200">
           <div className="grid grid-cols-4 gap-2">
-            {(['today', 'upcoming', 'history', 'feedback'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-1.5 px-2 rounded-xl border text-xs font-bold capitalize ${activeTab === tab ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-slate-200 text-slate-700'}`}
-              >
-                {tab}
-              </button>
-            ))}
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`py-1.5 px-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                activeTab === 'history'
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              History ({historyTasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('today')}
+              className={`py-1.5 px-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                activeTab === 'today'
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Today ({todayTasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`py-1.5 px-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                activeTab === 'upcoming'
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Upcoming ({upcomingTasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('feedback')}
+              className={`py-1.5 px-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                activeTab === 'feedback'
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Feedback ({feedbacks.length})
+            </button>
           </div>
         </div>
 
         {/* Tab Content */}
         <div className="space-y-4">
-          {activeTab === 'today' && (
-            todayTasks.length > 0 ? (
-              <div className="space-y-3">
-                {todayTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    selectedStaff={selectedStaffMap[task.id] || ''}
-                    isLoading={loadingId === task.id}
-                    handleSelectStaffLocal={handleSelectStaffLocal}
-                    handleConfirmPayment={handleConfirmPayment}
-                    handleDispatchTask={handleDispatchTask}
-                    handleDeleteTask={handleDeleteTask}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="border rounded-2xl p-12 text-center text-xs text-slate-400 bg-white">No tasks scheduled for today.</div>
-            )
-          )}
-
+          {activeTab === 'history' && renderGroupedTasks(historyTasks)}
+          {activeTab === 'today' && renderGroupedTasks(todayTasks)}
+          {activeTab === 'upcoming' && renderGroupedTasks(upcomingTasks)}
           {activeTab === 'feedback' && (
             <div className="space-y-4">
               <AdminReviewAnalytics feedbacks={feedbacks} />

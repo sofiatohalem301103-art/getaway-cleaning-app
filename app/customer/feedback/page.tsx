@@ -9,6 +9,7 @@ interface PastFeedback {
   booking_id: string | number;
   rating: number;
   comment: string;
+  admin_reply?: string;
   created_at: string;
   booking_ref?: string;
   location_details?: {
@@ -23,8 +24,9 @@ interface PastFeedback {
 function FeedbackFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const bookingId = searchParams.get('booking_id');
+  const urlBookingId = searchParams.get('booking_id');
 
+  const [currentBookingId, setCurrentBookingId] = useState<string | null>(urlBookingId);
   const [bookingRef, setBookingRef] = useState<string>('');
   const [bookingDetails, setBookingDetails] = useState<{
     addressLine?: string;
@@ -48,7 +50,6 @@ function FeedbackFormContent() {
   const [pastFeedbacks, setPastFeedbacks] = useState<PastFeedback[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
 
-  // ป้องกัน iOS Auto-Zoom เฉพาะหน้านี้โดยฉับพลันเมื่อเริ่มโหลด
   useEffect(() => {
     let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement;
     if (!meta) {
@@ -82,75 +83,106 @@ function FeedbackFormContent() {
     return { addressLine, cityArea, building, houseApt, mapsLink };
   };
 
-  const fetchPastFeedbacks = useCallback(async (userId?: string) => {
+  // 🟢 ฟังก์ชันดึง Past Feedbacks ทั้งหมดที่เสถียรที่สุด 100%
+  const fetchPastFeedbacks = useCallback(async () => {
     try {
       setLoadingHistory(true);
-      let query = supabase.from('feedbacks').select('*, bookings(*)').order('created_at', { ascending: false });
 
-      if (userId) {
-        query = query.eq('customer_id', userId);
+      // 1. ดึง Feedbacks ทั้งหมดก่อน
+      const { data: rawFeedbacks, error: fbErr } = await supabase
+        .from('feedbacks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fbErr || !rawFeedbacks) {
+        setPastFeedbacks([]);
+        return;
       }
 
-      const { data, error } = await query;
-      if (!error && data) {
-        const mapped = data.map((fb: any) => {
-          let detailsObj = {};
-          if (fb.bookings?.details) {
-            try {
-              detailsObj = typeof fb.bookings.details === 'string' ? JSON.parse(fb.bookings.details) : fb.bookings.details;
-            } catch (e) {}
-          }
+      // 2. ดึงข้อมูล Bookings ทั้งหมดมาทำ Map จับคู่
+      const { data: rawBookings } = await supabase.from('bookings').select('*');
+      const bookingMap: Record<string, any> = {};
 
-          return {
-            ...fb,
-            booking_ref: fb.booking_ref || fb.bookings?.booking_ref || `REF-${fb.booking_id}`,
-            location_details: parseLocationDetails(fb.bookings, detailsObj)
-          };
+      if (rawBookings) {
+        rawBookings.forEach((b) => {
+          if (b.id) bookingMap[String(b.id)] = b;
+          if (b.booking_ref) bookingMap[String(b.booking_ref)] = b;
         });
-        setPastFeedbacks(mapped);
       }
+
+      // 3. ประกอบข้อมูล
+      const mapped = rawFeedbacks.map((fb: any) => {
+        const matchedBooking = bookingMap[String(fb.booking_id)] || bookingMap[String(fb.booking_ref)] || {};
+        let detailsObj = {};
+        
+        if (matchedBooking.details) {
+          try {
+            detailsObj = typeof matchedBooking.details === 'string' ? JSON.parse(matchedBooking.details) : matchedBooking.details;
+          } catch (e) {}
+        }
+
+        return {
+          ...fb,
+          booking_ref: fb.booking_ref || matchedBooking.booking_ref || (fb.booking_id ? `REF-${String(fb.booking_id).slice(0, 8)}` : 'N/A'),
+          location_details: parseLocationDetails(matchedBooking, detailsObj)
+        };
+      });
+
+      setPastFeedbacks(mapped);
     } catch (err) {
       console.error('Error fetching past feedbacks:', err);
+      setPastFeedbacks([]);
     } finally {
       setLoadingHistory(false);
     }
   }, []);
 
+  // 🟢 โหลดข้อมูลการจองปัจจุบัน
   useEffect(() => {
-    const fetchBookingDetails = async () => {
-      const paramRef = searchParams.get('ref');
-      if (paramRef) {
-        setBookingRef(formatRef(paramRef));
+    const loadBookingData = async () => {
+      let targetBooking: any = null;
+
+      if (urlBookingId) {
+        const { data } = await supabase
+          .from('bookings')
+          .select('*')
+          .or(`id.eq.${urlBookingId},booking_ref.eq.${urlBookingId}`)
+          .maybeSingle();
+
+        if (data) targetBooking = data;
       }
 
-      if (!bookingId) return;
+      if (!targetBooking) {
+        const { data: latestList } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', bookingId)
-        .maybeSingle();
-
-      if (!error && data) {
-        if (!paramRef) {
-          setBookingRef(formatRef(data.booking_ref || data.id?.toString() || bookingId));
+        if (latestList && latestList.length > 0) {
+          targetBooking = latestList[0];
         }
-        
-        const uId = data.user_id || data.customer_id;
-        const cName = data.customer_name || data.name || data.full_name;
+      }
+
+      if (targetBooking) {
+        setCurrentBookingId(String(targetBooking.id));
+        setBookingRef(formatRef(targetBooking.booking_ref || String(targetBooking.id)));
+
+        const uId = targetBooking.user_id || targetBooking.customer_id;
+        const cName = targetBooking.customer_name || targetBooking.name || targetBooking.full_name || 'Guest Customer';
         setCustomerData({ user_id: uId, customer_name: cName });
 
         let detailsObj: any = {};
-        if (data.details) {
+        if (targetBooking.details) {
           try {
-            detailsObj = typeof data.details === 'string' ? JSON.parse(data.details) : data.details;
+            detailsObj = typeof targetBooking.details === 'string' ? JSON.parse(targetBooking.details) : targetBooking.details;
           } catch (e) {}
         }
 
-        const locDetails = parseLocationDetails(data, detailsObj);
-        const prog = data.program_name || detailsObj.program_name || data.program || data.package_name || data.service_name || 'Standard Cleaning';
-        const tm = data.scheduled_time || data.booking_time || '-';
-        const dt = data.scheduled_date || data.booking_date || '-';
+        const locDetails = parseLocationDetails(targetBooking, detailsObj);
+        const prog = targetBooking.program_name || detailsObj.program_name || targetBooking.program || targetBooking.package_name || targetBooking.service_name || 'Standard Cleaning';
+        const tm = targetBooking.scheduled_time || targetBooking.booking_time || '-';
+        const dt = targetBooking.scheduled_date || targetBooking.booking_date || '-';
 
         const specsArr = [];
         if (detailsObj.property_type) specsArr.push(`Type: ${detailsObj.property_type}`);
@@ -165,21 +197,19 @@ function FeedbackFormContent() {
           date: dt,
           specs: specsArr.length > 0 ? specsArr.join(' | ') : ''
         });
-
-        fetchPastFeedbacks(uId);
-      } else {
-        if (!paramRef) setBookingRef(formatRef(bookingId));
-        fetchPastFeedbacks();
       }
+
+      fetchPastFeedbacks();
     };
 
-    fetchBookingDetails();
-  }, [bookingId, searchParams, fetchPastFeedbacks]);
+    loadBookingData();
+  }, [urlBookingId, fetchPastFeedbacks]);
 
+  // 🟢 บันทึกข้อมูลแบบรองรับ Primary Key ป้องกันการพัง
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bookingId) {
-      alert('Booking ID not found.');
+    if (!currentBookingId) {
+      alert('Please select a valid booking to submit feedback.');
       return;
     }
 
@@ -191,26 +221,34 @@ function FeedbackFormContent() {
     try {
       setIsSubmitting(true);
 
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || customerData.user_id || null;
+
       const payload: any = {
-        booking_id: bookingId,
+        booking_id: currentBookingId,
         rating: rating,
         comment: comment,
-        customer_id: customerData.user_id || null,
-        customer_name: customerData.customer_name || null,
+        customer_id: userId,
+        customer_name: customerData.customer_name || 'Customer',
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('feedbacks')
-        .upsert([payload], { onConflict: 'booking_id' });
+      // บันทึกลงตาราง feedbacks
+      const { error } = await supabase.from('feedbacks').insert([payload]);
 
       if (error) {
-        console.error('Error submitting feedback:', error.message);
-        alert(`Failed to submit feedback: ${error.message}`);
-      } else {
-        setIsSubmitted(true);
-        fetchPastFeedbacks(customerData.user_id);
+        // หากติด Unique Constraint ล่าสุด ให้สั่ง Update แทน
+        const { error: updateErr } = await supabase
+          .from('feedbacks')
+          .update({ rating, comment, created_at: new Date().toISOString() })
+          .eq('booking_id', currentBookingId);
+
+        if (updateErr) throw updateErr;
       }
+
+      setIsSubmitted(true);
+      await fetchPastFeedbacks(); // รีโหลดแสดงฝั่งขวาทันที
+
     } catch (err: any) {
       console.error('Submission error:', err);
       alert(`Submission error: ${err.message || 'Unknown error'}`);
@@ -370,7 +408,7 @@ function FeedbackFormContent() {
                 <div className="space-y-2 pt-1">
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !currentBookingId}
                     className="w-full py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white font-bold rounded-xl text-xs sm:text-sm transition cursor-pointer disabled:opacity-50 active:scale-[0.98] touch-manipulation"
                   >
                     {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
@@ -446,6 +484,12 @@ function FeedbackFormContent() {
                           <p className="text-[#1E2B37] font-medium leading-tight text-[11px] italic bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0]">
                             "{item.comment}"
                           </p>
+                        )}
+
+                        {item.admin_reply && (
+                          <div className="text-[11px] text-blue-700 bg-blue-50 p-2 rounded-lg border border-blue-100 font-medium">
+                            <strong>Our Reply:</strong> {item.admin_reply}
+                          </div>
                         )}
 
                         <p className="text-[10px] text-[#8E9B9E] text-right">

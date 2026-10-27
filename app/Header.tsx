@@ -9,15 +9,48 @@ interface HeaderProps {
 }
 
 const COUNTRY_CODES = [
-  { code: '+357', flag: '🇨🇾' },
-  { code: '+44', flag: '🇬🇧' },
-  { code: '+7', flag: '🇷🇺' },
-  { code: '+972', flag: '🇮🇱' },
-  { code: '+49', flag: '🇩🇪' },
-  { code: '+33', flag: '🇫🇷' },
-  { code: '+380', flag: '🇺🇦' },
-  { code: '+1', flag: '🇺🇸' },
-  { code: '+66', flag: '🇹🇭' },
+  { code: '+357', flag: '🇨🇾', name: 'Cyprus' },
+  { code: '+44', flag: '🇬🇧', name: 'UK' },
+  { code: '+1', flag: '🇺🇸', name: 'USA/Canada' },
+  { code: '+66', flag: '🇹🇭', name: 'Thailand' },
+  { code: '+7', flag: '🇷🇺', name: 'Russia' },
+  { code: '+972', flag: '🇮🇱', name: 'Israel' },
+  { code: '+49', flag: '🇩🇪', name: 'Germany' },
+  { code: '+33', flag: '🇫🇷', name: 'France' },
+  { code: '+39', flag: '🇮🇹', name: 'Italy' },
+  { code: '+34', flag: '🇪🇸', name: 'Spain' },
+  { code: '+31', flag: '🇳🇱', name: 'Netherlands' },
+  { code: '+32', flag: '🇧🇪', name: 'Belgium' },
+  { code: '+41', flag: '🇨🇭', name: 'Switzerland' },
+  { code: '+43', flag: '🇦🇹', name: 'Austria' },
+  { code: '+46', flag: '🇸🇪', name: 'Sweden' },
+  { code: '+47', flag: '🇳🇴', name: 'Norway' },
+  { code: '+45', flag: '🇩🇰', name: 'Denmark' },
+  { code: '+358', flag: '🇫🇮', name: 'Finland' },
+  { code: '+353', flag: '🇮🇪', name: 'Ireland' },
+  { code: '+48', flag: '🇵🇱', name: 'Poland' },
+  { code: '+30', flag: '🇬🇷', name: 'Greece' },
+  { code: '+380', flag: '🇺🇦', name: 'Ukraine' },
+  { code: '+40', flag: '🇷🇴', name: 'Romania' },
+  { code: '+420', flag: '🇨🇿', name: 'Czech Republic' },
+  { code: '+36', flag: '🇭🇺', name: 'Hungary' },
+  { code: '+351', flag: '🇵🇹', name: 'Portugal' },
+  { code: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+  { code: '+974', flag: '🇶🇦', name: 'Qatar' },
+  { code: '+81', flag: '🇯🇵', name: 'Japan' },
+  { code: '+82', flag: '🇰🇷', name: 'South Korea' },
+  { code: '+86', flag: '🇨🇳', name: 'China' },
+  { code: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+  { code: '+886', flag: '🇹🇼', name: 'Taiwan' },
+  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
+  { code: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: '+64', flag: '🇳🇿', name: 'New Zealand' },
+  { code: '+91', flag: '🇮🇳', name: 'India' },
+  { code: '+27', flag: '🇿🇦', name: 'South Africa' },
+  { code: '+55', flag: '🇧🇷', name: 'Brazil' },
+  { code: '+52', flag: '🇲🇽', name: 'Mexico' },
 ];
 
 function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
@@ -98,12 +131,12 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
       });
 
       if (supabase) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUser(user);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          setUser(authUser);
           
-          const currentUserEmail = user.email || savedEmail;
-          const providerData = user.user_metadata;
+          const currentUserEmail = authUser.email || savedEmail;
+          const providerData = authUser.user_metadata;
           let fullName = providerData?.full_name || providerData?.name || savedName;
           
           let extractedFirstName = providerData?.given_name || providerData?.first_name || '';
@@ -115,21 +148,26 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
             extractedLastName = parts.slice(1).join(' ') || '';
           }
 
-          const { data: profile } = await supabase
-            .from('profiles')
+          // ดึงข้อมูลจากตาราง users
+          const { data: userData } = await supabase
+            .from('users')
             .select('*')
-            .eq('id', user.id)
+            .eq('id', authUser.id)
             .maybeSingle();
 
-          if (profile) {
-            fullName = profile.full_name || profile.name || fullName;
-            const fullPhone = profile.phone || profile.mobile || savedPhone;
+          if (userData) {
+            fullName = userData.full_name || fullName;
+            const fullPhone = userData.phone || savedPhone;
             const parsed = parsePhone(fullPhone);
 
+            const profileNameParts = fullName ? fullName.split(' ') : [];
+            const pFirstName = profileNameParts[0] || extractedFirstName || savedFirstName;
+            const pLastName = profileNameParts.slice(1).join(' ') || extractedLastName || savedLastName;
+
             setFormData({
-              firstName: profile.first_name || extractedFirstName || savedFirstName,
-              lastName: profile.last_name || extractedLastName || savedLastName,
-              email: profile.email || currentUserEmail,
+              firstName: pFirstName,
+              lastName: pLastName,
+              email: userData.email || currentUserEmail || savedEmail,
               countryCode: parsed.code,
               phoneNumber: parsed.num,
             });
@@ -138,7 +176,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               ...prev,
               firstName: extractedFirstName || prev.firstName,
               lastName: extractedLastName || prev.lastName,
-              email: currentUserEmail,
+              email: currentUserEmail || savedEmail,
             }));
           }
 
@@ -160,28 +198,59 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
     const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
     const fullPhone = `${formData.countryCode} ${formData.phoneNumber.trim()}`.trim();
+    const finalEmail = formData.email.trim() || localStorage.getItem('user_email') || user?.email || '';
 
     localStorage.setItem('user_first_name', formData.firstName);
     localStorage.setItem('user_last_name', formData.lastName);
     localStorage.setItem('user_name', fullName);
-    localStorage.setItem('user_email', formData.email);
+    localStorage.setItem('user_email', finalEmail);
     localStorage.setItem('user_phone', fullPhone);
 
     try {
-      if (supabase && user) {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          full_name: fullName,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          phone: fullPhone,
-          updated_at: new Date().toISOString(),
-        });
+      if (supabase && finalEmail) {
+        const cleanEmail = finalEmail.toLowerCase();
+        let targetUserId = user?.id;
 
-        await supabase.auth.updateUser({
-          data: { full_name: fullName, phone: fullPhone }
-        });
+        // 🟢 1. ค้นหาผู้ใช้จาก email ในตาราง users เพื่อนำ id เดิมมาใช้ (ป้องกันอีเมลซ้ำ)
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+        if (existingUser?.id) {
+          targetUserId = existingUser.id;
+        } else if (!targetUserId) {
+          let guestId = localStorage.getItem('guest_user_id');
+          if (!guestId) {
+            guestId = crypto.randomUUID();
+            localStorage.setItem('guest_user_id', guestId);
+          }
+          targetUserId = guestId;
+        }
+
+        // 🟢 2. Upsert โดยใช้ targetUserId ที่ถูกต้อง
+        const { error: userError } = await supabase.from('users').upsert({
+          id: targetUserId,
+          full_name: fullName,
+          email: cleanEmail,
+          phone: fullPhone,
+          role: 'customer',
+        }, { onConflict: 'id' });
+
+        if (userError) {
+          console.error('Supabase users Insert Error:', userError.message);
+          alert(`Profile Save Error: ${userError.message}`);
+        } else {
+          console.log('Profile saved successfully to users table!');
+          localStorage.setItem('user_id', targetUserId);
+        }
+
+        if (user) {
+          await supabase.auth.updateUser({
+            data: { full_name: fullName, phone: fullPhone }
+          });
+        }
       }
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -203,7 +272,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     }
   };
 
-  // ซ่อน Header เมื่ออยู่ที่หน้าแรก (/), หน้า admin, staff หรือ auth
   if (
     pathname === '/' ||
     pathname?.startsWith('/admin') ||
@@ -377,15 +445,15 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
                 <div className="flex gap-2">
-                  <div className="w-[95px] shrink-0">
+                  <div className="w-[110px] shrink-0">
                     <select
                       value={formData.countryCode}
                       onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                      className="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition appearance-none cursor-pointer text-slate-700"
+                      className="w-full px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition appearance-none cursor-pointer text-slate-700 truncate"
                     >
                       {COUNTRY_CODES.map((c, index) => (
                         <option key={`${c.code}-${index}`} value={c.code}>
-                          {c.flag} {c.code}
+                          {c.flag} {c.code} ({c.name})
                         </option>
                       ))}
                     </select>

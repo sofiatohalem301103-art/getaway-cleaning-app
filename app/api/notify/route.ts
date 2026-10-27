@@ -77,7 +77,7 @@ function generatePdfBuffer(params: any): Buffer {
     const possibleLogos = ['logo.jpeg', 'logo.jpg', 'logo.png'];
     let logoPath = '';
     for (const logoName of possibleLogos) {
-      const fullPath = path.join(publicDir, logoName);
+      const fullPath = path.join(process.cwd(), 'public', logoName);
       if (fs.existsSync(fullPath)) { logoPath = fullPath; break; }
     }
     if (logoPath) {
@@ -233,30 +233,74 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก
+    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก (แบบไม่มี Log in without password)
     if (body.otp) {
       const targetEmail = cleanText(body.email, '');
       if (!targetEmail) {
         return NextResponse.json({ success: false, error: 'Email is required for OTP' }, { status: 400 });
       }
 
+      const otpString = String(body.otp).trim();
+      const userPrefix = targetEmail.split('@')[0];
+
+      // สร้างกล่องสี่เหลี่ยมแยกตัวเลข OTP แต่ละหลัก
+      const otpDigitsHtml = otpString
+        .split('')
+        .map(
+          (digit) =>
+            `<span style="display: inline-block; width: 36px; height: 44px; line-height: 44px; margin: 0 3px; font-size: 26px; font-weight: 800; color: #111827; background-color: #f3f4f6; border-radius: 6px; text-align: center;">${digit}</span>`
+        )
+        .join('');
+
       const otpHtml = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 10px; margin: 0;">
-          <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; text-align: center;">
-            <div style="margin-bottom: 20px;">
-              <span style="font-size: 22px; font-weight: 800; color: #1E2B37;">Getaway Cleaning</span>
-            </div>
-            <h2 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 8px;">Verification Code</h2>
-            <p style="font-size: 14px; color: #4b5563; margin-bottom: 24px;">Please use the following 6-digit code to complete your verification:</p>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 30px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; padding: 24px;">
             
-            <div style="background-color: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; display: inline-block;">
-              <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #1E2B37;">${body.otp}</span>
+            <!-- Logo / Brand Header -->
+            <div style="margin-bottom: 24px;">
+              <span style="font-size: 26px; font-weight: 800; color: #1E2B37; letter-spacing: -0.5px;">Getaway Cleaning</span>
             </div>
 
-            <p style="font-size: 12px; color: #9ca3af;">This code is valid for 5 minutes. If you did not request this code, please ignore this email.</p>
+            <!-- Greeting -->
+            <p style="font-size: 15px; color: #374151; margin-bottom: 12px; font-weight: 500;">
+              Hi ${userPrefix},
+            </p>
+            <p style="font-size: 14px; color: #4b5563; line-height: 1.5; margin-bottom: 24px;">
+              Here is your verification code to log in or complete your request at Getaway Cleaning.
+            </p>
+
+            <!-- OTP Code Display Section -->
+            <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px; font-weight: 500; text-align: center;">
+              Use this code in the app:
+            </p>
+
+            <div style="text-align: center; margin-bottom: 20px;">
+              ${otpDigitsHtml}
+            </div>
+
+            <!-- Copy Code Button -->
+            <div style="text-align: center; margin-bottom: 32px;">
+              <div style="display: inline-block; background-color: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 14px; padding: 8px 18px; border-radius: 20px;">
+                คัดลอกรหัส: ${otpString}
+              </div>
+            </div>
+
+            <!-- Disclaimer Footer -->
+            <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 16px;">
+              If you didn’t request a verification code, you can safely ignore this message.
+            </p>
+
+            <div style="border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
+              <span style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">from</span>
+              <div style="font-size: 13px; font-weight: 700; color: #1E2B37; margin-top: 2px;">Getaway Cleaning Service</div>
+            </div>
+
           </div>
         </body>
         </html>
@@ -265,7 +309,7 @@ export async function POST(req: Request) {
       const otpEmailData = await resend.emails.send({
         from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
         to: [targetEmail],
-        subject: `[${body.otp}] Your Verification Code - Getaway Cleaning`,
+        subject: `${otpString} is your Getaway Cleaning verification code`,
         html: otpHtml,
       });
 
@@ -311,7 +355,7 @@ export async function POST(req: Request) {
       payment_status: 'paid',
     };
 
-    // 1. บันทึก / อัปเดต รายการจองลง Supabase ตาม Master Schema ใหม่
+    // 1. บันทึก / อัปเดต รายการจองลง Supabase
     const { error: dbError } = await supabaseServer
       .from('bookings')
       .upsert(

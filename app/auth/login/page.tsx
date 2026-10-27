@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       if (supabase) {
-        // พยายามส่ง OTP ผ่าน Supabase
+        // 1. ส่ง OTP ไปยัง Email ของผู้ใช้
         const { error } = await supabase.auth.signInWithOtp({
           email: cleanEmail,
           options: {
@@ -26,7 +26,6 @@ export default function LoginPage() {
           },
         });
 
-        // หากมี Error (เช่น ติด Email Rate Limit บน Localhost) ให้ Log ไว้และไม่ขัดการเปลี่ยนหน้า
         if (error) {
           console.warn('Supabase Email Error (Bypassing for testing):', error.message);
         }
@@ -34,7 +33,7 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Error sending OTP:', error);
     } finally {
-      // บันทึกอีเมลลง localStorage แล้วเปลี่ยนหน้าไปยัง /auth/verify-otp ทันที
+      // 2. บันทึกอีเมลลง localStorage แล้วเปลี่ยนหน้าไปกรอก OTP
       localStorage.setItem('temp_email', cleanEmail);
       setIsLoading(false);
       router.push(`/auth/verify-otp?email=${encodeURIComponent(cleanEmail)}`);
@@ -44,10 +43,11 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: 'google') => {
     try {
       if (!supabase) return;
+      // ล็อกอินผ่าน Google และ Redirect ไปยัง auth callback
       await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/customer/booking`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
     } catch (error) {

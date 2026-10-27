@@ -51,6 +51,7 @@ function ConfirmationContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [sessionData, setSessionData] = useState<any>(null);
   const [randomRef, setRandomRef] = useState<string>('');
+  const [isSaved, setIsSaved] = useState(false);
 
   const getParam = (key: string) => {
     const val = searchParams.get(key);
@@ -71,9 +72,16 @@ function ConfirmationContent() {
   useEffect(() => {
     setIsMounted(true);
 
-    // ตรวจจับ Prefix ให้ตรงกับพารามิเตอร์ที่ส่งมา (HOL หรือ PRV)
     const paramRef = searchParams.get('ref') || searchParams.get('bookingRef');
-    const isHolidayParam = paramRef?.startsWith('HOL') || searchParams.has('price');
+    const paramProgram = (searchParams.get('program') || '').toLowerCase();
+    
+    const isHolidayParam = 
+      paramRef?.startsWith('HOL') || 
+      paramRef?.startsWith('BK') || 
+      paramProgram.includes('general') || 
+      paramProgram.includes('turnover') ||
+      searchParams.has('price');
+
     const generated = `${isHolidayParam ? 'HOL' : 'PRV'}-${Math.floor(100000 + Math.random() * 900000)}`;
     setRandomRef(generated);
 
@@ -198,7 +206,14 @@ function ConfirmationContent() {
   
   // Ref
   const bookingRef = getParam('ref') || getParam('bookingRef') || sessionData?.bookingRef || randomRef;
-  const isHoliday = bookingRef.startsWith('HOL');
+  const programType = rawProgram.toLowerCase();
+
+  const isHoliday = 
+    bookingRef.startsWith('HOL') || 
+    bookingRef.startsWith('BK') || 
+    programType.includes('general') || 
+    programType.includes('turnover') ||
+    sessionData?.service_type === 'holiday';
 
   // ราคา
   const priceParam = getParam('price') || sessionData?.price || sessionData?.totalAmount;
@@ -220,6 +235,63 @@ function ConfirmationContent() {
   const gardenType = getParam('gardenType') || sessionData?.gardenType || '';
   const gardenOtherDetails = sessionData?.gardenOtherDetails || '';
   const notes = getParam('notes') || sessionData?.notes || '';
+
+  // 🟢 4. บันทึกข้อมูลเข้า Supabase อัตโนมัติ (ใส่ customer_name, customer_email, customer_phone เข้าไปใน details)
+  useEffect(() => {
+    const handleSaveBookingToSupabase = async () => {
+      if (isSaved || !bookingRef || !customerInfo.name) return;
+
+      const detailsPayload = {
+        property: address,
+        service_type: isHoliday ? 'holiday' : 'private',
+        payment_status: isHoliday ? 'Paid / Verified' : 'Pending Quote',
+        payment_method: isHoliday ? 'bank' : 'custom_quote',
+        room: bedrooms || '1',
+        bathrooms: bathrooms,
+        balconies: balconies,
+        property_type: propertyType,
+        google_maps_link: mapsLink,
+        building_complex: building,
+        apartment_house_no: aptNo,
+
+        // 🟢 บันทึกข้อมูลลูกค้าลงใน details
+        customer_name: customerInfo.name,
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
+      };
+
+      try {
+        const { data: existing } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('booking_ref', bookingRef)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from('bookings').insert([
+            {
+              booking_ref: bookingRef,
+              address_line: fullAddress,
+              program_name: fullProgramName,
+              scheduled_date: rawDate,
+              scheduled_time: time,
+              total_amount: numericPrice,
+              details: JSON.stringify(detailsPayload),
+              status: isHoliday ? 'Scheduled' : 'pending',
+              service_type: isHoliday ? 'holiday' : 'private',
+            },
+          ]);
+        }
+        setIsSaved(true);
+      } catch (err) {
+        console.error('Error saving booking to Supabase:', err);
+      }
+    };
+
+    if (isMounted && customerInfo.name) {
+      handleSaveBookingToSupabase();
+    }
+  }, [isMounted, customerInfo, bookingRef, isSaved, address, isHoliday, bedrooms, bathrooms, balconies, propertyType, mapsLink, building, aptNo, fullAddress, fullProgramName, rawDate, time, numericPrice]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -287,7 +359,11 @@ function ConfirmationContent() {
               <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">
                 {isHoliday ? 'Booking Ref' : 'Request Ref'}
               </span>
-              <span className={`text-[10px] sm:text-xs text-white px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${isHoliday ? 'bg-blue-600' : 'bg-slate-800'}`}>
+              <span className={`text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                isHoliday 
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                  : 'bg-slate-100 text-slate-800 border border-slate-300'
+              }`}>
                 {isHoliday ? 'Holiday Home' : 'Private / Office'}
               </span>
             </div>

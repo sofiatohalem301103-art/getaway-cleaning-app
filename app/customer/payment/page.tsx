@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -57,6 +57,11 @@ const formatTimeToDatabase = (timeSlot: string | null | undefined): string | nul
   return '09:00:00';
 };
 
+const getLocalToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // ==========================================
 // 2. MAIN PAYMENT CONTENT
 // ==========================================
@@ -64,21 +69,31 @@ function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ดึงข้อมูลสำหรับสรุปและบันทึกข้อมูล
   const apartment = searchParams.get('apartment') || searchParams.get('address') || '';
   const program = searchParams.get('program') || searchParams.get('service') || 'Turnover Cleaning';
   const room = searchParams.get('room') || '1';
   const rawPrice = searchParams.get('price') || '150';
   
-  const rawDate = searchParams.get('date') || searchParams.get('scheduled_date') || new Date().toISOString().split('T')[0];
+  const paramServiceId = searchParams.get('service_id') || '';
+  const rawDate = searchParams.get('date') || searchParams.get('scheduled_date') || getLocalToday();
   const rawTime = searchParams.get('time') || searchParams.get('scheduled_time') || 'morning';
 
-  const sanitizedPrice = rawPrice.replace(/[^0-9.]/g, '');
-  const numericPrice = Number(sanitizedPrice) || 0;
-  
-  const formattedPrice = numericPrice.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const [customerData, setCustomerData] = useState({
+    name: searchParams.get('name') || '',
+    email: searchParams.get('email') || '',
+    phone: searchParams.get('phone') || '',
+    serviceId: paramServiceId,
+  });
+
+  const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>('new');
+  const [saveCard, setSaveCard] = useState<boolean>(true);
+
+  const [cardDetails, setCardDetails] = useState({
+    cardNumber: '',
+    cardName: '',
+    expiryDate: '',
+    cvv: '',
   });
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
@@ -86,11 +101,63 @@ function PaymentContent() {
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: '',
+  useEffect(() => {
+    let name = customerData.name;
+    let email = customerData.email;
+    let phone = customerData.phone;
+    let sId = customerData.serviceId;
+
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('bookingData');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (!name) name = parsed.name || parsed.customer_name || '';
+          if (!email) email = parsed.email || parsed.customer_email || '';
+          if (!phone) phone = parsed.phone || parsed.customer_phone || '';
+          if (!sId) sId = parsed.service_id || '';
+        } catch (e) {}
+      }
+
+      if (!name) name = localStorage.getItem('user_name') || '';
+      if (!email) email = localStorage.getItem('user_email') || '';
+      if (!phone) phone = localStorage.getItem('user_phone') || '';
+    }
+
+    setCustomerData({
+      name: name && name !== 'Guest' ? name : '',
+      email: email || '',
+      phone: phone || '',
+      serviceId: sId || '',
+    });
+
+    const fetchUserCards = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        let query = supabase.from('user_cards').select('*');
+        if (user?.id) {
+          query = query.eq('user_id', user.id);
+        }
+
+        const { data: cards, error } = await query;
+        if (!error && cards && cards.length > 0) {
+          setSavedCards(cards);
+          setSelectedCardId(cards[0].id);
+        }
+      } catch (err) {
+        console.warn('Fetch saved cards error:', err);
+      }
+    };
+
+    fetchUserCards();
+  }, [searchParams]);
+
+  const sanitizedPrice = rawPrice.replace(/[^0-9.]/g, '');
+  const numericPrice = Number(sanitizedPrice) || 0;
+  
+  const formattedPrice = numericPrice.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
   const bankDetails = {
@@ -135,138 +202,263 @@ function PaymentContent() {
   };
 
   const handleContinue = async () => {
+    if (paymentMethod === 'bank' && !slipFile) {
+      alert('Please upload your payment slip before proceeding.');
+      return;
+    }
+
+    if (paymentMethod === 'card') {
+      if (selectedCardId === 'new') {
+        if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv) {
+          alert('Please fill in all credit card details.');
+          return;
+        }
+      } else {
+        if (!cardDetails.cvv || !cardDetails.cardName) {
+          alert('Please enter Name on Card and CVC / CVV to confirm payment.');
+          return;
+        }
+      }
+    }
+
     setIsUploading(true);
 
     try {
-      // 1. ดึงข้อมูล Auth User ปัจจุบัน
-      const { data: { user } } = await supabase.auth.getUser();
+      let activeUserId: string | null = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        activeUserId = user?.id || null;
 
-      let activeUserId: string | null = user?.id || null;
+        if (activeUserId) {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', activeUserId)
+            .maybeSingle();
 
-      // 2. ค้นหา User ID ที่มีอยู่จริงในตาราง public.users
-      if (activeUserId) {
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', activeUserId)
-          .maybeSingle();
-
-        if (!existingUser) {
-          // ลองสร้าง User ชั่วคราวกรณีมี Auth ID
-          const { error: insertErr } = await supabase.from('users').insert({
-            id: activeUserId,
-            email: user?.email || 'customer@example.com',
-            full_name: user?.user_metadata?.full_name || 'Customer User',
-            role: 'customer',
-          });
-          if (insertErr) {
-            console.warn('Could not insert auth user into users table:', insertErr.message);
-            activeUserId = null;
+          if (!existingUser) {
+            await supabase.from('users').insert({
+              id: activeUserId,
+              email: user?.email || customerData.email || 'customer@example.com',
+              full_name: user?.user_metadata?.full_name || customerData.name || 'Customer User',
+              role: 'customer',
+            });
           }
         }
-      }
-
-      // 3. หากไม่มี Auth User หรือ Insert ไม่ผ่าน ให้สุ่มดึง User รายแรกในตาราง users มาใช้อ้างอิง
-      if (!activeUserId) {
-        const { data: existingUsers } = await supabase
-          .from('users')
-          .select('id')
-          .limit(1);
-
-        if (existingUsers && existingUsers.length > 0) {
-          activeUserId = existingUsers[0].id;
-        }
+      } catch (userErr) {
+        console.warn('User session check warning:', userErr);
       }
 
       const generatedRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
       const formattedTime = formatTimeToDatabase(rawTime);
 
+      let uploadedSlipUrl = '';
+      if (paymentMethod === 'bank' && slipFile) {
+        try {
+          const fileExt = slipFile.name.split('.').pop();
+          const fileName = `${generatedRef}_${Date.now()}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadErr } = await supabase
+            .storage
+            .from('slips')
+            .upload(filePath, slipFile);
+
+          if (!uploadErr) {
+            const { data: urlData } = supabase
+              .storage
+              .from('slips')
+              .getPublicUrl(filePath);
+
+            uploadedSlipUrl = urlData?.publicUrl || filePath;
+          }
+        } catch (storageErr) {
+          console.error('Storage upload error:', storageErr);
+        }
+      }
+
+      const finalName = customerData.name || 'Customer';
+      const finalEmail = customerData.email || '';
+      const finalPhone = customerData.phone || '';
+
+      let finalServiceId: string | null = customerData.serviceId || null;
+      if (!finalServiceId && supabase) {
+        const pName = program.includes('Turnover') ? 'Turnover Cleaning' : 'General Cleaning';
+        const searchName = `${room} Bedroom - ${pName}`;
+        
+        const { data: sRecord } = await supabase
+          .from('services')
+          .select('id')
+          .eq('name', searchName)
+          .maybeSingle();
+          
+        if (sRecord?.id) {
+          finalServiceId = sRecord.id;
+        }
+      }
+
+      // 1. Save to bookings table
+      let createdBookingId: string | null = null;
       const bookingPayload: any = {
         booking_ref: generatedRef,
+        service_id: finalServiceId,
         program_name: program,
+        address: apartment || 'Main Address',
         address_line: apartment || 'Main Address',
         scheduled_date: rawDate,
+        booking_date: rawDate ? new Date(rawDate).toISOString() : null,
         scheduled_time: formattedTime,
+        service_type: 'holiday',
         status: 'Scheduled',
         total_amount: numericPrice,
-        details: {
+        slip_url: uploadedSlipUrl,
+        customer_name: finalName || null,
+        customer_email: finalEmail || null,
+        customer_phone: finalPhone || null,
+        details: JSON.stringify({
           room: room,
           payment_method: paymentMethod,
-        },
+          payment_slip: uploadedSlipUrl,
+          property: apartment,
+          service_type: 'holiday',
+          payment_status: paymentMethod === 'bank' ? 'Pending Verification' : 'Paid',
+          customer_name: finalName,
+          customer_email: finalEmail,
+          customer_phone: finalPhone,
+        }),
       };
 
       if (activeUserId) {
         bookingPayload.customer_id = activeUserId;
+        bookingPayload.user_id = activeUserId;
       }
 
-      // 4. บันทึกข้อมูลจองลงตาราง bookings
-      const { error } = await supabase
+      const { data: bookingResult, error: bookingError } = await supabase
         .from('bookings')
-        .insert([bookingPayload]);
+        .insert([bookingPayload])
+        .select()
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error saving booking to Supabase:', error);
-        alert(`Failed to save booking: ${error.message}`);
-        setIsUploading(false);
-        return;
+      if (bookingError) {
+        console.error('Booking insert error:', bookingError);
+      } else if (bookingResult) {
+        createdBookingId = bookingResult.id;
       }
 
-      // 5. บันทึกสำเร็จ เปลี่ยนหน้าไปยัง Confirmation
+      // 2. Save to payments table
+      const paymentPayload: any = {
+        booking_id: createdBookingId || null,
+        amount: numericPrice,
+        payment_method: paymentMethod === 'card' ? 'card' : 'bank_transfer',
+        status: paymentMethod === 'bank' ? 'pending' : 'completed',
+        proof_of_payment_url: uploadedSlipUrl || null,
+        transaction_id: `TXN-${generatedRef}`,
+        paid_at: new Date().toISOString(),
+      };
+
+      await supabase.from('payments').insert([paymentPayload]);
+
+      // 3. Save to user_cards table
+      if (paymentMethod === 'card' && selectedCardId === 'new' && saveCard) {
+        const cleanCardNum = cardDetails.cardNumber.replace(/\s+/g, '');
+        const last4Digits = cleanCardNum.slice(-4) || '0000';
+        const [expMonth, rawYear] = cardDetails.expiryDate.split('/');
+        const expYear = rawYear ? rawYear.slice(-2) : '';
+
+        let brand = 'Visa';
+        if (cleanCardNum.startsWith('5')) brand = 'Mastercard';
+        if (cleanCardNum.startsWith('3')) brand = 'American Express';
+
+        const cardPayload: any = {
+          id: `card_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          card_brand: brand,
+          last4: last4Digits,
+          expiry_month: expMonth || '',
+          expiry_year: expYear || '',
+          is_default: true,
+          user_id: activeUserId || null
+        };
+
+        const { data: cardData, error: cardError } = await supabase
+          .from('user_cards')
+          .insert([cardPayload])
+          .select();
+
+        if (cardError) {
+          console.error('Error saving card:', cardError);
+          alert(`Failed to save card: ${cardError.message}`);
+        } else {
+          console.log('Saved card successfully:', cardData);
+        }
+      }
+
+      // 4. Save to notifications table
+      try {
+        const notificationPayload: any = {
+          user_id: activeUserId || null,
+          title: 'New Booking & Payment Created',
+          message: `Booking REF: ${generatedRef} (${program}) created by ${finalName}. Amount: €${numericPrice}`,
+          booking_id: createdBookingId || null,
+          is_read: false
+        };
+
+        await supabase.from('notifications').insert([notificationPayload]);
+      } catch (notifErr) {}
+
       setIsUploading(false);
-      router.push(`/customer/confirmation?program=${encodeURIComponent(program)}&room=${room}&price=${numericPrice}&method=${paymentMethod}&ref=${generatedRef}`);
+
+      const confirmQuery = new URLSearchParams({
+        program,
+        room,
+        price: numericPrice.toString(),
+        method: paymentMethod,
+        ref: generatedRef,
+        customerName: finalName,
+        email: finalEmail,
+        phone: finalPhone,
+        address: apartment,
+        date: rawDate,
+        time: rawTime,
+      }).toString();
+
+      router.push(`/customer/confirmation?${confirmQuery}`);
 
     } catch (err: any) {
       console.error('Unexpected error:', err);
-      alert('An unexpected error occurred. Please try again.');
+      alert(`Unexpected Error: ${err.message || 'Please try again'}`);
       setIsUploading(false);
     }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
-      
-      {/* PAGE HEADER */}
-      <div className="w-full text-center space-y-1 pb-4 border-b border-[#E2E8F0]">
+      {/* Header with border-b removed */}
+      <div className="w-full text-center space-y-1">
         <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">Payment</h1>
         <p className="text-xs sm:text-sm text-[#8E9B9E]">Complete your payment details to confirm booking</p>
       </div>
 
-      {/* RESPONSIVE GRID LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* LEFT COLUMN: SUMMARY & METHOD SELECTOR */}
         <div className="lg:col-span-5 space-y-5">
-          
-          {/* BOOKING SUMMARY BOX */}
           <div className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl space-y-3">
             <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
               <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Booking Summary</span>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 bg-white border border-[#E2E8F0] text-[#334155] rounded-full">Overview</span>
             </div>
-            
             {apartment && (
               <div className="space-y-0.5">
                 <span className="text-xs font-medium text-[#64748B]">Property</span>
-                <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">
-                  {apartment}
-                </p>
+                <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">{apartment}</p>
               </div>
             )}
-
             <div className="space-y-0.5 pt-0.5">
               <span className="text-xs font-medium text-[#64748B]">Service Program</span>
-              <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">
-                {program}
-              </p>
+              <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">{program}</p>
             </div>
-
             <div className="flex justify-between items-center text-sm pt-2 border-t border-[#E2E8F0]">
               <span className="text-[#64748B] font-medium text-xs sm:text-sm">Selected Unit</span>
-              <span className="px-2.5 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">
-                {room} Bedroom(s)
-              </span>
+              <span className="px-2.5 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">{room} Bedroom(s)</span>
             </div>
-
             <div className="pt-1">
               <div className="flex justify-between items-center p-3.5 bg-[#EAF3F9] border border-[#BAE6FD] rounded-xl text-[#1E2B37]">
                 <span className="text-xs sm:text-sm font-semibold text-[#006AFF]">Total Price</span>
@@ -275,47 +467,17 @@ function PaymentContent() {
             </div>
           </div>
 
-          {/* PAYMENT METHOD SELECTOR */}
           <div className="space-y-2.5">
             <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Select Payment Method</p>
-            
             <div className="grid grid-cols-1 gap-2.5">
               <label
-                onClick={() => setPaymentMethod('card')}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation active:scale-[0.99] ${
-                  paymentMethod === 'card'
-                    ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]'
-                    : 'border-[#E2E8F0] hover:border-[#93C5FD] bg-white text-[#1E2B37]'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg transition-colors ${paymentMethod === 'card' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
-                    <CreditCardIcon />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Credit / Debit Card</p>
-                    <p className="text-xs text-[#64748B] font-normal">Visa, Mastercard</p>
-                  </div>
-                </div>
-                <input
-                  type="radio"
-                  name="paymentOption"
-                  checked={paymentMethod === 'card'}
-                  onChange={() => setPaymentMethod('card')}
-                  className="w-4 h-4 text-[#006AFF] accent-[#006AFF]"
-                />
-              </label>
-
-              <label
                 onClick={() => setPaymentMethod('bank')}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation active:scale-[0.99] ${
-                  paymentMethod === 'bank'
-                    ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]'
-                    : 'border-[#E2E8F0] hover:border-[#93C5FD] bg-white text-[#1E2B37]'
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
+                  paymentMethod === 'bank' ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg transition-colors ${paymentMethod === 'bank' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                  <div className={`p-2 rounded-lg ${paymentMethod === 'bank' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
                     <BankIcon />
                   </div>
                   <div>
@@ -323,84 +485,35 @@ function PaymentContent() {
                     <p className="text-xs text-[#64748B] font-normal">Direct wire or mobile banking</p>
                   </div>
                 </div>
-                <input
-                  type="radio"
-                  name="paymentOption"
-                  checked={paymentMethod === 'bank'}
-                  onChange={() => setPaymentMethod('bank')}
-                  className="w-4 h-4 text-[#006AFF] accent-[#006AFF]"
-                />
+                <input type="radio" checked={paymentMethod === 'bank'} onChange={() => setPaymentMethod('bank')} className="w-4 h-4 text-[#006AFF]" />
+              </label>
+
+              <label
+                onClick={() => setPaymentMethod('card')}
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
+                  paymentMethod === 'card' ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-lg ${paymentMethod === 'card' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                    <CreditCardIcon />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">Credit / Debit Card</p>
+                    <p className="text-xs text-[#64748B] font-normal">Visa, Mastercard</p>
+                  </div>
+                </div>
+                <input type="radio" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 text-[#006AFF]" />
               </label>
             </div>
           </div>
-
         </div>
 
-        {/* RIGHT COLUMN: PAYMENT FORMS & ACTIONS */}
         <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-5">
-          
-          {/* FORM A: CREDIT CARD FORM */}
-          {paymentMethod === 'card' && (
-            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-3.5">
-              <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Card Details</p>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#1E2B37]">Card Number</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="xxxx xxxx xxxx xxxx"
-                  value={cardDetails.cardNumber}
-                  onChange={handleCardNumberChange}
-                  className={`${INPUT_BASE_CLASSES} font-mono tracking-wider`}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
-                <input
-                  type="text"
-                  placeholder="NAME ON CARD"
-                  value={cardDetails.cardName}
-                  onChange={(e) => setCardDetails((prev) => ({ ...prev, cardName: e.target.value }))}
-                  className={`${INPUT_BASE_CLASSES} uppercase`}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-[#1E2B37]">Expiry Date</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="MM/YY"
-                    value={cardDetails.expiryDate}
-                    onChange={handleExpiryChange}
-                    className={`${INPUT_BASE_CLASSES} font-mono text-center`}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-[#1E2B37]">CVV / CVC</label>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={3}
-                    placeholder="xxx"
-                    value={cardDetails.cvv}
-                    onChange={handleCvvChange}
-                    className={`${INPUT_BASE_CLASSES} font-mono text-center`}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* FORM B: BANK TRANSFER INFO & SLIP UPLOAD */}
           {paymentMethod === 'bank' && (
             <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
               <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Bank Transfer Information</p>
-
+              
               <div className="p-3.5 bg-white rounded-xl border border-[#E2E8F0] space-y-2.5">
                 <div>
                   <p className="text-xs text-[#64748B] font-medium">Bank Name</p>
@@ -417,13 +530,8 @@ function PaymentContent() {
                     <p className="text-xs text-[#64748B] font-medium">Account No.</p>
                     <p className="text-sm font-mono font-bold text-[#1E2B37]">{bankDetails.accountNo}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')}
-                    className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition active:scale-95 touch-manipulation"
-                  >
-                    <CopyIcon />
-                    {copiedField === 'accountNo' ? 'Copied!' : 'Copy'}
+                  <button type="button" onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')} className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition">
+                    <CopyIcon /> {copiedField === 'accountNo' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
@@ -432,13 +540,8 @@ function PaymentContent() {
                     <p className="text-xs text-[#64748B] font-medium">IBAN</p>
                     <p className="text-xs font-mono font-bold text-[#1E2B37] break-all">{bankDetails.iban}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(bankDetails.iban, 'iban')}
-                    className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition shrink-0 active:scale-95 touch-manipulation"
-                  >
-                    <CopyIcon />
-                    {copiedField === 'iban' ? 'Copied!' : 'Copy'}
+                  <button type="button" onClick={() => handleCopy(bankDetails.iban, 'iban')} className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition shrink-0">
+                    <CopyIcon /> {copiedField === 'iban' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
@@ -448,23 +551,15 @@ function PaymentContent() {
                 </div>
               </div>
 
-              {/* Slip Upload Input */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#1E2B37]">Upload Payment Slip</label>
-                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white transition cursor-pointer touch-manipulation">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleSlipChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base"
-                  />
+                <label className="text-xs font-semibold text-[#1E2B37]">Upload Payment Slip <span className="text-red-500">*</span></label>
+                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white cursor-pointer">
+                  <input type="file" accept="image/*,.pdf" onChange={handleSlipChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base" />
                   <div className="flex flex-col items-center space-y-1">
                     <div className="p-2 bg-[#F1F5F9] rounded-full text-[#006AFF]">
                       <UploadIcon />
                     </div>
-                    <p className="text-xs font-bold text-[#1E2B37]">
-                      {slipFile ? slipFile.name : 'Click to upload payment slip'}
-                    </p>
+                    <p className="text-xs font-bold text-[#1E2B37]">{slipFile ? slipFile.name : 'Click to upload payment slip'}</p>
                     <p className="text-[10px] text-[#64748B]">PNG, JPG or PDF up to 5MB</p>
                   </div>
                 </div>
@@ -472,38 +567,96 @@ function PaymentContent() {
             </div>
           )}
 
-          {/* ACTION BUTTONS */}
+          {paymentMethod === 'card' && (
+            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
+              <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Card Details</p>
+
+              {savedCards.length > 0 && (
+                <div className="space-y-2 pb-3 border-b border-[#E2E8F0]">
+                  <p className="text-xs font-semibold text-[#1E2B37]">Saved Cards</p>
+                  <div className="space-y-2">
+                    {savedCards.map((card) => (
+                      <label key={card.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer ${selectedCardId === card.id ? 'border-[#006AFF] bg-white font-semibold' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
+                        <div className="flex items-center space-x-3">
+                          <input type="radio" name="saved_card" checked={selectedCardId === card.id} onChange={() => setSelectedCardId(card.id)} className="w-4 h-4 text-[#006AFF]" />
+                          <div>
+                            <p className="text-xs font-bold text-[#1E2B37]">{card.card_brand} ending in •••• {card.last4}</p>
+                            <p className="text-[10px] text-[#64748B]">Expires {card.expiry_month}/{card.expiry_year}</p>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                    <label className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer ${selectedCardId === 'new' ? 'border-[#006AFF] bg-white' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
+                      <input type="radio" name="saved_card" checked={selectedCardId === 'new'} onChange={() => setSelectedCardId('new')} className="w-4 h-4 text-[#006AFF]" />
+                      <span className="text-xs font-bold text-[#1E2B37]"> Use a new credit / debit card</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {selectedCardId === 'new' ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#1E2B37]">Card Number</label>
+                    <input type="text" placeholder="xxxx xxxx xxxx xxxx" value={cardDetails.cardNumber} onChange={handleCardNumberChange} className={`${INPUT_BASE_CLASSES} font-mono tracking-wider`} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
+                    <input type="text" placeholder="NAME ON CARD" value={cardDetails.cardName} onChange={(e) => setCardDetails(prev => ({ ...prev, cardName: e.target.value }))} className={`${INPUT_BASE_CLASSES} uppercase`} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#1E2B37]">Expiry Date</label>
+                      <input type="text" placeholder="MM/YY" value={cardDetails.expiryDate} onChange={handleExpiryChange} className={`${INPUT_BASE_CLASSES} font-mono text-center`} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#1E2B37]">CVV / CVC</label>
+                      <input type="password" maxLength={3} placeholder="xxx" value={cardDetails.cvv} onChange={handleCvvChange} className={`${INPUT_BASE_CLASSES} font-mono text-center`} />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center space-x-2.5 cursor-pointer">
+                    <input
+                      id="save-card-checkbox"
+                      type="checkbox"
+                      checked={saveCard}
+                      onChange={(e) => setSaveCard(e.target.checked)}
+                      className="w-4 h-4 text-[#006AFF] rounded border-[#CBD5E1] focus:ring-[#006AFF] cursor-pointer"
+                    />
+                    <label htmlFor="save-card-checkbox" className="text-xs font-semibold text-[#334155] cursor-pointer select-none">
+                      Save card details for future bookings
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
+                    <input type="text" placeholder="NAME ON CARD" value={cardDetails.cardName} onChange={(e) => setCardDetails(prev => ({ ...prev, cardName: e.target.value }))} className={`${INPUT_BASE_CLASSES} uppercase`} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#1E2B37]">CVC / CVV Security Code</label>
+                    <input type="password" maxLength={3} placeholder="xxx" value={cardDetails.cvv} onChange={handleCvvChange} className={`${INPUT_BASE_CLASSES} font-mono text-center w-1/2`} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="w-full pt-2 flex items-center gap-3">
-            <button
-              type="button"
-              disabled={isUploading}
-              onClick={() => router.back()}
-              className="w-1/3 py-3.5 min-h-[48px] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#334155] font-bold rounded-xl text-sm sm:text-base transition cursor-pointer touch-manipulation active:scale-[0.99] disabled:opacity-50"
-            >
+            <button type="button" disabled={isUploading} onClick={() => router.back()} className="w-1/3 py-3.5 bg-white border border-[#E2E8F0] font-bold rounded-xl text-sm">
               ← Back
             </button>
-            
-            <button
-              type="button"
-              disabled={isUploading}
-              onClick={handleContinue}
-              className="w-2/3 py-3.5 min-h-[48px] bg-[#006AFF] hover:bg-[#0057D9] active:scale-[0.99] text-white font-bold rounded-xl text-sm sm:text-base transition cursor-pointer touch-manipulation disabled:opacity-50"
-            >
+            <button type="button" disabled={isUploading} onClick={handleContinue} className="w-2/3 py-3.5 bg-[#006AFF] text-white font-bold rounded-xl text-sm disabled:opacity-50">
               {isUploading ? 'Uploading Slip & Confirming...' : 'Continue'}
             </button>
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }
 
-// ==========================================
-// 3. MAIN PAGE WRAPPER & EXPORT
-// ==========================================
 export default function PaymentPage() {
   return (
     <main className="min-h-screen w-full bg-white py-4 sm:py-8 px-4 sm:px-6">
