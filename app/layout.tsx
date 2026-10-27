@@ -21,11 +21,6 @@ export const metadata: Metadata = {
   title: "Getaway Cleaning | Professional Cleaning Services in Cyprus",
   description: "Book professional home, office, turnover, and holiday apartment cleaning services with Getaway Cleaning. Fast, reliable, and easy online booking.",
   keywords: ["cleaning service", "Paphos cleaning", "holiday home cleaning", "Getaway Cleaning", "turnover cleaning"],
-  icons: {
-    icon: "/house-logo.png",
-    shortcut: "/house-logo.png",
-    apple: "/house-logo.png",
-  },
 };
 
 export default function RootLayout({
