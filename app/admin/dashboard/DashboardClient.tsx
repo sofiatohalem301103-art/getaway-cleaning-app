@@ -914,7 +914,6 @@ function AssignHolidayTaskModal({
     };
 
     try {
-      // 🟢 Insert แบบกระจายเต็มลงทุกคอลัมน์หลัก ไม่ปล่อยให้ขึ้น NULL
       const { error } = await supabase.from('bookings').insert([
         {
           booking_ref: generatedRef,
@@ -1088,7 +1087,7 @@ function AdminDashboardContent() {
           const { data: usersData } = await supabase
             .from('users')
             .select('*')
-            .in('id', userIds);
+            .in('ids', userIds);
 
           if (usersData) {
             usersData.forEach((u) => { usersMap[u.id] = u; });
@@ -1144,6 +1143,7 @@ function AdminDashboardContent() {
     setSelectedStaffMap((prev) => ({ ...prev, [id]: staffName }));
   };
 
+  // 🟢 ฟังก์ชันยืนยันการชำระเงิน + สั่งยิงอีเมลและ PDF ไปให้ลูกค้า
   const handleConfirmPayment = async (task: any) => {
     const targetId = task.id || task.booking_id;
     if (!targetId) return alert('Error: Booking ID not found.');
@@ -1166,6 +1166,7 @@ function AdminDashboardContent() {
 
       let isSuccess = false;
 
+      // 1. อัปเดตสถานะลงในตาราง bookings ใน Supabase
       if (task.id) {
         const { error } = await supabase
           .from('bookings')
@@ -1184,6 +1185,43 @@ function AdminDashboardContent() {
 
       if (!isSuccess) throw new Error('Could not update payment status in Supabase.');
 
+      // 2. ส่งข้อมูลไปที่ /api/notify เพื่อสร้าง PDF และส่งเมลผ่าน Resend
+      const customerEmail = extractCustomerEmail(task);
+
+      if (customerEmail) {
+        try {
+          const notifyRes = await fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: task.customer_id || task.user_id,
+              email: customerEmail,
+              customerName: extractCustomerName(task),
+              phone: extractPhoneNumber(task),
+              bookingRef: formatRefCode(task),
+              room: task.address || task.address_line || currentDetails.property || currentDetails.address || '-',
+              program: task.program_name || currentDetails.program_name || extractProgramName(task),
+              date: task.scheduled_date || currentDetails.scheduled_date,
+              time: task.scheduled_time || currentDetails.scheduled_time,
+              amount: task.total_amount || task.price || 0,
+              paymentMethod: currentDetails.payment_method || (isCardPayment(task) ? 'Credit Card' : 'Bank Transfer'),
+            }),
+          });
+
+          const notifyResult = await notifyRes.json();
+          if (!notifyRes.ok || !notifyResult.success) {
+            console.error('Email send failed:', notifyResult);
+            alert(`Payment confirmed in database, but email failed: ${notifyResult.error || 'Unknown error'}`);
+          }
+        } catch (mailErr) {
+          console.error('Failed to call /api/notify:', mailErr);
+          alert('Payment confirmed, but could not connect to mail service.');
+        }
+      } else {
+        alert('Payment confirmed, but no customer email found for this booking.');
+      }
+
+      // 3. ปรับ State บนหน้าจอ
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           (t.id === targetId || t.booking_id === targetId || t.booking_ref === task.booking_ref)
@@ -1198,7 +1236,6 @@ function AdminDashboardContent() {
     }
   };
 
-  // 🟢 ฟังก์ชัน Assign สตาฟ (ปรับให้อัปเดตกระจายลงทุกคอลัมน์หลักทันที)
   const handleDispatchTask = async (task: any, staffName: string) => {
     if (!staffName) return alert('Please select a staff member first.');
 
@@ -1230,7 +1267,6 @@ function AdminDashboardContent() {
       payment_status: currentDetails.payment_status || 'Paid / Verified'
     };
 
-    // 🟢 กระจายค่าลงทุกคอลัมน์ใน Supabase ไม่ปล่อยให้เป็น NULL
     const updatePayload: any = {
       assigned_staff: staffName,
       status: 'confirmed',

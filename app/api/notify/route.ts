@@ -210,18 +210,20 @@ function generatePdfBuffer(params: any): Buffer {
   doc.setTextColor(0, 0, 0);
   doc.text(formatAmount(vatNum), rightX, sumY, { align: 'right' });
 
-  sumY += 3;
+  // 🟢 เว้นวรรคและเพิ่มช่องไฟให้อ่านง่ายบนมือถือ
+  sumY += 4;
   doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
   doc.line(labelX - 15, sumY, rightX, sumY);
 
-  sumY += 5;
+  sumY += 6;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.text('Total', labelX, sumY);
-  doc.text(`€${formatAmount(selectedPrice)}`, rightX, sumY, { align: 'right' });
+  doc.text(`€ ${formatAmount(selectedPrice)}`, rightX, sumY, { align: 'right' });
 
-  sumY += 2;
+  sumY += 3.5;
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.5);
   doc.line(labelX - 15, sumY, rightX, sumY);
@@ -233,7 +235,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก (แบบไม่มี Log in without password)
+    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก
     if (body.otp) {
       const targetEmail = cleanText(body.email, '');
       if (!targetEmail) {
@@ -243,7 +245,6 @@ export async function POST(req: Request) {
       const otpString = String(body.otp).trim();
       const userPrefix = targetEmail.split('@')[0];
 
-      // สร้างกล่องสี่เหลี่ยมแยกตัวเลข OTP แต่ละหลัก
       const otpDigitsHtml = otpString
         .split('')
         .map(
@@ -261,59 +262,50 @@ export async function POST(req: Request) {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 30px 10px; margin: 0; color: #1f2937;">
           <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; padding: 24px;">
-            
-            <!-- Logo / Brand Header -->
             <div style="margin-bottom: 24px;">
               <span style="font-size: 26px; font-weight: 800; color: #1E2B37; letter-spacing: -0.5px;">Getaway Cleaning</span>
             </div>
-
-            <!-- Greeting -->
             <p style="font-size: 15px; color: #374151; margin-bottom: 12px; font-weight: 500;">
               Hi ${userPrefix},
             </p>
             <p style="font-size: 14px; color: #4b5563; line-height: 1.5; margin-bottom: 24px;">
               Here is your verification code to log in or complete your request at Getaway Cleaning.
             </p>
-
-            <!-- OTP Code Display Section -->
             <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px; font-weight: 500; text-align: center;">
               Use this code in the app:
             </p>
-
             <div style="text-align: center; margin-bottom: 20px;">
               ${otpDigitsHtml}
             </div>
-
-            <!-- Copy Code Button -->
             <div style="text-align: center; margin-bottom: 32px;">
               <div style="display: inline-block; background-color: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 14px; padding: 8px 18px; border-radius: 20px;">
                 คัดลอกรหัส: ${otpString}
               </div>
             </div>
-
-            <!-- Disclaimer Footer -->
             <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 16px;">
               If you didn’t request a verification code, you can safely ignore this message.
             </p>
-
             <div style="border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
               <span style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">from</span>
               <div style="font-size: 13px; font-weight: 700; color: #1E2B37; margin-top: 2px;">Getaway Cleaning Service</div>
             </div>
-
           </div>
         </body>
         </html>
       `;
 
-      const otpEmailData = await resend.emails.send({
+      const { data: otpData, error: otpError } = await resend.emails.send({
         from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
         to: [targetEmail],
         subject: `${otpString} is your Getaway Cleaning verification code`,
         html: otpHtml,
       });
 
-      return NextResponse.json({ success: true, message: 'OTP sent successfully', otpEmailData });
+      if (otpError) {
+        return NextResponse.json({ success: false, error: otpError }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'OTP sent successfully', otpEmailData: otpData });
     }
 
     // 🔵 ส่วนการส่ง Sales Receipt PDF และส่งอีเมลยืนยันการชำระเงิน
@@ -381,10 +373,25 @@ export async function POST(req: Request) {
       console.error('Failed to save/update booking in Supabase:', dbError);
     }
 
-    // 2. สร้าง PDF ใบเสร็จรับเงิน
+    // 2. สร้าง PDF ใบเสร็จรับเงิน (รันเลขที่ใบเสร็จตั้งแต่ SR-00001 เป็นต้นไป)
     const today = new Date();
     const receiptDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const receiptNo = `SR-${cleanRef.replace(/[^0-9]/g, '').slice(-5) || '00001'}`;
+
+    let nextReceiptNum = 1;
+    try {
+      const { count, error: countError } = await supabaseServer
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'confirmed');
+
+      if (!countError && count !== null) {
+        nextReceiptNum = count > 0 ? count : 1;
+      }
+    } catch (err) {
+      console.error('Error fetching receipt count:', err);
+    }
+
+    const receiptNo = `SR-${String(nextReceiptNum).padStart(5, '0')}`;
 
     const pdfBuffer = generatePdfBuffer({
       customerName: validCustomerName,
@@ -419,8 +426,9 @@ export async function POST(req: Request) {
 
           <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
             <div style="font-size: 13px; color: #6b7280;">Total Paid</div>
-            <div style="font-size: 24px; font-weight: 800; color: #111827;">€${formattedAmount}</div>
+            <div style="font-size: 24px; font-weight: 800; color: #111827;">€ ${formattedAmount}</div>
             <div style="font-size: 13px; color: #4b5563; margin-top: 8px;">
+              <strong>Receipt No:</strong> ${receiptNo}<br>
               <strong>Property:</strong> ${validRoom}<br>
               <strong>Date:</strong> ${validDate} @ ${validTime}
             </div>
@@ -434,20 +442,25 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    const emailData = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
       to: [validEmail],
-      subject: `Payment Confirmed & Receipt [${cleanRef}] - Getaway Cleaning`,
+      subject: `Payment Confirmed & Receipt [${receiptNo}] - Getaway Cleaning`,
       html: customerEmailHtml,
       attachments: [
         {
-          filename: `Receipt-${cleanRef}.pdf`,
+          filename: `Receipt-${receiptNo}.pdf`,
           content: pdfBuffer,
         },
       ],
     });
 
-    return NextResponse.json({ success: true, emailData });
+    if (emailError) {
+      console.error('Resend Email Error:', emailError);
+      return NextResponse.json({ success: false, error: emailError }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, receiptNo, emailData });
   } catch (error: any) {
     console.error('Notify API Error:', error);
     return NextResponse.json({ success: false, error: error?.message || 'Internal Server Error' }, { status: 500 });
