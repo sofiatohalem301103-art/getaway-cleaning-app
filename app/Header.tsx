@@ -8,49 +8,50 @@ interface HeaderProps {
   title?: string;
 }
 
+// ตัด flag ออก เหลือเฉพาะ code และ iso เพื่อความคลีนและแก้ปัญหาตัวอักษรซ้ำบน Windows
 const COUNTRY_CODES = [
-  { code: '+357', flag: '🇨🇾', name: 'Cyprus' },
-  { code: '+44', flag: '🇬🇧', name: 'UK' },
-  { code: '+1', flag: '🇺🇸', name: 'USA/Canada' },
-  { code: '+66', flag: '🇹🇭', name: 'Thailand' },
-  { code: '+7', flag: '🇷🇺', name: 'Russia' },
-  { code: '+972', flag: '🇮🇱', name: 'Israel' },
-  { code: '+49', flag: '🇩🇪', name: 'Germany' },
-  { code: '+33', flag: '🇫🇷', name: 'France' },
-  { code: '+39', flag: '🇮🇹', name: 'Italy' },
-  { code: '+34', flag: '🇪🇸', name: 'Spain' },
-  { code: '+31', flag: '🇳🇱', name: 'Netherlands' },
-  { code: '+32', flag: '🇧🇪', name: 'Belgium' },
-  { code: '+41', flag: '🇨🇭', name: 'Switzerland' },
-  { code: '+43', flag: '🇦🇹', name: 'Austria' },
-  { code: '+46', flag: '🇸🇪', name: 'Sweden' },
-  { code: '+47', flag: '🇳🇴', name: 'Norway' },
-  { code: '+45', flag: '🇩🇰', name: 'Denmark' },
-  { code: '+358', flag: '🇫🇮', name: 'Finland' },
-  { code: '+353', flag: '🇮🇪', name: 'Ireland' },
-  { code: '+48', flag: '🇵🇱', name: 'Poland' },
-  { code: '+30', flag: '🇬🇷', name: 'Greece' },
-  { code: '+380', flag: '🇺🇦', name: 'Ukraine' },
-  { code: '+40', flag: '🇷🇴', name: 'Romania' },
-  { code: '+420', flag: '🇨🇿', name: 'Czech Republic' },
-  { code: '+36', flag: '🇭🇺', name: 'Hungary' },
-  { code: '+351', flag: '🇵🇹', name: 'Portugal' },
-  { code: '+971', flag: '🇦🇪', name: 'UAE' },
-  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
-  { code: '+974', flag: '🇶🇦', name: 'Qatar' },
-  { code: '+81', flag: '🇯🇵', name: 'Japan' },
-  { code: '+82', flag: '🇰🇷', name: 'South Korea' },
-  { code: '+86', flag: '🇨🇳', name: 'China' },
-  { code: '+852', flag: '🇭🇰', name: 'Hong Kong' },
-  { code: '+886', flag: '🇹🇼', name: 'Taiwan' },
-  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
-  { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
-  { code: '+61', flag: '🇦🇺', name: 'Australia' },
-  { code: '+64', flag: '🇳🇿', name: 'New Zealand' },
-  { code: '+91', flag: '🇮🇳', name: 'India' },
-  { code: '+27', flag: '🇿🇦', name: 'South Africa' },
-  { code: '+55', flag: '🇧🇷', name: 'Brazil' },
-  { code: '+52', flag: '🇲🇽', name: 'Mexico' },
+  { code: '+357', iso: 'CY' },
+  { code: '+44', iso: 'GB' },
+  { code: '+1', iso: 'US' },
+  { code: '+66', iso: 'TH' },
+  { code: '+7', iso: 'RU' },
+  { code: '+972', iso: 'IL' },
+  { code: '+49', iso: 'DE' },
+  { code: '+33', iso: 'FR' },
+  { code: '+39', iso: 'IT' },
+  { code: '+34', iso: 'ES' },
+  { code: '+31', iso: 'NL' },
+  { code: '+32', iso: 'BE' },
+  { code: '+41', iso: 'CH' },
+  { code: '+43', iso: 'AT' },
+  { code: '+46', iso: 'SE' },
+  { code: '+47', iso: 'NO' },
+  { code: '+45', iso: 'DK' },
+  { code: '+358', iso: 'FI' },
+  { code: '+353', iso: 'IE' },
+  { code: '+48', iso: 'PL' },
+  { code: '+30', iso: 'GR' },
+  { code: '+380', iso: 'UA' },
+  { code: '+40', iso: 'RO' },
+  { code: '+420', iso: 'CZ' },
+  { code: '+36', iso: 'HU' },
+  { code: '+351', iso: 'PT' },
+  { code: '+971', iso: 'AE' },
+  { code: '+966', iso: 'SA' },
+  { code: '+974', iso: 'QA' },
+  { code: '+81', iso: 'JP' },
+  { code: '+82', iso: 'KR' },
+  { code: '+86', iso: 'CN' },
+  { code: '+852', iso: 'HK' },
+  { code: '+886', iso: 'TW' },
+  { code: '+65', iso: 'SG' },
+  { code: '+60', iso: 'MY' },
+  { code: '+61', iso: 'AU' },
+  { code: '+64', iso: 'NZ' },
+  { code: '+91', iso: 'IN' },
+  { code: '+27', iso: 'ZA' },
+  { code: '+55', iso: 'BR' },
+  { code: '+52', iso: 'MX' },
 ];
 
 function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
@@ -71,6 +72,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     lastName: '',
     email: '',
     countryCode: '+357',
+    customCode: '',
     phoneNumber: '',
   });
 
@@ -90,14 +92,26 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   };
 
   const parsePhone = (rawPhone: string) => {
-    if (!rawPhone) return { code: '+357', num: '' };
-    const matched = COUNTRY_CODES.find(c => rawPhone.startsWith(c.code));
+    if (!rawPhone) return { code: '+357', custom: '', num: '' };
+    
+    // เรียงรหัสที่ยาวกว่าขึ้นก่อน ป้องกันกรณีจับคู่ผิด
+    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+    const matched = sortedCodes.find(c => rawPhone.startsWith(c.code));
+    
     if (matched) {
       const rawNum = rawPhone.replace(matched.code, '').trim();
-      return { code: matched.code, num: formatPhoneNumber(rawNum) };
+      return { code: matched.code, custom: '', num: formatPhoneNumber(rawNum) };
     }
-    const cleanNum = rawPhone.replace(/^\+357/, '').trim();
-    return { code: '+357', num: formatPhoneNumber(cleanNum) };
+
+    // ตรวจสอบกรณีเป็นรหัสประเทศอื่นนอกรายการ
+    const customMatch = rawPhone.match(/^(\+\d{1,4})/);
+    if (customMatch) {
+      const customCode = customMatch[1];
+      const rawNum = rawPhone.replace(customCode, '').trim();
+      return { code: 'OTHER', custom: customCode, num: formatPhoneNumber(rawNum) };
+    }
+
+    return { code: '+357', custom: '', num: formatPhoneNumber(rawPhone.trim()) };
   };
 
   useEffect(() => {
@@ -118,7 +132,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
       const savedEmail = localStorage.getItem('user_email') || '';
       const savedPhone = localStorage.getItem('user_phone') || '';
 
-      const { code, num } = parsePhone(savedPhone);
+      const { code, custom, num } = parsePhone(savedPhone);
 
       if (savedName) setProfileName(savedName);
 
@@ -127,6 +141,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         lastName: savedLastName || savedName.split(' ').slice(1).join(' ') || '',
         email: savedEmail,
         countryCode: code,
+        customCode: custom,
         phoneNumber: num,
       });
 
@@ -148,7 +163,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
             extractedLastName = parts.slice(1).join(' ') || '';
           }
 
-          // ดึงข้อมูลจากตาราง users
           const { data: userData } = await supabase
             .from('users')
             .select('*')
@@ -169,6 +183,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               lastName: pLastName,
               email: userData.email || currentUserEmail || savedEmail,
               countryCode: parsed.code,
+              customCode: parsed.custom,
               phoneNumber: parsed.num,
             });
           } else {
@@ -192,12 +207,24 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     setFormData({ ...formData, phoneNumber: formatPhoneNumber(e.target.value) });
   };
 
+  const handleCustomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/[^\d+]/g, '');
+    if (!val.startsWith('+')) {
+      val = '+' + val.replace(/\+/g, '');
+    }
+    setFormData({ ...formData, customCode: val });
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    const activeCode = formData.countryCode === 'OTHER' 
+      ? formData.customCode.trim() 
+      : formData.countryCode;
+
     const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
-    const fullPhone = `${formData.countryCode} ${formData.phoneNumber.trim()}`.trim();
+    const fullPhone = `${activeCode} ${formData.phoneNumber.trim()}`.trim();
     const finalEmail = formData.email.trim() || localStorage.getItem('user_email') || user?.email || '';
 
     localStorage.setItem('user_first_name', formData.firstName);
@@ -211,7 +238,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         const cleanEmail = finalEmail.toLowerCase();
         let targetUserId = user?.id;
 
-        // 🟢 1. ค้นหาผู้ใช้จาก email ในตาราง users เพื่อนำ id เดิมมาใช้ (ป้องกันอีเมลซ้ำ)
         const { data: existingUser } = await supabase
           .from('users')
           .select('id')
@@ -229,7 +255,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
           targetUserId = guestId;
         }
 
-        // 🟢 2. Upsert โดยใช้ targetUserId ที่ถูกต้อง
         const { error: userError } = await supabase.from('users').upsert({
           id: targetUserId,
           full_name: fullName,
@@ -242,7 +267,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
           console.error('Supabase users Insert Error:', userError.message);
           alert(`Profile Save Error: ${userError.message}`);
         } else {
-          console.log('Profile saved successfully to users table!');
           localStorage.setItem('user_id', targetUserId);
         }
 
@@ -449,15 +473,29 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                     <select
                       value={formData.countryCode}
                       onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                      className="w-full px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition appearance-none cursor-pointer text-slate-700 truncate"
+                      className="w-full px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition appearance-none cursor-pointer text-slate-700"
                     >
                       {COUNTRY_CODES.map((c, index) => (
                         <option key={`${c.code}-${index}`} value={c.code}>
-                          {c.flag} {c.code} ({c.name})
+                          {c.code} ({c.iso})
                         </option>
                       ))}
+                      <option value="OTHER">Other</option>
                     </select>
                   </div>
+
+                  {formData.countryCode === 'OTHER' && (
+                    <div className="w-[85px] shrink-0">
+                      <input
+                        type="text"
+                        required
+                        placeholder="+000"
+                        value={formData.customCode}
+                        onChange={handleCustomCodeChange}
+                        className="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition text-center"
+                      />
+                    </div>
+                  )}
 
                   <div className="flex-1">
                     <input

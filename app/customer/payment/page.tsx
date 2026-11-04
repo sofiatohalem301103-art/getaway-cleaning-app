@@ -7,18 +7,18 @@ import { supabase } from '@/lib/supabaseClient';
 // ==========================================
 // 1. SVG ICONS SECTION
 // ==========================================
-function CreditCardIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5M2.25 9v9a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9m-19.5 0V6a2.25 2.25 0 012.25-2.25h15A2.25 2.25 0 0121.75 6v3" />
-    </svg>
-  );
-}
-
 function BankIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5M3 21h18" />
+    </svg>
+  );
+}
+
+function CashIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6H2.25m0 0v10.5m0-10.5h19.5m0 0v10.5m0-10.5h.75a.75.75 0 01.75.75v.75m0 0a60.07 60.07 0 00-15.797 2.101c-.727.198-1.453-.342-1.453-1.096V6m19.5 0v.75a.75.75 0 01-.75.75H21m-9 7.5a3 3 0 100-6 3 3 0 000 6z" />
     </svg>
   );
 }
@@ -38,9 +38,6 @@ function UploadIcon({ className = "w-5 h-5" }: { className?: string }) {
     </svg>
   );
 }
-
-const INPUT_BASE_CLASSES =
-  'w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base sm:text-sm text-[#0F172A] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
 
 const formatTimeToDatabase = (timeSlot: string | null | undefined): string | null => {
   if (!timeSlot) return '09:00:00';
@@ -85,18 +82,7 @@ function PaymentContent() {
     serviceId: paramServiceId,
   });
 
-  const [savedCards, setSavedCards] = useState<any[]>([]);
-  const [selectedCardId, setSelectedCardId] = useState<string>('new');
-  const [saveCard, setSaveCard] = useState<boolean>(true);
-
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: '',
-  });
-
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'cash'>('bank');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -130,26 +116,6 @@ function PaymentContent() {
       phone: phone || '',
       serviceId: sId || '',
     });
-
-    const fetchUserCards = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        let query = supabase.from('user_cards').select('*');
-        if (user?.id) {
-          query = query.eq('user_id', user.id);
-        }
-
-        const { data: cards, error } = await query;
-        if (!error && cards && cards.length > 0) {
-          setSavedCards(cards);
-          setSelectedCardId(cards[0].id);
-        }
-      } catch (err) {
-        console.warn('Fetch saved cards error:', err);
-      }
-    };
-
-    fetchUserCards();
   }, [searchParams]);
 
   const sanitizedPrice = rawPrice.replace(/[^0-9.]/g, '');
@@ -180,45 +146,10 @@ function PaymentContent() {
     }
   };
 
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 16) value = value.slice(0, 16);
-    const formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-    setCardDetails((prev) => ({ ...prev, cardNumber: formatted }));
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 4) value = value.slice(0, 4);
-    if (value.length >= 3) {
-      value = `${value.slice(0, 2)}/${value.slice(2)}`;
-    }
-    setCardDetails((prev) => ({ ...prev, expiryDate: value }));
-  };
-
-  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
-    setCardDetails((prev) => ({ ...prev, cvv: value }));
-  };
-
   const handleContinue = async () => {
     if (paymentMethod === 'bank' && !slipFile) {
       alert('Please upload your payment slip before proceeding.');
       return;
-    }
-
-    if (paymentMethod === 'card') {
-      if (selectedCardId === 'new') {
-        if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv) {
-          alert('Please fill in all credit card details.');
-          return;
-        }
-      } else {
-        if (!cardDetails.cvv || !cardDetails.cardName) {
-          alert('Please enter Name on Card and CVC / CVV to confirm payment.');
-          return;
-        }
-      }
     }
 
     setIsUploading(true);
@@ -297,7 +228,6 @@ function PaymentContent() {
         }
       }
 
-      // 1. Save to bookings table
       let createdBookingId: string | null = null;
       const bookingPayload: any = {
         booking_ref: generatedRef,
@@ -321,7 +251,7 @@ function PaymentContent() {
           payment_slip: uploadedSlipUrl,
           property: apartment,
           service_type: 'holiday',
-          payment_status: paymentMethod === 'bank' ? 'Pending Verification' : 'Paid',
+          payment_status: paymentMethod === 'bank' ? 'Pending Verification' : 'Pay with Cash on Arrival',
           customer_name: finalName,
           customer_email: finalEmail,
           customer_phone: finalPhone,
@@ -345,12 +275,11 @@ function PaymentContent() {
         createdBookingId = bookingResult.id;
       }
 
-      // 2. Save to payments table
       const paymentPayload: any = {
         booking_id: createdBookingId || null,
         amount: numericPrice,
-        payment_method: paymentMethod === 'card' ? 'card' : 'bank_transfer',
-        status: paymentMethod === 'bank' ? 'pending' : 'completed',
+        payment_method: paymentMethod === 'bank' ? 'bank_transfer' : 'cash',
+        status: 'pending',
         proof_of_payment_url: uploadedSlipUrl || null,
         transaction_id: `TXN-${generatedRef}`,
         paid_at: new Date().toISOString(),
@@ -358,46 +287,11 @@ function PaymentContent() {
 
       await supabase.from('payments').insert([paymentPayload]);
 
-      // 3. Save to user_cards table
-      if (paymentMethod === 'card' && selectedCardId === 'new' && saveCard) {
-        const cleanCardNum = cardDetails.cardNumber.replace(/\s+/g, '');
-        const last4Digits = cleanCardNum.slice(-4) || '0000';
-        const [expMonth, rawYear] = cardDetails.expiryDate.split('/');
-        const expYear = rawYear ? rawYear.slice(-2) : '';
-
-        let brand = 'Visa';
-        if (cleanCardNum.startsWith('5')) brand = 'Mastercard';
-        if (cleanCardNum.startsWith('3')) brand = 'American Express';
-
-        const cardPayload: any = {
-          id: `card_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          card_brand: brand,
-          last4: last4Digits,
-          expiry_month: expMonth || '',
-          expiry_year: expYear || '',
-          is_default: true,
-          user_id: activeUserId || null
-        };
-
-        const { data: cardData, error: cardError } = await supabase
-          .from('user_cards')
-          .insert([cardPayload])
-          .select();
-
-        if (cardError) {
-          console.error('Error saving card:', cardError);
-          alert(`Failed to save card: ${cardError.message}`);
-        } else {
-          console.log('Saved card successfully:', cardData);
-        }
-      }
-
-      // 4. Save to notifications table
       try {
         const notificationPayload: any = {
           user_id: activeUserId || null,
-          title: 'New Booking & Payment Created',
-          message: `Booking REF: ${generatedRef} (${program}) created by ${finalName}. Amount: €${numericPrice}`,
+          title: 'New Booking Created',
+          message: `Booking REF: ${generatedRef} (${program}) created by ${finalName}. Method: ${paymentMethod === 'bank' ? 'Bank Transfer' : 'Cash'}. Amount: €${numericPrice}`,
           booking_id: createdBookingId || null,
           is_read: false
         };
@@ -432,31 +326,31 @@ function PaymentContent() {
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Header with border-b removed */}
       <div className="w-full text-center space-y-1">
         <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">Payment</h1>
-        <p className="text-xs sm:text-sm text-[#8E9B9E]">Complete your payment details to confirm booking</p>
+        <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">Complete your payment details to confirm booking</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Booking Summary & Payment Methods */}
         <div className="lg:col-span-5 space-y-5">
           <div className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl space-y-3">
             <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
-              <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Booking Summary</span>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 bg-white border border-[#E2E8F0] text-[#334155] rounded-full">Overview</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Booking Summary</span>
+              <span className="text-[11px] font-medium px-2.5 py-0.5 bg-white border border-[#E2E8F0] text-slate-600 rounded-full">Overview</span>
             </div>
             {apartment && (
               <div className="space-y-0.5">
-                <span className="text-xs font-medium text-[#64748B]">Property</span>
-                <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">{apartment}</p>
+                <span className="text-xs font-medium text-slate-500">Property</span>
+                <p className="text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{apartment}</p>
               </div>
             )}
             <div className="space-y-0.5 pt-0.5">
-              <span className="text-xs font-medium text-[#64748B]">Service Program</span>
-              <p className="text-sm font-semibold text-[#1E2B37] leading-relaxed break-words">{program}</p>
+              <span className="text-xs font-medium text-slate-500">Service Program</span>
+              <p className="text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{program}</p>
             </div>
             <div className="flex justify-between items-center text-sm pt-2 border-t border-[#E2E8F0]">
-              <span className="text-[#64748B] font-medium text-xs sm:text-sm">Selected Unit</span>
+              <span className="text-slate-500 font-medium text-xs sm:text-sm">Selected Unit</span>
               <span className="px-2.5 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">{room} Bedroom(s)</span>
             </div>
             <div className="pt-1">
@@ -468,12 +362,13 @@ function PaymentContent() {
           </div>
 
           <div className="space-y-2.5">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Select Payment Method</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Payment Method</p>
             <div className="grid grid-cols-1 gap-2.5">
+              {/* Option 1: Bank Transfer */}
               <label
                 onClick={() => setPaymentMethod('bank')}
                 className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
-                  paymentMethod === 'bank' ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
+                  paymentMethod === 'bank' ? 'border-[#006AFF] bg-[#EAF3F9] text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
                 }`}
               >
                 <div className="flex items-center space-x-3">
@@ -481,174 +376,161 @@ function PaymentContent() {
                     <BankIcon />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">Bank Transfer</p>
+                    <p className={`text-sm ${paymentMethod === 'bank' ? 'font-bold' : 'font-semibold'}`}>Bank Transfer</p>
                     <p className="text-xs text-[#64748B] font-normal">Direct wire or mobile banking</p>
                   </div>
                 </div>
                 <input type="radio" checked={paymentMethod === 'bank'} onChange={() => setPaymentMethod('bank')} className="w-4 h-4 text-[#006AFF]" />
               </label>
 
+              {/* Option 2: Cash Payment */}
               <label
-                onClick={() => setPaymentMethod('card')}
+                onClick={() => setPaymentMethod('cash')}
                 className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
-                  paymentMethod === 'card' ? 'border-[#006AFF] bg-[#EAF3F9] font-bold text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
+                  paymentMethod === 'cash' ? 'border-[#006AFF] bg-[#EAF3F9] text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${paymentMethod === 'card' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
-                    <CreditCardIcon />
+                  <div className={`p-2 rounded-lg ${paymentMethod === 'cash' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                    <CashIcon />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">Credit / Debit Card</p>
-                    <p className="text-xs text-[#64748B] font-normal">Visa, Mastercard</p>
+                    <p className={`text-sm ${paymentMethod === 'cash' ? 'font-bold' : 'font-semibold'}`}>Cash on Service</p>
+                    <p className="text-xs text-[#64748B] font-normal">Pay directly to staff on arrival</p>
                   </div>
                 </div>
-                <input type="radio" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 text-[#006AFF]" />
+                <input type="radio" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} className="w-4 h-4 text-[#006AFF]" />
               </label>
             </div>
           </div>
         </div>
 
+        {/* Right Column: Bank Details OR Cash Info */}
         <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-5">
-          {paymentMethod === 'bank' && (
+          {paymentMethod === 'bank' ? (
             <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
-              <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Bank Transfer Information</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bank Transfer Information</p>
               
-              <div className="p-3.5 bg-white rounded-xl border border-[#E2E8F0] space-y-2.5">
+              <div className="p-4 bg-white rounded-xl border border-[#E2E8F0] space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <div>
-                  <p className="text-xs text-[#64748B] font-medium">Bank Name</p>
-                  <p className="text-sm font-bold text-[#1E2B37]">{bankDetails.bankName}</p>
+                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Bank Name</p>
+                  <p className="text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.bankName}</p>
                 </div>
 
-                <div className="pt-2 border-t border-[#F1F5F9]">
-                  <p className="text-xs text-[#64748B] font-medium">Account Name</p>
-                  <p className="text-sm font-semibold text-[#1E2B37]">{bankDetails.accountName}</p>
+                <div className="pt-2.5 border-t border-[#F1F5F9]">
+                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account Name</p>
+                  <p className="text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.accountName}</p>
                 </div>
 
-                <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-[#64748B] font-medium">Account No.</p>
-                    <p className="text-sm font-mono font-bold text-[#1E2B37]">{bankDetails.accountNo}</p>
+                {/* Account Number */}
+                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account No.</p>
+                    <p className="text-base font-mono font-bold text-[#0F172A] tracking-wider tabular-nums mt-0.5 select-all">
+                      {bankDetails.accountNo}
+                    </p>
                   </div>
-                  <button type="button" onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')} className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition">
+                  <button 
+                    type="button" 
+                    onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')} 
+                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  >
                     <CopyIcon /> {copiedField === 'accountNo' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
-                <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
-                  <div className="pr-2">
-                    <p className="text-xs text-[#64748B] font-medium">IBAN</p>
-                    <p className="text-xs font-mono font-bold text-[#1E2B37] break-all">{bankDetails.iban}</p>
+                {/* IBAN */}
+                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">IBAN</p>
+                    <p className="text-xs sm:text-sm font-mono font-bold text-[#0F172A] tracking-wider tabular-nums break-all mt-0.5 select-all">
+                      {bankDetails.iban.replace(/(.{4})/g, '$1 ').trim()}
+                    </p>
                   </div>
-                  <button type="button" onClick={() => handleCopy(bankDetails.iban, 'iban')} className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1 transition shrink-0">
+                  <button 
+                    type="button" 
+                    onClick={() => handleCopy(bankDetails.iban, 'iban')} 
+                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  >
                     <CopyIcon /> {copiedField === 'iban' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
-                <div className="pt-2 border-t border-[#F1F5F9]">
-                  <p className="text-xs text-[#64748B] font-medium">BIC / SWIFT</p>
-                  <p className="text-sm font-mono font-semibold text-[#1E2B37]">{bankDetails.bic}</p>
+                {/* BIC / SWIFT */}
+                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">BIC / SWIFT</p>
+                    <p className="text-sm font-mono font-bold text-[#1E2B37] tracking-widest mt-0.5 select-all">
+                      {bankDetails.bic}
+                    </p>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => handleCopy(bankDetails.bic, 'bic')} 
+                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  >
+                    <CopyIcon /> {copiedField === 'bic' ? 'Copied!' : 'Copy'}
+                  </button>
                 </div>
               </div>
 
+              {/* Upload Payment Slip */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#1E2B37]">Upload Payment Slip <span className="text-red-500">*</span></label>
-                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white cursor-pointer">
+                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white cursor-pointer transition-colors">
                   <input type="file" accept="image/*,.pdf" onChange={handleSlipChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base" />
                   <div className="flex flex-col items-center space-y-1">
                     <div className="p-2 bg-[#F1F5F9] rounded-full text-[#006AFF]">
                       <UploadIcon />
                     </div>
                     <p className="text-xs font-bold text-[#1E2B37]">{slipFile ? slipFile.name : 'Click to upload payment slip'}</p>
-                    <p className="text-[10px] text-[#64748B]">PNG, JPG or PDF up to 5MB</p>
+                    <p className="text-[10px] text-slate-400 font-normal">PNG, JPG or PDF up to 5MB</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Cash Payment Information Box */
+            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cash Payment Instructions</p>
+              
+              <div className="p-5 bg-white rounded-xl border border-[#E2E8F0] space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800">
+                  <span className="text-xl">💵</span>
+                  <div>
+                    <p className="text-xs font-bold">Pay upon arrival</p>
+                    <p className="text-[11px] text-emerald-700 font-normal">Please prepare exact cash to give directly to our cleaning crew.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs leading-relaxed">
+                  <div className="flex justify-between py-1.5 border-b border-[#F1F5F9]">
+                    <span className="font-medium text-slate-500">Total Amount Due:</span>
+                    <span className="font-bold text-[#1E2B37] text-sm">€{formattedPrice}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-[#F1F5F9]">
+                    <span className="font-medium text-slate-500">Payment Timing:</span>
+                    <span className="font-bold text-[#1E2B37]">Before or right after service starts</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span className="font-medium text-slate-500">Receipt:</span>
+                    <span className="font-bold text-[#1E2B37]">Issued via email automatically</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-lg text-[11px] text-slate-500 font-normal">
+                  ℹ️ Click <strong className="font-semibold text-slate-700">Continue</strong> to confirm your booking date & time. Our team will bring your service confirmation.
                 </div>
               </div>
             </div>
           )}
 
-          {paymentMethod === 'card' && (
-            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
-              <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Card Details</p>
-
-              {savedCards.length > 0 && (
-                <div className="space-y-2 pb-3 border-b border-[#E2E8F0]">
-                  <p className="text-xs font-semibold text-[#1E2B37]">Saved Cards</p>
-                  <div className="space-y-2">
-                    {savedCards.map((card) => (
-                      <label key={card.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer ${selectedCardId === card.id ? 'border-[#006AFF] bg-white font-semibold' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
-                        <div className="flex items-center space-x-3">
-                          <input type="radio" name="saved_card" checked={selectedCardId === card.id} onChange={() => setSelectedCardId(card.id)} className="w-4 h-4 text-[#006AFF]" />
-                          <div>
-                            <p className="text-xs font-bold text-[#1E2B37]">{card.card_brand} ending in •••• {card.last4}</p>
-                            <p className="text-[10px] text-[#64748B]">Expires {card.expiry_month}/{card.expiry_year}</p>
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                    <label className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer ${selectedCardId === 'new' ? 'border-[#006AFF] bg-white' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
-                      <input type="radio" name="saved_card" checked={selectedCardId === 'new'} onChange={() => setSelectedCardId('new')} className="w-4 h-4 text-[#006AFF]" />
-                      <span className="text-xs font-bold text-[#1E2B37]"> Use a new credit / debit card</span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {selectedCardId === 'new' ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E2B37]">Card Number</label>
-                    <input type="text" placeholder="xxxx xxxx xxxx xxxx" value={cardDetails.cardNumber} onChange={handleCardNumberChange} className={`${INPUT_BASE_CLASSES} font-mono tracking-wider`} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
-                    <input type="text" placeholder="NAME ON CARD" value={cardDetails.cardName} onChange={(e) => setCardDetails(prev => ({ ...prev, cardName: e.target.value }))} className={`${INPUT_BASE_CLASSES} uppercase`} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-[#1E2B37]">Expiry Date</label>
-                      <input type="text" placeholder="MM/YY" value={cardDetails.expiryDate} onChange={handleExpiryChange} className={`${INPUT_BASE_CLASSES} font-mono text-center`} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-[#1E2B37]">CVV / CVC</label>
-                      <input type="password" maxLength={3} placeholder="xxx" value={cardDetails.cvv} onChange={handleCvvChange} className={`${INPUT_BASE_CLASSES} font-mono text-center`} />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex items-center space-x-2.5 cursor-pointer">
-                    <input
-                      id="save-card-checkbox"
-                      type="checkbox"
-                      checked={saveCard}
-                      onChange={(e) => setSaveCard(e.target.checked)}
-                      className="w-4 h-4 text-[#006AFF] rounded border-[#CBD5E1] focus:ring-[#006AFF] cursor-pointer"
-                    />
-                    <label htmlFor="save-card-checkbox" className="text-xs font-semibold text-[#334155] cursor-pointer select-none">
-                      Save card details for future bookings
-                    </label>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E2B37]">Name on Card</label>
-                    <input type="text" placeholder="NAME ON CARD" value={cardDetails.cardName} onChange={(e) => setCardDetails(prev => ({ ...prev, cardName: e.target.value }))} className={`${INPUT_BASE_CLASSES} uppercase`} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E2B37]">CVC / CVV Security Code</label>
-                    <input type="password" maxLength={3} placeholder="xxx" value={cardDetails.cvv} onChange={handleCvvChange} className={`${INPUT_BASE_CLASSES} font-mono text-center w-1/2`} />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="w-full pt-2 flex items-center gap-3">
-            <button type="button" disabled={isUploading} onClick={() => router.back()} className="w-1/3 py-3.5 bg-white border border-[#E2E8F0] font-bold rounded-xl text-sm">
+            <button type="button" disabled={isUploading} onClick={() => router.back()} className="w-1/3 py-3.5 bg-white hover:bg-slate-50 border border-[#E2E8F0] font-bold rounded-xl text-sm transition cursor-pointer">
               ← Back
             </button>
-            <button type="button" disabled={isUploading} onClick={handleContinue} className="w-2/3 py-3.5 bg-[#006AFF] text-white font-bold rounded-xl text-sm disabled:opacity-50">
-              {isUploading ? 'Uploading Slip & Confirming...' : 'Continue'}
+            <button type="button" disabled={isUploading} onClick={handleContinue} className="w-2/3 py-3.5 bg-[#006AFF] hover:bg-[#0057D3] text-white font-bold rounded-xl text-sm disabled:opacity-50 transition cursor-pointer shadow-sm">
+              {isUploading ? 'Confirming Booking...' : 'Continue'}
             </button>
           </div>
         </div>
@@ -660,7 +542,7 @@ function PaymentContent() {
 export default function PaymentPage() {
   return (
     <main className="min-h-screen w-full bg-white py-4 sm:py-8 px-4 sm:px-6">
-      <Suspense fallback={<div className="text-sm text-[#64748B] p-8 text-center">Loading payment page...</div>}>
+      <Suspense fallback={<div className="text-sm text-[#64748B] p-8 text-center font-normal">Loading payment page...</div>}>
         <PaymentContent />
       </Suspense>
     </main>

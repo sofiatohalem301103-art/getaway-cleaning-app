@@ -108,7 +108,6 @@ function HistoryContent() {
       let bookingError = null;
 
       if (currentUserId) {
-        // 🟢 ค้นหาจาก customer_id หรือ user_id ในตาราง bookings
         const { data, error } = await supabase
           .from('bookings')
           .select('*')
@@ -118,7 +117,6 @@ function HistoryContent() {
         bookingData = data as Booking[];
         bookingError = error;
       } else {
-        // Fallback หากไม่มี ID ดึง 20 รายการล่าสุด
         const { data, error } = await supabase
           .from('bookings')
           .select('*')
@@ -250,7 +248,7 @@ function HistoryContent() {
           <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             My Bookings
           </h1>
-          <p className="text-xs sm:text-sm text-[#8E9B9E]">View and manage your booking history</p>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">View and manage your booking history</p>
         </div>
 
         {/* List Container */}
@@ -258,7 +256,7 @@ function HistoryContent() {
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
               <div className="w-8 h-8 border-2 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-xs sm:text-sm font-semibold text-[#8E9B9E]">Loading bookings...</p>
+              <p className="text-xs sm:text-sm font-medium text-[#8E9B9E]">Loading bookings...</p>
             </div>
           ) : bookings.length === 0 ? (
             <div className="py-12 text-center flex flex-col items-center justify-center space-y-4 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 w-full">
@@ -281,7 +279,7 @@ function HistoryContent() {
                     <span className="w-2 h-2 rounded-full bg-[#006AFF]"></span>
                     {formatDateDisplay(date)}
                   </span>
-                  <span className="text-[11px] font-semibold text-[#8E9B9E] bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-0.5 rounded-full">
+                  <span className="text-[11px] font-medium text-slate-500 bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-0.5 rounded-full">
                     {items.length} {items.length > 1 ? 'bookings' : 'booking'}
                   </span>
                 </div>
@@ -364,22 +362,22 @@ function HistoryContent() {
                           {/* Details */}
                           <div className="space-y-2 text-xs">
                             <div className="flex items-start justify-between gap-4">
-                              <span className="font-medium text-[#8E9B9E] shrink-0">Location</span>
+                              <span className="font-medium text-slate-500 shrink-0">Location</span>
                               <p className="font-bold text-[#1E2B37] text-right leading-tight">
                                 {locationText}
                               </p>
                             </div>
 
                             <div className="flex items-center justify-between gap-4">
-                              <span className="font-medium text-[#8E9B9E] shrink-0">Program</span>
+                              <span className="font-medium text-slate-500 shrink-0">Program</span>
                               <span className="font-bold text-[#1E2B37] text-right">
                                 {programName}
                               </span>
                             </div>
 
                             <div className="flex items-center justify-between gap-4">
-                              <span className="font-medium text-[#8E9B9E] shrink-0">Time</span>
-                              <span className="font-semibold text-[#8E9B9E] text-right">
+                              <span className="font-medium text-slate-500 shrink-0">Time</span>
+                              <span className="font-bold text-[#1E2B37] text-right">
                                 {bookingTime}
                               </span>
                             </div>
@@ -406,10 +404,10 @@ function HistoryContent() {
                                   <div className="p-3 bg-white border border-[#E2E8F0] rounded-lg text-left space-y-2">
                                     {existingFeedback.comment && (
                                       <div className="space-y-0.5">
-                                        <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider block">
+                                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                                           My Feedback
                                         </span>
-                                        <p className="text-xs text-[#1E2B37] font-semibold leading-relaxed">
+                                        <p className="text-xs text-slate-800 font-normal leading-relaxed italic">
                                           "{existingFeedback.comment}"
                                         </p>
                                       </div>
@@ -417,10 +415,10 @@ function HistoryContent() {
 
                                     {existingFeedback.admin_reply && (
                                       <div className="pt-2 border-t border-[#E2E8F0] space-y-0.5">
-                                        <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wider block">
+                                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                                           Our Reply
                                         </span>
-                                        <p className="text-xs text-[#334155] font-medium leading-relaxed">
+                                        <p className="text-xs text-slate-700 font-normal leading-relaxed">
                                           {existingFeedback.admin_reply}
                                         </p>
                                       </div>
@@ -438,7 +436,7 @@ function HistoryContent() {
                             )
                           ) : (
                             <div className="text-center py-0.5">
-                              <span className="text-xs font-semibold text-[#8E9B9E] italic">
+                              <span className="text-xs font-medium text-slate-500 italic">
                                 {cleanStatus === 'confirmed' ? 'In progress' : 'Scheduled'}
                               </span>
                             </div>
@@ -458,12 +456,12 @@ function HistoryContent() {
           <button
             type="button"
             onClick={() => router.push('/customer/booking')}
-            className="py-2 px-4 min-h-[44px] text-xs sm:text-sm font-bold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-xl hover:bg-[#F8FAFC] active:scale-[0.98] touch-manipulation"
+            className="py-2 px-4 min-h-[44px] text-xs sm:text-sm font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-xl hover:bg-[#F8FAFC] active:scale-[0.98] touch-manipulation"
           >
             ← Back to Booking
           </button>
 
-          <p className="text-xs text-[#94A3B8] font-medium">
+          <p className="text-xs text-[#94A3B8] font-normal">
             © Getaway Cleaning Service
           </p>
         </div>

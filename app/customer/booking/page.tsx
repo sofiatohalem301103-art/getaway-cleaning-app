@@ -49,7 +49,7 @@ const PROPERTY_DATA: PropertyCategory[] = [
 ];
 
 const INPUT_BASE_CLASSES =
-  'w-full px-3.5 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base font-medium text-[#1E2B37] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
+  'w-full px-3.5 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base font-normal text-[#1E2B37] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition-colors box-border touch-manipulation';
 
 // ==========================================
 // 2. SUB-COMPONENTS
@@ -68,7 +68,7 @@ const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
   <div className="space-y-3">
     <div>
       <h2 className="text-base sm:text-lg font-bold text-[#1E2B37]">Select Service Type</h2>
-      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+      <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal mt-0.5">
         Please select the service type you require
       </p>
     </div>
@@ -79,11 +79,11 @@ const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
         onClick={() => onSelectService('holiday')}
         className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
           selectedService === 'holiday'
-            ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+            ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
             : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
         }`}
       >
-        <span className="text-sm sm:text-base font-bold block">
+        <span className={`text-sm sm:text-base block ${selectedService === 'holiday' ? 'font-bold' : 'font-semibold'}`}>
           Holiday Home Guest
         </span>
       </button>
@@ -93,11 +93,11 @@ const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
         onClick={() => onSelectService('private')}
         className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
           selectedService === 'private'
-            ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+            ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
             : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
         }`}
       >
-        <span className="text-sm sm:text-base font-bold block">
+        <span className={`text-sm sm:text-base block ${selectedService === 'private' ? 'font-bold' : 'font-semibold'}`}>
           Private Home / Office Cleaning
         </span>
       </button>
@@ -120,7 +120,7 @@ const PropertySelection: React.FC<PropertySelectionProps> = ({
       <label htmlFor="property-select" className="text-base sm:text-lg font-bold text-[#1E2B37] block">
         Select Property
       </label>
-      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+      <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal mt-0.5">
         Choose your property to reveal exact program pricing
       </p>
     </div>
@@ -162,7 +162,7 @@ const ProgramSelection: React.FC<ProgramSelectionProps> = ({
       <label className="text-base sm:text-lg font-bold text-[#1E2B37] block">
         Select Cleaning Program
       </label>
-      <p className="text-xs sm:text-sm text-[#8E9B9E] mt-0.5">
+      <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal mt-0.5">
         Choose the cleaning option that suits your needs
       </p>
     </div>
@@ -179,7 +179,7 @@ const ProgramSelection: React.FC<ProgramSelectionProps> = ({
       >
         <div className="space-y-1.5 w-full">
           <div className="flex justify-between items-center gap-2">
-            <span className={`text-sm sm:text-base font-bold ${selectedProgram === 'general' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+            <span className={`text-sm sm:text-base ${selectedProgram === 'general' ? 'font-bold text-[#006AFF]' : 'font-semibold text-[#1E2B37]'}`}>
               General Cleaning
             </span>
             <span className="text-base sm:text-lg font-black text-[#006AFF] shrink-0">
@@ -187,7 +187,7 @@ const ProgramSelection: React.FC<ProgramSelectionProps> = ({
             </span>
           </div>
           {currentPropertyInfo?.pricing.note && (
-            <p className="text-xs text-[#8E9B9E]">
+            <p className="text-xs text-[#8E9B9E] font-normal">
               {currentPropertyInfo.pricing.note}
             </p>
           )}
@@ -205,14 +205,14 @@ const ProgramSelection: React.FC<ProgramSelectionProps> = ({
       >
         <div className="space-y-1.5 w-full">
           <div className="flex justify-between items-start gap-2">
-            <span className={`text-sm sm:text-base font-bold ${selectedProgram === 'turnover' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+            <span className={`text-sm sm:text-base ${selectedProgram === 'turnover' ? 'font-bold text-[#006AFF]' : 'font-semibold text-[#1E2B37]'}`}>
               Turnover Cleaning
             </span>
             <span className="text-base sm:text-lg font-black text-[#006AFF] shrink-0">
               {currentPropertyInfo ? `€${currentPropertyInfo.pricing.turnover}` : '€'}
             </span>
           </div>
-          <p className="text-xs text-[#8E9B9E] leading-relaxed break-words">
+          <p className="text-xs text-[#8E9B9E] font-normal leading-relaxed break-words">
             Cleaning & change all sheets and towels
           </p>
         </div>
@@ -367,7 +367,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
           <label htmlFor="address-input" className="text-base font-bold text-[#1E2B37] block">
             Address
           </label>
-          <p className="text-xs text-[#8E9B9E]">
+          <p className="text-xs text-[#8E9B9E] font-normal">
             Please enter street name, area, or full address
           </p>
         </div>
@@ -386,7 +386,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
           <label htmlFor="building-input" className="text-base font-bold text-[#1E2B37] block">
             Building / Complex
           </label>
-          <p className="text-xs text-[#8E9B9E]">
+          <p className="text-xs text-[#8E9B9E] font-normal">
             Enter building, condo, or complex name
           </p>
           <input
@@ -403,7 +403,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
           <label htmlFor="unit-input" className="text-base font-bold text-[#1E2B37] block">
             Apartment / House No.
           </label>
-          <p className="text-xs text-[#8E9B9E]">
+          <p className="text-xs text-[#8E9B9E] font-normal">
             Enter apartment, unit, or house number
           </p>
           <input
@@ -422,7 +422,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
           <label htmlFor="map-input" className="text-base font-bold text-[#1E2B37] block">
             Google Maps Link
           </label>
-          <p className="text-xs text-[#8E9B9E]">
+          <p className="text-xs text-[#8E9B9E] font-normal">
             Paste location URL from Google Maps for precise navigation
           </p>
         </div>
@@ -441,7 +441,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
           <label className="text-base font-bold text-[#1E2B37] block">
             Select Service Program
           </label>
-          <p className="text-xs text-[#8E9B9E]">
+          <p className="text-xs text-[#8E9B9E] font-normal">
             Choose the service type that matches your requirements
           </p>
         </div>
@@ -452,11 +452,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             onClick={() => onPrivateProgramChange('general')}
             className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
               selectedPrivateProgram === 'general'
-                ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                 : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
             }`}
           >
-            <span className="text-sm sm:text-base font-bold block">
+            <span className={`text-sm sm:text-base block ${selectedPrivateProgram === 'general' ? 'font-bold' : 'font-semibold'}`}>
               General Cleaning
             </span>
           </button>
@@ -466,11 +466,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             onClick={() => onPrivateProgramChange('deep')}
             className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
               selectedPrivateProgram === 'deep'
-                ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                 : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
             }`}
           >
-            <span className="text-sm sm:text-base font-bold block">
+            <span className={`text-sm sm:text-base block ${selectedPrivateProgram === 'deep' ? 'font-bold' : 'font-semibold'}`}>
               Deep Cleaning
             </span>
           </button>
@@ -480,11 +480,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             onClick={() => onPrivateProgramChange('office')}
             className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
               selectedPrivateProgram === 'office'
-                ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                 : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
             }`}
           >
-            <span className="text-sm sm:text-base font-bold block">
+            <span className={`text-sm sm:text-base block ${selectedPrivateProgram === 'office' ? 'font-bold' : 'font-semibold'}`}>
               Office Cleaning
             </span>
           </button>
@@ -494,11 +494,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             onClick={() => onPrivateProgramChange('garden')}
             className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
               selectedPrivateProgram === 'garden'
-                ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                 : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
             }`}
           >
-            <span className="text-sm sm:text-base font-bold block">
+            <span className={`text-sm sm:text-base block ${selectedPrivateProgram === 'garden' ? 'font-bold' : 'font-semibold'}`}>
               Garden Cleaning <span className="text-xs font-normal text-[#8E9B9E] block sm:inline">(Upon Request)</span>
             </span>
           </button>
@@ -511,7 +511,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             <label className="text-base font-bold text-[#1E2B37] block">
               Choose Type Of Property
             </label>
-            <p className="text-xs text-[#8E9B9E]">
+            <p className="text-xs text-[#8E9B9E] font-normal">
               Select whether your property is a house or an apartment
             </p>
           </div>
@@ -522,11 +522,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               onClick={() => onPropertyTypeChange('house')}
               className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                 propertyType === 'house'
-                  ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                  ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                   : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
               }`}
             >
-              <span className="text-sm sm:text-base font-bold block">
+              <span className={`text-sm sm:text-base block ${propertyType === 'house' ? 'font-bold' : 'font-semibold'}`}>
                 House
               </span>
             </button>
@@ -536,11 +536,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               onClick={() => onPropertyTypeChange('apartment')}
               className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                 propertyType === 'apartment'
-                  ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                  ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                   : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
               }`}
             >
-              <span className="text-sm sm:text-base font-bold block">
+              <span className={`text-sm sm:text-base block ${propertyType === 'apartment' ? 'font-bold' : 'font-semibold'}`}>
                 Apartment
               </span>
             </button>
@@ -554,7 +554,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             <label className="text-base font-bold text-[#1E2B37] block">
               Choose How Many Bedroom(s)
             </label>
-            <p className="text-xs text-[#8E9B9E]">
+            <p className="text-xs text-[#8E9B9E] font-normal">
               Select the number of bedrooms in your property
             </p>
           </div>
@@ -567,11 +567,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 onClick={() => onBedroomsChange(opt.value)}
                 className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                   bedrooms === opt.value
-                    ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                     : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                 }`}
               >
-                <span className="text-sm sm:text-base font-bold block">
+                <span className={`text-sm sm:text-base block ${bedrooms === opt.value ? 'font-bold' : 'font-semibold'}`}>
                   {opt.label}
                 </span>
               </button>
@@ -586,7 +586,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             <label className="text-base font-bold text-[#1E2B37] block">
               Choose How Many Bathroom(s)
             </label>
-            <p className="text-xs text-[#8E9B9E]">
+            <p className="text-xs text-[#8E9B9E] font-normal">
               Select the number of bathrooms in your property
             </p>
           </div>
@@ -599,11 +599,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 onClick={() => onBathroomsChange(opt.value)}
                 className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                   bathrooms === opt.value
-                    ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                     : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                 }`}
               >
-                <span className="text-sm sm:text-base font-bold block">
+                <span className={`text-sm sm:text-base block ${bathrooms === opt.value ? 'font-bold' : 'font-semibold'}`}>
                   {opt.label}
                 </span>
               </button>
@@ -618,7 +618,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             <label className="text-base font-bold text-[#1E2B37] block">
               Choose How Many Balconies / Verandahs
             </label>
-            <p className="text-xs text-[#8E9B9E]">
+            <p className="text-xs text-[#8E9B9E] font-normal">
               Select the number of balconies or verandahs in your property
             </p>
           </div>
@@ -631,11 +631,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 onClick={() => onBalconiesChange(opt.value)}
                 className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                   balconies === opt.value
-                    ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                     : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                 }`}
               >
-                <span className="text-sm sm:text-base font-bold block">
+                <span className={`text-sm sm:text-base block ${balconies === opt.value ? 'font-bold' : 'font-semibold'}`}>
                   {opt.label}
                 </span>
               </button>
@@ -651,7 +651,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 How Many Square Meters (m²)?
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Select the approximate total area of your office
               </p>
             </div>
@@ -664,11 +664,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onOfficeSquareMetersChange(opt.value)}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     officeSquareMeters === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
-                  <span className="text-sm sm:text-base font-bold block">
+                  <span className={`text-sm sm:text-base block ${officeSquareMeters === opt.value ? 'font-bold' : 'font-semibold'}`}>
                     {opt.label}
                   </span>
                 </button>
@@ -681,7 +681,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 How Many Toilets?
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Select the number of toilets in your office
               </p>
             </div>
@@ -694,11 +694,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onOfficeToiletsChange(opt.value)}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     officeToilets === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
-                  <span className="text-sm sm:text-base font-bold block">
+                  <span className={`text-sm sm:text-base block ${officeToilets === opt.value ? 'font-bold' : 'font-semibold'}`}>
                     {opt.label}
                   </span>
                 </button>
@@ -711,7 +711,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 How Many Balconies?
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Select the number of balconies in your office
               </p>
             </div>
@@ -724,11 +724,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onOfficeBalconiesChange(opt.value)}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     officeBalconies === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
-                  <span className="text-sm sm:text-base font-bold block">
+                  <span className={`text-sm sm:text-base block ${officeBalconies === opt.value ? 'font-bold' : 'font-semibold'}`}>
                     {opt.label}
                   </span>
                 </button>
@@ -741,7 +741,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 Would you like to clean the windows?
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Select whether window cleaning service is needed
               </p>
             </div>
@@ -752,11 +752,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 onClick={() => onOfficeCleanWindowsChange('yes')}
                 className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                   officeCleanWindows === 'yes'
-                    ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                     : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                 }`}
               >
-                <span className="text-sm sm:text-base font-bold block">
+                <span className={`text-sm sm:text-base block ${officeCleanWindows === 'yes' ? 'font-bold' : 'font-semibold'}`}>
                   Yes
                 </span>
               </button>
@@ -766,11 +766,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 onClick={() => onOfficeCleanWindowsChange('no')}
                 className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                   officeCleanWindows === 'no'
-                    ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                    ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                     : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                 }`}
               >
-                <span className="text-sm sm:text-base font-bold block">
+                <span className={`text-sm sm:text-base block ${officeCleanWindows === 'no' ? 'font-bold' : 'font-semibold'}`}>
                   No
                 </span>
               </button>
@@ -783,7 +783,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                 <label className="text-base font-bold text-[#1E2B37] block">
                   How Many Windows?
                 </label>
-                <p className="text-xs text-[#8E9B9E]">
+                <p className="text-xs text-[#8E9B9E] font-normal">
                   Select the number of windows to clean
                 </p>
               </div>
@@ -796,11 +796,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                     onClick={() => onOfficeWindowsCountChange(opt.value)}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                       officeWindowsCount === opt.value
-                        ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                        ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                         : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                     }`}
                   >
-                    <span className="text-sm sm:text-base font-bold block">
+                    <span className={`text-sm sm:text-base block ${officeWindowsCount === opt.value ? 'font-bold' : 'font-semibold'}`}>
                       {opt.label}
                     </span>
                   </button>
@@ -818,7 +818,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 How Many Square Meters (m²)?
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Select the approximate total area of your garden
               </p>
             </div>
@@ -831,11 +831,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onGardenSquareMetersChange(opt.value)}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     gardenSquareMeters === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF] font-bold text-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
-                  <span className="text-sm sm:text-base font-bold block">
+                  <span className={`text-sm sm:text-base block ${gardenSquareMeters === opt.value ? 'font-bold' : 'font-semibold'}`}>
                     {opt.label}
                   </span>
                 </button>
@@ -848,7 +848,7 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
               <label className="text-base font-bold text-[#1E2B37] block">
                 Select Type Of Garden
               </label>
-              <p className="text-xs text-[#8E9B9E]">
+              <p className="text-xs text-[#8E9B9E] font-normal">
                 Choose what type of garden work is required
               </p>
             </div>
@@ -861,11 +861,11 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
                   onClick={() => onGardenTypeChange(opt.value as 'weeds' | 'trees' | 'other')}
                   className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-center w-full box-border touch-manipulation active:scale-[0.99] ${
                     gardenType === opt.value
-                      ? 'bg-[#EAF3F9] border-[#006AFF]'
+                      ? 'bg-[#EAF3F9] border-[#006AFF] text-[#006AFF]'
                       : 'bg-white border-[#E2E8F0] hover:border-[#93C5FD] text-[#1E2B37]'
                   }`}
                 >
-                  <span className="text-sm sm:text-base font-bold block">
+                  <span className={`text-sm sm:text-base block ${gardenType === opt.value ? 'font-bold' : 'font-semibold'}`}>
                     {opt.label}
                   </span>
                 </button>
@@ -911,7 +911,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
       <label htmlFor="service-date" className="text-base font-bold text-[#1E2B37] block">
         Select Service Date
       </label>
-      <p className="text-xs text-[#8E9B9E]">
+      <p className="text-xs text-[#8E9B9E] font-normal">
         Please choose a date starting from tomorrow
       </p>
     </div>
@@ -945,7 +945,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
       <label className="text-base font-bold text-[#1E2B37] block">
         Select Time
       </label>
-      <p className="text-xs text-[#8E9B9E]">
+      <p className="text-xs text-[#8E9B9E] font-normal">
         Choose your preferred time slot for the service
       </p>
     </div>
@@ -961,10 +961,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
         }`}
       >
         <div className="space-y-0.5 w-full">
-          <span className={`text-sm sm:text-base font-bold block ${selectedTime === 'morning' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+          <span className={`text-sm sm:text-base block ${selectedTime === 'morning' ? 'font-bold text-[#006AFF]' : 'font-semibold text-[#1E2B37]'}`}>
             Morning
           </span>
-          <span className="text-xs text-[#8E9B9E] block">
+          <span className="text-xs text-[#8E9B9E] font-normal block">
             09:00 - 12:00 hrs
           </span>
         </div>
@@ -980,10 +980,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
         }`}
       >
         <div className="space-y-0.5 w-full">
-          <span className={`text-sm sm:text-base font-bold block ${selectedTime === 'afternoon' ? 'text-[#006AFF]' : 'text-[#1E2B37]'}`}>
+          <span className={`text-sm sm:text-base block ${selectedTime === 'afternoon' ? 'font-bold text-[#006AFF]' : 'font-semibold text-[#1E2B37]'}`}>
             Afternoon
           </span>
-          <span className="text-xs text-[#8E9B9E] block">
+          <span className="text-xs text-[#8E9B9E] font-normal block">
             13:00 - 16:00 hrs
           </span>
         </div>
@@ -1466,7 +1466,6 @@ function BookingForm() {
   };
 
   return (
-    /* 🟢 ปรับเปลี่ยนจาก bg-[#FAFAFA] เป็น bg-white เพื่อความราบรื่นไร้รอยต่อกับ Navbar */
     <main className="min-h-screen w-full bg-white py-4 sm:py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -1474,7 +1473,7 @@ function BookingForm() {
             <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">
               Book a Cleaning Service
             </h1>
-            <p className="text-xs sm:text-sm text-[#8E9B9E]">
+            <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">
               Please complete the information below to continue.
             </p>
           </div>

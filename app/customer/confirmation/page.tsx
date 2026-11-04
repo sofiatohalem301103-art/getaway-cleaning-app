@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-// 📌 Table สำหรับแปลง Key สั้นให้เป็นชื่อโปรแกรมแบบเต็ม
+// 📌 Table สำหรับแปลง Key สั้นให้เป็นชื่อโปรแกรมแบบเต็ม[cite: 15]
 const PROGRAM_FULL_NAMES: Record<string, string> = {
   general: 'General Cleaning',
   deep: 'Deep Cleaning',
@@ -183,7 +183,7 @@ function ConfirmationContent() {
     loadCustomerProfile();
   }, [searchParams]);
 
-  // 1. ดึงข้อมูลที่อยู่ + Google Maps Link
+  // 1. ดึงข้อมูลที่อยู่ + Google Maps Link[cite: 15]
   const address = getParam('address') || sessionData?.address || sessionData?.property || '';
   const building = getParam('building') || sessionData?.buildingComplex || sessionData?.building || '';
   const aptNo = getParam('aptNo') || sessionData?.apartmentHouseNo || sessionData?.aptNo || '';
@@ -197,14 +197,14 @@ function ConfirmationContent() {
 
   const fullAddress = [address, building, aptNo ? `Apt/House: ${aptNo}` : ''].filter(Boolean).join(', ') || 'Address not specified';
 
-  // 2. ดึงข้อมูลโปรแกรม และ แปลงเป็นชื่อเต็ม
+  // 2. ดึงข้อมูลโปรแกรม และ แปลงเป็นชื่อเต็ม[cite: 15]
   const rawProgram = getParam('program') || sessionData?.program || sessionData?.selectedPrivateProgram || 'turnover';
   const fullProgramName = PROGRAM_FULL_NAMES[rawProgram.toLowerCase()] || rawProgram;
 
   const rawDate = getParam('date') || sessionData?.date || '';
   const time = getParam('time') || getParam('timeSlot') || sessionData?.timeSlot || sessionData?.time || '-';
   
-  // Ref
+  // Ref[cite: 15]
   const bookingRef = getParam('ref') || getParam('bookingRef') || sessionData?.bookingRef || randomRef;
   const programType = rawProgram.toLowerCase();
 
@@ -215,28 +215,28 @@ function ConfirmationContent() {
     programType.includes('turnover') ||
     sessionData?.service_type === 'holiday';
 
-  // ราคา
+  // ราคา[cite: 15]
   const priceParam = getParam('price') || sessionData?.price || sessionData?.totalAmount;
   const numericPrice = priceParam ? Number(priceParam) : 0;
 
-  // 3. ดึงสเปกเฉพาะ
+  // 3. ดึงสเปกเฉพาะ[cite: 15]
   const propertyType = getParam('propertyType') || sessionData?.propertyType || '';
   const bedrooms = getParam('room') || getParam('bedrooms') || sessionData?.bedrooms || sessionData?.room || '';
   const bathrooms = getParam('bathrooms') || sessionData?.bathrooms || '';
   const balconies = getParam('balconies') || sessionData?.balconies || sessionData?.officeBalconies || '';
 
-  // Office Specs
+  // Office Specs[cite: 15]
   const sqm = getParam('sqm') || sessionData?.officeSquareMeters || sessionData?.gardenSquareMeters || sessionData?.sqm || '';
   const toilets = getParam('toilets') || sessionData?.officeToilets || sessionData?.toilets || '';
   const cleanWindows = getParam('cleanWindows') || sessionData?.officeCleanWindows || '';
   const windowsCount = sessionData?.officeWindowsCount ? `${sessionData.officeWindowsCount} windows` : '';
 
-  // Garden Specs
+  // Garden Specs[cite: 15]
   const gardenType = getParam('gardenType') || sessionData?.gardenType || '';
   const gardenOtherDetails = sessionData?.gardenOtherDetails || '';
   const notes = getParam('notes') || sessionData?.notes || '';
 
-  // 🟢 4. บันทึกข้อมูลเข้า Supabase อัตโนมัติ (ใส่ customer_name, customer_email, customer_phone เข้าไปใน details)
+  // 🟢 4. บันทึกข้อมูลเข้า Supabase อัตโนมัติ[cite: 15]
   useEffect(() => {
     const handleSaveBookingToSupabase = async () => {
       if (isSaved || !bookingRef || !customerInfo.name) return;
@@ -253,8 +253,6 @@ function ConfirmationContent() {
         google_maps_link: mapsLink,
         building_complex: building,
         apartment_house_no: aptNo,
-
-        // 🟢 บันทึกข้อมูลลูกค้าลงใน details
         customer_name: customerInfo.name,
         customer_email: customerInfo.email,
         customer_phone: customerInfo.phone,
@@ -335,7 +333,7 @@ function ConfirmationContent() {
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1E2B37] mb-2 text-center tracking-tight">
           {isHoliday ? 'Booking Confirmed!' : 'Request Submitted!'}
         </h2>
-        <p className="text-xs sm:text-sm md:text-base text-slate-500 mb-6 sm:mb-8 text-center font-medium max-w-md">
+        <p className="text-xs sm:text-sm md:text-base text-slate-500 mb-6 sm:mb-8 text-center font-normal max-w-md">
           {isHoliday 
             ? 'Thank you for your payment. Your booking has been successfully confirmed.' 
             : 'Thank you. Your private service request has been sent directly to our admin team.'}
@@ -343,7 +341,7 @@ function ConfirmationContent() {
 
         {/* Status Alert Box */}
         <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl px-5 py-4 mb-8 text-center">
-          <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-700 leading-relaxed block">
+          <span className="text-xs sm:text-sm md:text-base font-medium text-slate-700 leading-relaxed block">
             {isHoliday
               ? 'Our team will handle your cleaning according to the scheduled date and time.'
               : 'Our admin team will review your property details and contact you shortly with a confirmation.'}
@@ -356,7 +354,7 @@ function ConfirmationContent() {
           {/* Booking Ref */}
           <div className="flex justify-between items-center border-b border-[#CBD5E1] pb-4">
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">
                 {isHoliday ? 'Booking Ref' : 'Request Ref'}
               </span>
               <span className={`text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
@@ -373,20 +371,20 @@ function ConfirmationContent() {
           {/* Customer Information */}
           <div className="space-y-3 sm:space-y-4 pt-1">
             <div className="flex justify-between items-center gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Customer Name</span>
+              <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Customer Name</span>
               <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">{customerInfo.name || 'Customer'}</span>
             </div>
             
             {customerInfo.email && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Email</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Email</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold truncate text-right text-[#0F172A]">{customerInfo.email}</span>
               </div>
             )}
             
             {customerInfo.phone && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Phone</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Phone</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold tracking-wide text-right text-[#0F172A]">
                   {formatPhoneNumberDisplay(customerInfo.phone)}
                 </span>
@@ -397,18 +395,18 @@ function ConfirmationContent() {
 
             {/* Address & Google Maps */}
             <div className="flex justify-between items-start gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Address / Property</span>
+              <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Address / Property</span>
               <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A] leading-relaxed max-w-[65%]">{fullAddress}</span>
             </div>
 
             {mapsLink && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Google Maps</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Google Maps</span>
                 <a 
                   href={mapsLink} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="text-xs sm:text-sm md:text-base font-bold text-slate-800 underline hover:text-blue-600 truncate max-w-[65%]"
+                  className="text-xs sm:text-sm md:text-base font-semibold text-[#006AFF] underline hover:text-blue-800 truncate max-w-[65%]"
                 >
                   Open Location Link ↗
                 </a>
@@ -419,49 +417,49 @@ function ConfirmationContent() {
 
             {/* Selected Program Specifications */}
             <div className="flex justify-between items-start gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Selected Program</span>
-              <span className="text-xs sm:text-sm md:text-base font-extrabold text-right text-[#0F172A] leading-relaxed max-w-[65%]">{fullProgramName}</span>
+              <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Selected Program</span>
+              <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A] leading-relaxed max-w-[65%]">{fullProgramName}</span>
             </div>
 
             {propertyType && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Property Type</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Property Type</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">{propertyType}</span>
               </div>
             )}
             {bedrooms && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Bedrooms / Unit</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Bedrooms / Unit</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{bedrooms} Bedroom(s)</span>
               </div>
             )}
             {bathrooms && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Bathrooms</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Bathrooms</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{bathrooms}</span>
               </div>
             )}
             {sqm && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Area Size</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Area Size</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{sqm}</span>
               </div>
             )}
             {toilets && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Toilets</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Toilets</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{toilets}</span>
               </div>
             )}
             {balconies && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Balconies / Verandahs</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Balconies / Verandahs</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{balconies}</span>
               </div>
             )}
             {cleanWindows && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Window Cleaning</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Window Cleaning</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">
                   {cleanWindows} {windowsCount ? `(${windowsCount})` : ''}
                 </span>
@@ -469,7 +467,7 @@ function ConfirmationContent() {
             )}
             {gardenType && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Garden Type</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Garden Type</span>
                 <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">
                   {gardenType} {gardenOtherDetails ? `(${gardenOtherDetails})` : ''}
                 </span>
@@ -480,26 +478,26 @@ function ConfirmationContent() {
 
             {/* Service Date & Time Slot */}
             <div className="flex justify-between items-center gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Scheduled Date</span>
+              <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Scheduled Date</span>
               <span className="text-xs sm:text-sm md:text-base font-bold text-right text-[#0F172A]">{formatDate(rawDate)}</span>
             </div>
             
             <div className="flex justify-between items-center gap-4">
-              <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Scheduled Time</span>
+              <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Scheduled Time</span>
               <span className="text-xs sm:text-sm md:text-base font-bold capitalize text-right text-[#0F172A]">{time}</span>
             </div>
 
             {numericPrice > 0 && (
               <div className="flex justify-between items-center gap-4 pt-2 border-t border-[#E2E8F0]">
-                <span className="text-xs sm:text-sm md:text-base font-bold text-[#006AFF] shrink-0">Total Paid Amount</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-[#006AFF] shrink-0">Total Paid Amount</span>
                 <span className="text-base sm:text-lg md:text-xl font-black text-[#006AFF]">€{numericPrice.toFixed(2)}</span>
               </div>
             )}
 
             {notes && (
               <div className="flex justify-between items-start gap-4 pt-1">
-                <span className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 shrink-0">Notes</span>
-                <span className="text-xs sm:text-sm md:text-base text-right text-[#0F172A] leading-relaxed italic max-w-[65%]">{notes}</span>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-slate-500 shrink-0">Notes</span>
+                <span className="text-xs sm:text-sm md:text-base font-normal text-right text-[#0F172A] leading-relaxed italic max-w-[65%]">{notes}</span>
               </div>
             )}
           </div>

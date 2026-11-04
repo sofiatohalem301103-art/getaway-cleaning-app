@@ -95,14 +95,13 @@ export async function GET(req: NextRequest) {
   });
 
   // ----------------------------------------------------
-  // 2. ดึงข้อมูลจาก Query Parameters พร้อมความปลอดภัยระดับสูง
+  // 2. ดึงข้อมูลจาก Query Parameters
   // ----------------------------------------------------
   const customerName = getSafeParam(
     searchParams.get('customerName') || searchParams.get('name'), 
     'Getaway Homes'
   );
 
-  // ✅ จุดสำคัญ: ดักจับทั้ง program, service, serviceName, title และเช็กไม่ให้เป็น 'undefined'
   const rawProgram = searchParams.get('program') || 
                      searchParams.get('service') || 
                      searchParams.get('serviceName') || 
@@ -114,7 +113,6 @@ export async function GET(req: NextRequest) {
     '-'
   );
 
-  // Running Number สำหรับ Sales Receipt#
   let rawReceiptNo = searchParams.get('receiptNo') || searchParams.get('bookingRef') || searchParams.get('ref');
   let receiptNo = getSafeParam(rawReceiptNo, '');
 
@@ -142,7 +140,7 @@ export async function GET(req: NextRequest) {
   const rawTime = parseAndFormatTime(rawTimeParam, rawDateParam);
 
   // ----------------------------------------------------
-  // 3. การคำนวณราคา Net, VAT 19% และ Total
+  // 3. การคำนวณราคา
   // ----------------------------------------------------
   const rawPriceParam = searchParams.get('price') || searchParams.get('amount') || '50.00';
   const cleanPriceStr = rawPriceParam.replace(/[^0-9.]/g, '');
@@ -157,7 +155,7 @@ export async function GET(req: NextRequest) {
   const formatAmount = (num: number) => num.toFixed(2);
 
   // ----------------------------------------------------
-  // 4. สร้างเอกสาร PDF
+  // 4. สร้างเอกสาร PDF (จัด Hierarchy ตัวอักษร)
   // ----------------------------------------------------
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -178,7 +176,7 @@ export async function GET(req: NextRequest) {
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(100, 100, 100);
 
   leftY += 4.5;
   doc.text('HE 495919', marginX, leftY);
@@ -232,19 +230,17 @@ export async function GET(req: NextRequest) {
   y += 5;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(100, 100, 100);
   doc.text(`Sales Receipt# ${receiptNo}`, marginX, y);
 
   // --- BILL TO & RECEIPT DATE ---
   y += 9;
   doc.setFontSize(8.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(110, 110, 110);
   doc.text('Bill To', marginX, y);
 
   const dateColX = marginX + 115;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
   doc.text('Receipt Date', dateColX, y);
 
   doc.setFont('helvetica', 'bold');
@@ -253,6 +249,7 @@ export async function GET(req: NextRequest) {
 
   y += 5;
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
   doc.setTextColor(0, 0, 0);
   doc.text(customerName, marginX, y);
 
@@ -269,7 +266,7 @@ export async function GET(req: NextRequest) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.setTextColor(50, 50, 50);
+  doc.setTextColor(60, 60, 60);
 
   doc.text('#', marginX + 3, tableTopY + 4.5);
   doc.text('Item & Description', marginX + 12, tableTopY + 4.5);
@@ -288,11 +285,13 @@ export async function GET(req: NextRequest) {
 
   doc.text('1', marginX + 3, itemY);
   
-  // ✅ บรรทัดนี้จะแสดงชื่อโปรแกรม/บริการอย่างถูกต้อง ไม่ว่างเปล่า ไม่เป็น - และไม่เป็น undefined แน่นอน
+  // ชื่องานบริการเป็นตัวหนาเล็กน้อย
+  doc.setFont('helvetica', 'bold');
   doc.text(program, marginX + 12, itemY);
 
   let subY = itemY + 4.5;
-  doc.setTextColor(90, 90, 90);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
   doc.text(`Property : ${room}`, marginX + 12, subY);
   subY += 4;
   doc.text(`Date : ${rawDate}`, marginX + 12, subY);
@@ -329,7 +328,7 @@ export async function GET(req: NextRequest) {
   doc.text('Payment Details', boxX + 4, boxY + 7);
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(100, 100, 100);
   doc.text('Payment Mode', boxX + 4, boxY + 16);
 
   doc.setFont('helvetica', 'bold');
@@ -341,29 +340,31 @@ export async function GET(req: NextRequest) {
   const labelX = marginX + 130;
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 100, 100);
   doc.text('Sub Total', labelX, sumY);
   doc.setTextColor(0, 0, 0);
   doc.text(formatAmount(subTotalNum), rightX, sumY, { align: 'right' });
 
   sumY += 6;
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(100, 100, 100);
   doc.text('VAT (19%)', labelX, sumY);
   doc.setTextColor(0, 0, 0);
   doc.text(formatAmount(vatNum), rightX, sumY, { align: 'right' });
 
-  sumY += 3;
+  sumY += 3.5;
   doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
   doc.line(labelX - 15, sumY, rightX, sumY);
 
-  sumY += 5;
+  sumY += 5.5;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('Total', labelX, sumY);
   doc.text(`€${formatAmount(totalNum)}`, rightX, sumY, { align: 'right' });
 
-  sumY += 2;
+  sumY += 2.5;
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.5);
   doc.line(labelX - 15, sumY, rightX, sumY);

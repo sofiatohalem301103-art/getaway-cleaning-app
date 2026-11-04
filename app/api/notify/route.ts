@@ -77,7 +77,7 @@ function generatePdfBuffer(params: any): Buffer {
     const possibleLogos = ['logo.jpeg', 'logo.jpg', 'logo.png'];
     let logoPath = '';
     for (const logoName of possibleLogos) {
-      const fullPath = path.join(process.cwd(), 'public', logoName);
+      const fullPath = path.join(publicDir, logoName);
       if (fs.existsSync(fullPath)) { logoPath = fullPath; break; }
     }
     if (logoPath) {
@@ -210,7 +210,6 @@ function generatePdfBuffer(params: any): Buffer {
   doc.setTextColor(0, 0, 0);
   doc.text(formatAmount(vatNum), rightX, sumY, { align: 'right' });
 
-  // 🟢 เว้นวรรคและเพิ่มช่องไฟให้อ่านง่ายบนมือถือ
   sumY += 4;
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.3);
@@ -235,7 +234,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🟢 ส่งอีเมลรหัส OTP 6 หลัก
+    // 🟢 1. จัดการส่งอีเมลรหัส OTP 6 หลัก
     if (body.otp) {
       const targetEmail = cleanText(body.email, '');
       if (!targetEmail) {
@@ -256,10 +255,7 @@ export async function POST(req: Request) {
       const otpHtml = `
         <!DOCTYPE html>
         <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
+        <head><meta charset="utf-8"></head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 30px 10px; margin: 0; color: #1f2937;">
           <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; padding: 24px;">
             <div style="margin-bottom: 24px;">
@@ -285,10 +281,6 @@ export async function POST(req: Request) {
             <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 16px;">
               If you didn’t request a verification code, you can safely ignore this message.
             </p>
-            <div style="border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">from</span>
-              <div style="font-size: 13px; font-weight: 700; color: #1E2B37; margin-top: 2px;">Getaway Cleaning Service</div>
-            </div>
           </div>
         </body>
         </html>
@@ -308,8 +300,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'OTP sent successfully', otpEmailData: otpData });
     }
 
-    // 🔵 ส่วนการส่ง Sales Receipt PDF และส่งอีเมลยืนยันการชำระเงิน
+    // -------------------------------------------------------------
+    // 🔵 2. ระบบจัดการการจองและแจ้งเตือนทางอีเมล
+    // -------------------------------------------------------------
     const { 
+      action = 'confirm_payment',
       userId,
       email, 
       customerName, 
@@ -335,19 +330,255 @@ export async function POST(req: Request) {
     const validTime = cleanText(time, '-');
     const validPhone = cleanText(phone, '-');
     const validEmail = cleanText(email, '');
-    const validPaymentMethod = cleanText(paymentMethod, 'Bank Transfer / Card');
+    const validPaymentMethod = cleanText(paymentMethod, 'Cash on Service');
     const numAmount = parseFloat(String(amount || '').replace(/[^0-9.]/g, '') || '0.00');
     const formattedAmount = numAmount.toFixed(2);
 
+    // =========================================================================
+    // เคส A: action === 'acknowledge_quote'
+    // =========================================================================
+    if (action === 'acknowledge_quote') {
+      const acknowledgeHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
+            <div style="margin-bottom: 24px;">
+              <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
+            </div>
+
+            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+              We've Received Your Request!
+            </h1>
+            <p style="font-size: 14px; color: #374151; line-height: 1.6;">
+              Dear ${validCustomerName},<br>
+              Thank you for choosing Getaway Cleaning. We have received your custom cleaning request for booking <strong>${cleanRef}</strong>. Our team is currently reviewing your property details and calculating your price quotation.
+            </p>
+
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+              <div style="font-size: 13px; font-weight: 700; color: #0284c7; margin-bottom: 8px;">📋 Request Summary</div>
+              <div style="font-size: 13px; color: #4b5563; line-height: 1.8;">
+                <strong>Service:</strong> ${selectedProgram}<br>
+                <strong>Property / Address:</strong> ${validRoom}<br>
+                <strong>Requested Date:</strong> ${validDate}<br>
+                <strong>Requested Time:</strong> ${validTime}
+              </div>
+            </div>
+
+            <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+              <p style="font-size: 13px; color: #0369a1; margin: 0; line-height: 1.5;">
+                ℹ️ <strong>Status: Under Review.</strong> We will send you an official quotation via email as soon as the price evaluation is complete.
+              </p>
+            </div>
+
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+              Questions? Reach us at +357 96330400 or info@getaway-cleaning.com.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
+        to: [validEmail],
+        subject: `Request Received: #${cleanRef} (Under Price Review) - Getaway Cleaning`,
+        html: acknowledgeHtml,
+      });
+
+      if (emailError) {
+        console.error('Acknowledge Email Error:', emailError);
+        return NextResponse.json({ success: false, error: emailError }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'Acknowledge email sent', emailData });
+    }
+
+    // =========================================================================
+    // เคส B: action === 'send_quote'
+    // =========================================================================
+    if (action === 'send_quote') {
+      const quoteHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
+            <div style="margin-bottom: 24px;">
+              <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
+            </div>
+
+            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+              Your Price Quotation is Ready!
+            </h1>
+            <p style="font-size: 14px; color: #374151; line-height: 1.6;">
+              Dear ${validCustomerName},<br>
+              We have completed the price evaluation for your custom cleaning booking <strong>${cleanRef}</strong>. Here are the approved quote details:
+            </p>
+
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 6px; margin: 20px 0;">
+              <div style="font-size: 13px; color: #166534;">Estimated Total Amount</div>
+              <div style="font-size: 26px; font-weight: 800; color: #16a34a;">€ ${formattedAmount}</div>
+              <div style="font-size: 13px; color: #374151; margin-top: 12px; line-height: 1.8;">
+                <strong>Service:</strong> ${selectedProgram}<br>
+                <strong>Property / Address:</strong> ${validRoom}<br>
+                <strong>Scheduled Date:</strong> ${validDate}<br>
+                <strong>Scheduled Time:</strong> ${validTime}
+              </div>
+            </div>
+
+            <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+              <p style="font-size: 13px; color: #854d0e; margin: 0; line-height: 1.5;">
+                💵 You can pay this amount in cash directly to our cleaning crew upon arrival or complete via bank transfer. An official Sales Receipt will be issued once payment is received.
+              </p>
+            </div>
+
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+              Questions? Reach us at +357 96330400 or info@getaway-cleaning.com.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
+        to: [validEmail],
+        subject: `Price Quote Ready: #${cleanRef} (€${formattedAmount}) - Getaway Cleaning`,
+        html: quoteHtml,
+      });
+
+      if (emailError) {
+        console.error('Send Quote Email Error:', emailError);
+        return NextResponse.json({ success: false, error: emailError }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'Price quotation email sent', emailData });
+    }
+
+    // =========================================================================
+    // เคส C: action === 'confirm_order'
+    // =========================================================================
+    if (action === 'confirm_order') {
+      const orderConfirmedHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
+            <div style="margin-bottom: 24px;">
+              <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
+            </div>
+
+            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+              Booking Confirmed & Scheduled!
+            </h1>
+            <p style="font-size: 14px; color: #374151; line-height: 1.6;">
+              Dear ${validCustomerName},<br>
+              Our team has confirmed your booking schedule <strong>${cleanRef}</strong>. Our cleaning crew is scheduled to arrive at your property as details below:
+            </p>
+
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+              <div style="font-size: 13px; color: #6b7280;">Amount to Pay (Upon Arrival)</div>
+              <div style="font-size: 24px; font-weight: 800; color: #006AFF;">€ ${formattedAmount}</div>
+              <div style="font-size: 13px; color: #4b5563; margin-top: 12px; line-height: 1.8;">
+                <strong>Service:</strong> ${selectedProgram}<br>
+                <strong>Property / Address:</strong> ${validRoom}<br>
+                <strong>Date:</strong> ${validDate}<br>
+                <strong>Time:</strong> ${validTime}<br>
+                <strong>Payment Method:</strong> ${validPaymentMethod}
+              </div>
+            </div>
+
+            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+              <p style="font-size: 13px; color: #065f46; margin: 0; line-height: 1.5;">
+                💵 <strong>Payment Notice:</strong> Please prepare the exact cash amount of <strong>€${formattedAmount}</strong> to hand directly to our cleaning crew upon arrival. Once payment is received, an official Sales Receipt will be issued to your email.
+              </p>
+            </div>
+
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+              If you have any questions or need to reschedule, please contact us at +357 96330400 or info@getaway-cleaning.com.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: 'Getaway Cleaning <noreply@getaway-cleaning.com>',
+        to: [validEmail],
+        subject: `Booking Confirmed: #${cleanRef} - Getaway Cleaning`,
+        html: orderConfirmedHtml,
+      });
+
+      if (emailError) {
+        console.error('Order Confirmation Email Error:', emailError);
+        return NextResponse.json({ success: false, error: emailError }, { status: 400 });
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Booking confirmation order email sent successfully', 
+        emailData 
+      });
+    }
+
+    // =========================================================================
+    // เคส D: action === 'confirm_payment' (ใบเสร็จรับเงินจริง + แนบ PDF)
+    // =========================================================================
+    const today = new Date();
+    const receiptDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    let receiptNo = '';
+    let existingDetails: any = {};
+
+    try {
+      // ตรวจสอบข้อมูลปัจจุบันของการจองนี้
+      const { data: currentBooking } = await supabaseServer
+        .from('bookings')
+        .select('details')
+        .eq('booking_ref', cleanRef)
+        .maybeSingle();
+
+      if (currentBooking?.details) {
+        existingDetails = typeof currentBooking.details === 'string'
+          ? JSON.parse(currentBooking.details)
+          : currentBooking.details;
+      }
+
+      if (existingDetails.receipt_no) {
+        receiptNo = existingDetails.receipt_no;
+      } else {
+        // 🟢 นับเฉพาะบิลก่อนหน้าที่มีการจ่ายจริง โดยตัดตัวเองออก (.neq) ป้องกันนับซ้ำ
+        const { count, error: countError } = await supabaseServer
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'confirmed')
+          .gt('total_amount', 0)
+          .neq('booking_ref', cleanRef);
+
+        const previousCount = (!countError && count !== null) ? count : 0;
+        const nextReceiptNum = previousCount + 1;
+        receiptNo = `SR-${String(nextReceiptNum).padStart(5, '0')}`;
+      }
+    } catch (err) {
+      console.error('Error calculating receipt number:', err);
+      receiptNo = 'SR-00001';
+    }
+
     const bookingDetails = {
+      ...existingDetails,
       customer_name: validCustomerName,
       customer_email: validEmail,
       customer_phone: validPhone,
       payment_method: validPaymentMethod,
       payment_status: 'paid',
+      receipt_no: receiptNo,
+      receipt_date: receiptDate,
     };
 
-    // 1. บันทึก / อัปเดต รายการจองลง Supabase
+    // 1. บันทึก / อัปเดต รายการจองลง Supabase (พร้อมเก็บ receipt_no)
     const { error: dbError } = await supabaseServer
       .from('bookings')
       .upsert(
@@ -373,26 +604,7 @@ export async function POST(req: Request) {
       console.error('Failed to save/update booking in Supabase:', dbError);
     }
 
-    // 2. สร้าง PDF ใบเสร็จรับเงิน (รันเลขที่ใบเสร็จตั้งแต่ SR-00001 เป็นต้นไป)
-    const today = new Date();
-    const receiptDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-    let nextReceiptNum = 1;
-    try {
-      const { count, error: countError } = await supabaseServer
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'confirmed');
-
-      if (!countError && count !== null) {
-        nextReceiptNum = count > 0 ? count : 1;
-      }
-    } catch (err) {
-      console.error('Error fetching receipt count:', err);
-    }
-
-    const receiptNo = `SR-${String(nextReceiptNum).padStart(5, '0')}`;
-
+    // 2. สร้าง PDF ใบเสร็จรับเงิน
     const pdfBuffer = generatePdfBuffer({
       customerName: validCustomerName,
       program: selectedProgram,
@@ -405,7 +617,7 @@ export async function POST(req: Request) {
       price: formattedAmount
     });
 
-    // 3. ส่งอีเมลยืนยันการชำระเงิน + ใบเสร็จแนบไปให้ลูกค้า
+    // 3. ส่งอีเมลยืนยันการชำระเงิน + แนบไฟล์ PDF
     const customerEmailHtml = `
       <!DOCTYPE html>
       <html>
@@ -421,7 +633,7 @@ export async function POST(req: Request) {
           </h1>
           <p style="font-size: 14px; color: #374151; line-height: 1.6;">
             Dear ${validCustomerName},<br>
-            Your payment for booking <strong>${cleanRef}</strong> has been verified and confirmed by our team.
+            Your payment for booking <strong>${cleanRef}</strong> has been received and confirmed by our team.
           </p>
 
           <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
@@ -429,6 +641,7 @@ export async function POST(req: Request) {
             <div style="font-size: 24px; font-weight: 800; color: #111827;">€ ${formattedAmount}</div>
             <div style="font-size: 13px; color: #4b5563; margin-top: 8px;">
               <strong>Receipt No:</strong> ${receiptNo}<br>
+              <strong>Payment Method:</strong> ${validPaymentMethod}<br>
               <strong>Property:</strong> ${validRoom}<br>
               <strong>Date:</strong> ${validDate} @ ${validTime}
             </div>

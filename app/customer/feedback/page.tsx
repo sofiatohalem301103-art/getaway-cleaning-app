@@ -83,12 +83,11 @@ function FeedbackFormContent() {
     return { addressLine, cityArea, building, houseApt, mapsLink };
   };
 
-  // 🟢 ฟังก์ชันดึง Past Feedbacks ทั้งหมดที่เสถียรที่สุด 100%
+  // 🟢 ฟังก์ชันดึง Past Feedbacks ทั้งหมดที่เสถียรที่สุด 100%[cite: 17]
   const fetchPastFeedbacks = useCallback(async () => {
     try {
       setLoadingHistory(true);
 
-      // 1. ดึง Feedbacks ทั้งหมดก่อน
       const { data: rawFeedbacks, error: fbErr } = await supabase
         .from('feedbacks')
         .select('*')
@@ -99,7 +98,6 @@ function FeedbackFormContent() {
         return;
       }
 
-      // 2. ดึงข้อมูล Bookings ทั้งหมดมาทำ Map จับคู่
       const { data: rawBookings } = await supabase.from('bookings').select('*');
       const bookingMap: Record<string, any> = {};
 
@@ -110,7 +108,6 @@ function FeedbackFormContent() {
         });
       }
 
-      // 3. ประกอบข้อมูล
       const mapped = rawFeedbacks.map((fb: any) => {
         const matchedBooking = bookingMap[String(fb.booking_id)] || bookingMap[String(fb.booking_ref)] || {};
         let detailsObj = {};
@@ -137,7 +134,7 @@ function FeedbackFormContent() {
     }
   }, []);
 
-  // 🟢 โหลดข้อมูลการจองปัจจุบัน
+  // 🟢 โหลดข้อมูลการจองปัจจุบัน[cite: 17]
   useEffect(() => {
     const loadBookingData = async () => {
       let targetBooking: any = null;
@@ -205,7 +202,6 @@ function FeedbackFormContent() {
     loadBookingData();
   }, [urlBookingId, fetchPastFeedbacks]);
 
-  // 🟢 บันทึกข้อมูลแบบรองรับ Primary Key ป้องกันการพัง
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentBookingId) {
@@ -233,11 +229,9 @@ function FeedbackFormContent() {
         created_at: new Date().toISOString(),
       };
 
-      // บันทึกลงตาราง feedbacks
       const { error } = await supabase.from('feedbacks').insert([payload]);
 
       if (error) {
-        // หากติด Unique Constraint ล่าสุด ให้สั่ง Update แทน
         const { error: updateErr } = await supabase
           .from('feedbacks')
           .update({ rating, comment, created_at: new Date().toISOString() })
@@ -247,7 +241,7 @@ function FeedbackFormContent() {
       }
 
       setIsSubmitted(true);
-      await fetchPastFeedbacks(); // รีโหลดแสดงฝั่งขวาทันที
+      await fetchPastFeedbacks();
 
     } catch (err: any) {
       console.error('Submission error:', err);
@@ -268,7 +262,7 @@ function FeedbackFormContent() {
           <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             Service Feedback & Reviews
           </h1>
-          <p className="text-xs sm:text-sm text-[#8E9B9E]">Share your experience to help us improve</p>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">Share your experience to help us improve</p>
         </div>
 
         {/* Layout 2 คอลัมน์ */}
@@ -279,7 +273,7 @@ function FeedbackFormContent() {
             
             <div className="border-b border-[#E2E8F0] pb-3 space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider block">
+                <span className="text-[10px] font-semibold text-[#8E9B9E] uppercase tracking-wider block">
                   Booking Details
                 </span>
                 <span className="text-xs font-bold text-[#006AFF] bg-[#EAF3F9] px-2.5 py-0.5 rounded-lg">
@@ -293,21 +287,29 @@ function FeedbackFormContent() {
                   <span className="font-bold text-[#1E2B37] block">Location Details:</span>
                   
                   {bookingDetails.addressLine && (
-                    <p className="text-slate-700"><span className="text-slate-400">Address:</span> <strong className="text-slate-900">{bookingDetails.addressLine}</strong></p>
+                    <p className="text-slate-600 font-normal">
+                      <span className="text-slate-500 font-medium">Address:</span> <strong className="text-slate-900 font-bold">{bookingDetails.addressLine}</strong>
+                    </p>
                   )}
                   {bookingDetails.cityArea && (
-                    <p className="text-slate-700"><span className="text-slate-400">Area/City:</span> <strong className="text-slate-900">{bookingDetails.cityArea}</strong></p>
+                    <p className="text-slate-600 font-normal">
+                      <span className="text-slate-500 font-medium">Area/City:</span> <strong className="text-slate-900 font-bold">{bookingDetails.cityArea}</strong>
+                    </p>
                   )}
                   {bookingDetails.building && (
-                    <p className="text-slate-700"><span className="text-slate-400">Building:</span> <strong className="text-slate-900">{bookingDetails.building}</strong></p>
+                    <p className="text-slate-600 font-normal">
+                      <span className="text-slate-500 font-medium">Building:</span> <strong className="text-slate-900 font-bold">{bookingDetails.building}</strong>
+                    </p>
                   )}
                   {bookingDetails.houseApt && (
-                    <p className="text-slate-700"><span className="text-slate-400">Apt/House No:</span> <strong className="text-slate-900">{bookingDetails.houseApt}</strong></p>
+                    <p className="text-slate-600 font-normal">
+                      <span className="text-slate-500 font-medium">Apt/House No:</span> <strong className="text-slate-900 font-bold">{bookingDetails.houseApt}</strong>
+                    </p>
                   )}
                   
                   {bookingDetails.mapsLink && (
                     <p className="pt-1">
-                      <a href={bookingDetails.mapsLink} target="_blank" rel="noopener noreferrer" className="text-[#006AFF] underline font-bold text-[11px] touch-manipulation">
+                      <a href={bookingDetails.mapsLink} target="_blank" rel="noopener noreferrer" className="text-[#006AFF] underline font-semibold text-[11px] touch-manipulation hover:text-blue-700">
                         Open Location Link (Google Maps) ↗
                       </a>
                     </p>
@@ -316,13 +318,13 @@ function FeedbackFormContent() {
 
                 <div className="pt-2 border-t border-[#F1F5F9] space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-medium">Program:</span>
+                    <span className="text-slate-500 font-medium">Program:</span>
                     <span className="font-bold text-[#1E2B37]">{bookingDetails.program || '-'}</span>
                   </div>
                   {bookingDetails.time && (
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium">Time:</span>
-                      <span className="font-semibold text-slate-700">{bookingDetails.time}</span>
+                      <span className="text-slate-500 font-medium">Time:</span>
+                      <span className="font-bold text-slate-800">{bookingDetails.time}</span>
                     </div>
                   )}
                   {bookingDetails.specs && (
@@ -340,7 +342,7 @@ function FeedbackFormContent() {
                   ✓
                 </div>
                 <p className="text-xs font-bold text-[#1E2B37]">Feedback Submitted!</p>
-                <p className="text-[11px] text-[#8E9B9E]">
+                <p className="text-[11px] text-[#8E9B9E] font-normal">
                   Thank you for helping us improve our services.
                 </p>
                 <button
@@ -375,7 +377,7 @@ function FeedbackFormContent() {
                       );
                     })}
                   </div>
-                  <span className="text-[11px] font-semibold text-[#8E9B9E] h-4">
+                  <span className="text-[11px] font-medium text-[#8E9B9E] h-4">
                     {currentDisplayRating === 5
                       ? 'Excellent ✨'
                       : currentDisplayRating === 4
@@ -400,7 +402,7 @@ function FeedbackFormContent() {
                     placeholder="Tell us what you liked or how we can improve..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    className="w-full p-3 bg-white border border-[#E2E8F0] rounded-xl text-[12px] sm:text-xs font-medium text-[#1E2B37] placeholder:text-[12px] sm:placeholder:text-xs placeholder-[#8E9B9E] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition resize-none touch-manipulation"
+                    className="w-full p-3 bg-white border border-[#E2E8F0] rounded-xl text-[12px] sm:text-xs font-normal text-[#1E2B37] placeholder:text-[12px] sm:placeholder:text-xs placeholder-[#8E9B9E] focus:outline-none focus:border-[#006AFF] focus:ring-1 focus:ring-[#006AFF] transition resize-none touch-manipulation"
                   />
                 </div>
 
@@ -417,7 +419,7 @@ function FeedbackFormContent() {
                   <button
                     type="button"
                     onClick={() => router.push('/customer/history')}
-                    className="w-full py-2 min-h-[44px] text-xs font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer text-center block rounded-xl hover:bg-white active:scale-[0.98] touch-manipulation"
+                    className="w-full py-2 min-h-[44px] text-xs font-medium text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer text-center block rounded-xl hover:bg-white active:scale-[0.98] touch-manipulation"
                   >
                     ← Back to Bookings
                   </button>
@@ -430,7 +432,7 @@ function FeedbackFormContent() {
           <div className="md:col-span-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-3 min-h-[380px] flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
-                <span className="text-[10px] font-bold text-[#8E9B9E] uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-[#8E9B9E] uppercase tracking-wider">
                   Past Feedback History
                 </span>
                 <span className="text-[11px] font-bold text-[#006AFF] bg-[#EAF3F9] px-2 py-0.5 rounded-lg">
@@ -439,13 +441,13 @@ function FeedbackFormContent() {
               </div>
 
               {loadingHistory ? (
-                <div className="py-12 text-center text-xs text-[#8E9B9E]">
+                <div className="py-12 text-center text-xs text-[#8E9B9E] font-normal">
                   Loading feedback history...
                 </div>
               ) : pastFeedbacks.length === 0 ? (
                 <div className="py-12 text-center text-xs text-[#8E9B9E] space-y-1">
-                  <p className="font-semibold text-[#1E2B37]">No past feedback found.</p>
-                  <p className="text-[11px]">Your submitted reviews will appear here.</p>
+                  <p className="font-bold text-[#1E2B37]">No past feedback found.</p>
+                  <p className="text-[11px] font-normal">Your submitted reviews will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
@@ -475,24 +477,24 @@ function FeedbackFormContent() {
 
                         {fullLocStr && (
                           <div className="text-[10px] text-slate-600 bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0] space-y-0.5">
-                            <p className="font-bold text-slate-800">Location:</p>
-                            <p className="leading-snug">{fullLocStr}</p>
+                            <p className="font-semibold text-slate-800">Location:</p>
+                            <p className="leading-snug font-normal">{fullLocStr}</p>
                           </div>
                         )}
 
                         {item.comment && (
-                          <p className="text-[#1E2B37] font-medium leading-tight text-[11px] italic bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0]">
+                          <p className="text-slate-800 font-normal leading-relaxed text-[11px] italic bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0]">
                             "{item.comment}"
                           </p>
                         )}
 
                         {item.admin_reply && (
-                          <div className="text-[11px] text-blue-700 bg-blue-50 p-2 rounded-lg border border-blue-100 font-medium">
-                            <strong>Our Reply:</strong> {item.admin_reply}
+                          <div className="text-[11px] text-blue-900 bg-blue-50 p-2 rounded-lg border border-blue-100 font-normal leading-relaxed">
+                            <strong className="font-bold text-blue-700">Admin Reply:</strong> {item.admin_reply}
                           </div>
                         )}
 
-                        <p className="text-[10px] text-[#8E9B9E] text-right">
+                        <p className="text-[10px] text-[#8E9B9E] font-normal text-right">
                           {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                         </p>
                       </div>
@@ -506,7 +508,7 @@ function FeedbackFormContent() {
         </div>
 
         {/* Footer */}
-        <p className="text-[11px] text-[#94A3B8] font-medium text-center pt-2">
+        <p className="text-[11px] text-[#94A3B8] font-normal text-center pt-2">
           © Getaway Cleaning Service
         </p>
       </div>
