@@ -358,6 +358,8 @@ const groupBookingsByDate = (taskList: any[]) => {
 // 3. Components (Analytics, FeedbackCard, TaskCard, Modal)
 // ----------------------------------------------------------------------
 function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
+  const [showStats, setShowStats] = useState(true);
+
   const validScores = feedbacks.map((f) => {
     const raw = f.rating !== undefined && f.rating !== null ? f.rating : f.rating_score;
     return Number(raw) || 0;
@@ -377,87 +379,91 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
   const positiveRate = total > 0 ? Math.round((positiveCount / total) * 100) : 0;
 
   let statusColor = 'text-amber-600 bg-amber-50 border-amber-200';
-  let statusText = 'Stable Performance';
+  let statusText = 'Stable';
   let statusIcon = '➔';
 
   if (numAvg >= 4.5) {
     statusColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-    statusText = 'Excellent (High Satisfaction)';
+    statusText = 'Excellent';
     statusIcon = '▲';
   } else if (numAvg < 3.8 && total > 0) {
     statusColor = 'text-rose-700 bg-rose-50 border-rose-200';
-    statusText = 'Needs Attention (Review Dropping)';
+    statusText = 'Attention';
     statusIcon = '▼';
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#8E9B9E]">
-            RATING PERFORMANCE ANALYTICS
+    <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-xs space-y-2 mb-3">
+      {/* Header ย่อพร้อมปุ่มซ่อน/แสดง */}
+      <div className="flex justify-between items-center pb-1 border-b border-slate-100">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
+            REVIEW ANALYTICS
           </span>
-          <span className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${statusColor}`}>
+          <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-0.5 ${statusColor}`}>
             <span>{statusIcon}</span> {statusText}
           </span>
         </div>
-
-        <div className="flex items-baseline gap-3 pt-1">
-          <div className="text-3xl sm:text-4xl font-black text-[#1E2B37] tracking-tight">
-            ★ {avgRating}
-          </div>
-          <div className="text-xs text-[#8E9B9E] font-normal">
-            out of <strong className="text-[#1E2B37] font-bold">5.0</strong> ({total} total reviews)
-          </div>
-        </div>
-
-        <div className="space-y-1.5 pt-2 border-t border-[#F1F5F9]">
-          <div className="flex justify-between text-xs font-medium">
-            <span className="text-[#475569]">Satisfaction Rate (4-5 ★)</span>
-            <span className="text-[#006AFF] font-bold">{positiveRate}%</span>
-          </div>
-          <div className="w-full h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#006AFF] rounded-full transition-all duration-500"
-              style={{ width: `${positiveRate}%` }}
-            />
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowStats(!showStats)}
+          className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
+        >
+          {showStats ? 'Hide ▲' : 'Show ▼'}
+        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-2xs space-y-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#8E9B9E] block">
-          STAR DISTRIBUTION
-        </span>
-
-        <div className="space-y-1.5">
-          {[5, 4, 3, 2, 1].map((star) => {
-            const count = distribution[star as 1|2|3|4|5];
-            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-
-            return (
-              <div key={star} className="flex items-center gap-2 text-xs">
-                <span className="w-8 font-semibold text-[#1E2B37] text-right shrink-0">
-                  {star} ★
+      {showStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 pt-1">
+          {/* ซีกซ้าย: ตัวเลขสรุปคะแนน */}
+          <div className="flex sm:flex-col justify-between sm:justify-center items-center sm:items-start p-2.5 sm:p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  ★ {avgRating}
                 </span>
-
-                <div className="flex-1 h-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      star >= 4 ? 'bg-[#008800]' : star === 3 ? 'bg-amber-400' : 'bg-rose-500'
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-
-                <span className="w-12 text-[#8E9B9E] font-normal text-right shrink-0">
-                  {count} ({pct}%)
-                </span>
+                <span className="text-[10px] text-slate-400 font-normal">/ 5.0</span>
               </div>
-            );
-          })}
+              <p className="text-[10px] text-slate-500">
+                {total} total reviews
+              </p>
+            </div>
+            
+            <div className="text-right sm:text-left sm:w-full sm:pt-2 sm:border-t sm:border-slate-200/60 mt-1">
+              <span className="text-[10px] text-slate-500 block">Satisfaction: <strong className="text-[#006AFF] font-bold">{positiveRate}%</strong></span>
+            </div>
+          </div>
+
+          {/* ซีกขวา: กราฟแท่ง 5 ดาวแบบแถวบาง */}
+          <div className="space-y-1 p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-100 justify-center flex flex-col">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = distribution[star as 1|2|3|4|5];
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+
+              return (
+                <div key={star} className="flex items-center gap-1.5 text-[10px] leading-none">
+                  <span className="w-5 font-semibold text-slate-700 text-right shrink-0">
+                    {star}★
+                  </span>
+
+                  <div className="flex-1 h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        star >= 4 ? 'bg-emerald-600' : star === 3 ? 'bg-amber-400' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+
+                  <span className="w-8 text-[9px] text-slate-400 font-normal text-right shrink-0">
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -663,29 +669,29 @@ function TaskCard({
   const cardKeyId = task.id || task.booking_id || task.booking_ref;
 
   return (
-    <div className="p-4 sm:p-5 rounded-xl border shadow-xs space-y-4 text-xs bg-white border-slate-200 text-slate-800">
+    <div className="p-3.5 sm:p-5 rounded-xl border shadow-xs space-y-3.5 sm:space-y-4 text-xs bg-white border-slate-200 text-slate-800">
       
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex justify-between items-start sm:items-center border-b border-slate-100 pb-2.5 sm:pb-3 gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <span className="font-bold text-xs sm:text-sm text-slate-900">
             {formatRefCode(task)}
           </span>
 
           {isPrivateService && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-200">
-              PRIVATE / CUSTOM (QUOTATION REQUIRED)
+            <span className="text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-200">
+              QUOTATION REQUIRED
             </span>
           )}
 
           {isAdminTask && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200">
-              Admin Direct Task
+            <span className="text-[9px] sm:text-[10px] font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200">
+              Admin Direct
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <span className="text-[10px] sm:text-xs font-normal text-slate-500">
             {formatDateDisplay(task.scheduled_date)} | {task.scheduled_time || '-'}
           </span>
@@ -693,25 +699,25 @@ function TaskCard({
             onClick={() => handleDeleteTask(cardKeyId)}
             className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] transition cursor-pointer font-semibold text-slate-400 hover:text-red-600"
           >
-            Delete
+            ✕
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Main Details */}
-        <div className="md:col-span-2 space-y-3">
+        <div className="md:col-span-2 space-y-2.5 sm:space-y-3">
           <div>
             {/* ชื่องาน: เด่นที่สุด */}
             <p className="font-bold text-sm sm:text-base text-slate-900 leading-snug">
               {displayProgram}
             </p>
-            <p className="text-slate-600 mt-1.5 leading-relaxed font-normal">
+            <p className="text-slate-600 mt-1 leading-relaxed font-normal text-xs">
               Customer: <strong className="font-bold text-slate-900">{displayCustomerName}</strong>
             </p>
           </div>
 
-          <div className="space-y-1.5 text-slate-600 leading-relaxed font-normal">
+          <div className="space-y-1 sm:space-y-1.5 text-slate-600 leading-relaxed font-normal">
             {displayEmail && displayEmail !== '-' && (
               <p className="text-xs">
                 Email: <span className="font-medium text-slate-900">{displayEmail}</span>
@@ -743,7 +749,7 @@ function TaskCard({
             )}
 
             {mapsLink && (
-              <p className="pt-1">
+              <p className="pt-0.5">
                 <a
                   href={mapsLink}
                   target="_blank"
@@ -757,63 +763,63 @@ function TaskCard({
           </div>
 
           {isPrivateService && hasServiceSpecs && (
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 mt-3">
-              <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider block">
-                📋 SERVICE SPECS & DETAILS (FOR QUOTATION):
+            <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200 space-y-1.5 mt-2">
+              <span className="font-bold text-[9px] sm:text-[10px] text-slate-600 uppercase tracking-wider block">
+                📋 SERVICE SPECS (FOR QUOTATION):
               </span>
-              <div className="flex flex-wrap gap-2 text-[11px]">
+              <div className="flex flex-wrap gap-1.5 text-[10px] sm:text-[11px]">
                 {propertyType && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
-                    Property Type: <strong className="text-slate-900 font-bold capitalize">{propertyType}</strong>
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
+                    Property: <strong className="text-slate-900 font-bold capitalize">{propertyType}</strong>
                   </span>
                 )}
                 {rawBedrooms !== undefined && rawBedrooms !== null && String(rawBedrooms) !== '' && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
-                    Bedrooms: <strong className="text-slate-900 font-bold">{rawBedrooms} {typeof rawBedrooms === 'number' || !isNaN(Number(rawBedrooms)) ? 'Unit' : ''}</strong>
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
+                    Bedrooms: <strong className="text-slate-900 font-bold">{rawBedrooms}</strong>
                   </span>
                 )}
                 {rawBathrooms !== undefined && rawBathrooms !== null && String(rawBathrooms) !== '' && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
                     Bathrooms: <strong className="text-slate-900 font-bold">{rawBathrooms}</strong>
                   </span>
                 )}
                 {rawBalconies !== undefined && rawBalconies !== null && String(rawBalconies) !== '' && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
                     Balconies: <strong className="text-slate-900 font-bold">{rawBalconies}</strong>
                   </span>
                 )}
                 {officeSqm && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
                     Area: <strong className="text-slate-900 font-bold">{officeSqm} m²</strong>
                   </span>
                 )}
                 {officeToilets && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
                     Toilets: <strong className="text-slate-900 font-bold">{officeToilets}</strong>
                   </span>
                 )}
                 {gardenSqm && (
-                  <span className="bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-600 font-normal">
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
                     Garden: <strong className="text-slate-900 font-bold">{gardenSqm} m²</strong>
                   </span>
                 )}
               </div>
 
               {gardenOtherDetails && (
-                <p className="text-[11px] text-amber-900 bg-amber-50 p-2.5 rounded border border-amber-200 leading-relaxed font-normal">
-                  <strong className="font-bold">Special Note:</strong> {gardenOtherDetails}
+                <p className="text-[10px] sm:text-[11px] text-amber-900 bg-amber-50 p-2 rounded border border-amber-200 leading-relaxed font-normal">
+                  <strong className="font-bold">Note:</strong> {gardenOtherDetails}
                 </p>
               )}
             </div>
           )}
 
           {/* Amount & Method Badge */}
-          <div className="pt-2 flex items-center gap-2">
+          <div className="pt-1.5 flex items-center gap-2">
             <p className="text-xs sm:text-sm text-slate-600 font-normal">
               Amount: <strong className="font-bold text-slate-900">{amountVal > 0 ? `€${amountVal}` : 'Pending Price Quote'}</strong>
             </p>
             {isCash && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
+              <span className="text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
                 💵 Cash on Service
               </span>
             )}
@@ -823,17 +829,17 @@ function TaskCard({
         {/* Payment Proof Column */}
         <div className="border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-4 flex flex-col justify-between border-slate-200">
           <div>
-            <span className="font-bold text-[10px] uppercase tracking-wider block mb-2 text-slate-500">
-              PAYMENT PROOF:
+            <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider block mb-1.5 text-slate-500">
+              PAYMENT STATUS & PROOF:
             </span>
 
             {slipUrl ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <a
                   href={slipUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block relative w-24 h-32 rounded-lg border-2 border-blue-300 overflow-hidden hover:opacity-90 transition shadow-2xs bg-slate-50"
+                  className="block relative w-20 sm:w-24 h-28 sm:h-32 rounded-lg border-2 border-blue-300 overflow-hidden hover:opacity-90 transition shadow-2xs bg-slate-50"
                 >
                   <img
                     src={slipUrl}
@@ -846,36 +852,36 @@ function TaskCard({
                 </a>
               </div>
             ) : isPrivateService && amountVal <= 0 ? (
-              <div className="p-2.5 rounded-lg text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 shadow-2xs">
+              <div className="p-2 sm:p-2.5 rounded-lg text-[10px] sm:text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 shadow-2xs">
                 <span>📋 Awaiting Price Quote</span>
               </div>
             ) : isPrivateService && details.quote_sent && !isPaid ? (
-              <div className="p-2.5 rounded-lg text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs space-y-1">
+              <div className="p-2 sm:p-2.5 rounded-lg text-[10px] sm:text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold">
                   <span>📨</span>
                   <span>Quotation Sent (€{amountVal})</span>
                 </div>
-                <p className="text-[10px] text-emerald-600 font-normal">Awaiting customer payment</p>
+                <p className="text-[9px] sm:text-[10px] text-emerald-600 font-normal">Awaiting customer payment</p>
               </div>
             ) : isCard ? (
-              <span className="font-semibold px-2.5 py-1 rounded text-[10px] border inline-block bg-blue-50 text-blue-700 border-blue-200">
+              <span className="font-semibold px-2 py-0.5 rounded text-[10px] border inline-block bg-blue-50 text-blue-700 border-blue-200">
                 Paid via Credit Card
               </span>
             ) : isCash ? (
-              <div className="p-2.5 rounded-lg text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+              <div className="p-2 rounded-lg text-[10px] sm:text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200 flex items-center gap-1.5 shadow-2xs">
                 <span>💵</span>
-                <span>Cash on Arrival (Pay to staff)</span>
+                <span>Cash on Arrival</span>
               </div>
             ) : (
-              <div className="p-2 rounded text-[10px] font-normal border bg-amber-50 text-amber-900 border-amber-200">
+              <div className="p-1.5 sm:p-2 rounded text-[10px] font-normal border bg-amber-50 text-amber-900 border-amber-200">
                 No slip uploaded
               </div>
             )}
           </div>
 
-          <div className="pt-3 flex flex-col items-start md:items-end gap-1.5">
+          <div className="pt-2 sm:pt-3 flex flex-col items-start md:items-end gap-1.5">
             {isPaid ? (
-              <span className="text-[10px] font-bold px-3 py-1.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
                 ✓ Paid Verified
               </span>
             ) : isPrivateService && amountVal <= 0 ? (
@@ -883,7 +889,7 @@ function TaskCard({
                 <button
                   onClick={() => handleAcknowledgeQuote(task)}
                   disabled={isLoading}
-                  className="text-[10px] sm:text-[11px] font-bold px-3.5 py-1.5 rounded bg-sky-600 hover:bg-sky-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-sky-700 disabled:opacity-50"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-sky-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Processing...' : 'Acknowledge Request'}
                 </button>
@@ -891,24 +897,24 @@ function TaskCard({
                 <button
                   onClick={() => handleSetPriceAndQuote(task)}
                   disabled={isLoading}
-                  className="text-[10px] sm:text-[11px] font-bold px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-amber-700 disabled:opacity-50"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-amber-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Processing...' : 'Set Price & Send Quote'}
                 </button>
               )
             ) : isPrivateService && details.quote_sent && !isPaid ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <button
                   onClick={() => handleSetPriceAndQuote(task)}
                   disabled={isLoading}
-                  className="text-[10px] font-medium px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
+                  className="text-[10px] font-medium px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
                 >
-                  Edit Quote
+                  Edit
                 </button>
                 <button
                   onClick={() => handleConfirmPayment(task)}
                   disabled={isLoading}
-                  className="text-[10px] sm:text-[11px] font-bold px-3.5 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
+                  className="flex-1 sm:flex-none text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
                 >
                   {isLoading ? 'Processing...' : `Confirm Paid (€${amountVal})`}
                 </button>
@@ -918,15 +924,15 @@ function TaskCard({
                 <button
                   onClick={() => handleConfirmOrder(task)}
                   disabled={isLoading}
-                  className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#006AFF] hover:bg-blue-700 text-white border-blue-700"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#006AFF] hover:bg-blue-700 text-white border-blue-700"
                 >
-                  {isLoading ? 'Processing...' : 'Confirm Order (Accept Booking)'}
+                  {isLoading ? 'Processing...' : 'Confirm Order'}
                 </button>
               ) : (
                 <button
                   onClick={() => handleConfirmPayment(task)}
                   disabled={isLoading}
-                  className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800"
                 >
                   {isLoading ? 'Processing...' : 'Confirm Cash Received'}
                 </button>
@@ -935,7 +941,7 @@ function TaskCard({
               <button
                 onClick={() => handleConfirmPayment(task)}
                 disabled={isLoading}
-                className="text-[10px] sm:text-[11px] font-bold px-3.5 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
+                className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
               >
                 {isLoading ? 'Processing...' : 'Confirm Payment'}
               </button>
@@ -945,15 +951,15 @@ function TaskCard({
       </div>
 
       {/* Staff Assignment */}
-      <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <span className="font-normal whitespace-nowrap text-slate-500">Assigned:</span>
+      <div className="pt-2.5 sm:pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="font-normal whitespace-nowrap text-slate-500 text-[11px] sm:text-xs">Assigned:</span>
 
           <select
             value={activeStaffChoice}
             onChange={(e) => handleSelectStaffLocal(cardKeyId, e.target.value)}
             disabled={isLoading}
-            className="flex-1 sm:flex-none border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal focus:outline-none cursor-pointer bg-white text-slate-800"
+            className="flex-1 sm:flex-none border border-slate-200 rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer bg-white text-slate-800"
           >
             <option value="">Select Staff...</option>
             {STAFF_LIST.map((staff) => (
@@ -967,18 +973,18 @@ function TaskCard({
             type="button"
             onClick={() => handleDispatchTask(task, activeStaffChoice)}
             disabled={!hasSelectedStaff || isLoading || (!isChangedStaff && Boolean(currentAssigned))}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60 ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60 ${
               !hasSelectedStaff || (!isChangedStaff && Boolean(currentAssigned))
                 ? 'bg-slate-200 text-slate-400 border-slate-300'
                 : 'bg-[#006AFF] text-white border-blue-700 hover:bg-blue-700'
             }`}
           >
-            {isLoading ? 'Processing...' : !isChangedStaff && currentAssigned ? 'Assigned' : 'Assign'}
+            {isLoading ? '...' : !isChangedStaff && currentAssigned ? 'Assigned' : 'Assign'}
           </button>
         </div>
 
         {currentAssigned && (
-          <span className="font-medium text-[11px] text-right flex items-center gap-1 px-3 py-1 rounded-md border bg-slate-50 text-slate-700 border-slate-200">
+          <span className="font-medium text-[10px] sm:text-[11px] self-start sm:self-auto flex items-center gap-1 px-2.5 py-0.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200">
             ✓ Assigned to <strong className="font-bold text-slate-900">{currentAssigned}</strong>
           </span>
         )}
@@ -1061,7 +1067,7 @@ function AssignHolidayTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto font-sans">
-      <div className="bg-white rounded-[24px] max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
+      <div className="bg-white rounded-[24px] max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[#1E2B37]">Assign Holiday Task</h2>
@@ -1070,23 +1076,23 @@ function AssignHolidayTaskModal({
           <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition text-base font-bold cursor-pointer">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Property Unit</label>
-            <select value={selectedProperty} onChange={(e) => setSelectedProperty(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={selectedProperty} onChange={(e) => setSelectedProperty(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
               {HOLIDAY_PROPERTIES.map((prop) => (<option key={prop} value={prop}>{prop}</option>))}
             </select>
           </div>
 
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Program</label>
-            <select value={programName} onChange={(e) => setProgramName(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={programName} onChange={(e) => setProgramName(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
               <option value="General cleaning">General cleaning</option>
               <option value="Turnover cleaning">Turnover cleaning</option>
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 w-full">
             <div className="space-y-1 text-left">
               <label className="text-xs font-semibold text-[#1E2B37]">Scheduled Date</label>
               <input 
@@ -1094,12 +1100,12 @@ function AssignHolidayTaskModal({
                 value={scheduledDate} 
                 onChange={(e) => setScheduledDate(e.target.value)} 
                 required 
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-normal text-[#1E2B37]" 
+                className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]" 
               />
             </div>
             <div className="space-y-1 text-left">
               <label className="text-xs font-semibold text-[#1E2B37]">Working Time</label>
-              <select value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-[#1E2B37]">
+              <select value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-bold text-[#1E2B37]">
                 {HOLIDAY_TIME_SLOTS.map((time) => (<option key={time} value={time}>{formatTimeAMPM(time)}</option>))}
               </select>
             </div>
@@ -1107,14 +1113,14 @@ function AssignHolidayTaskModal({
 
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Assign Staff</label>
-            <select value={assignedStaff} onChange={(e) => setAssignedStaff(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={assignedStaff} onChange={(e) => setAssignedStaff(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
               {STAFF_LIST.map((staff) => (<option key={staff.id} value={staff.name}>{staff.name}</option>))}
             </select>
           </div>
 
-          <div className="flex flex-col sm:flex-row-reverse items-center gap-2 pt-3 border-t border-slate-100">
-            <button type="submit" disabled={loading} className="w-full sm:w-2/3 py-2.5 bg-[#0F172A] text-white font-bold rounded-2xl text-xs transition cursor-pointer">{loading ? 'Saving...' : 'Confirm Task Assignment'}</button>
-            <button type="button" onClick={onClose} disabled={loading} className="w-full sm:w-1/3 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-2xl text-xs transition cursor-pointer">Cancel</button>
+          <div className="flex flex-col sm:flex-row-reverse items-center gap-2 pt-2 sm:pt-3 border-t border-slate-100">
+            <button type="submit" disabled={loading} className="w-full sm:w-2/3 py-2.5 bg-[#0F172A] text-white font-bold rounded-xl sm:rounded-2xl text-xs transition cursor-pointer">{loading ? 'Saving...' : 'Confirm Task Assignment'}</button>
+            <button type="button" onClick={onClose} disabled={loading} className="w-full sm:w-1/3 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl sm:rounded-2xl text-xs transition cursor-pointer">Cancel</button>
           </div>
         </form>
       </div>
@@ -1134,6 +1140,7 @@ function AdminDashboardContent() {
   const [adminUser, setAdminUser] = useState<string>('Sam');
   const [selectedStaffMap, setSelectedStaffMap] = useState<{ [key: string]: string }>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [showOverview, setShowOverview] = useState(true);
 
   const todayStr = getLocalToday();
 
@@ -1768,19 +1775,19 @@ function AdminDashboardContent() {
 
     if (sortedDates.length === 0) {
       return (
-        <div className="border border-slate-200 rounded-2xl p-12 text-center text-xs text-slate-400 bg-white font-normal">
+        <div className="border border-slate-200 rounded-2xl p-8 sm:p-12 text-center text-xs text-slate-400 bg-white font-normal shadow-xs">
           No tasks found.
         </div>
       );
     }
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {sortedDates.map((dateKey) => (
-          <div key={dateKey} className="space-y-3">
-            <div className="flex items-center gap-3 my-3">
+          <div key={dateKey} className="space-y-2.5 sm:space-y-3">
+            <div className="flex items-center gap-2 sm:gap-3 my-2">
               <div className="h-[1px] flex-1 bg-slate-200"></div>
-              <div className="bg-slate-100 border border-slate-300 text-slate-700 font-bold px-3.5 py-1 rounded-xl text-xs shadow-2xs">
+              <div className="bg-slate-100 border border-slate-300 text-slate-700 font-bold px-3 py-0.5 sm:py-1 rounded-xl text-[11px] sm:text-xs shadow-2xs">
                  📅 {formatDateDisplay(dateKey)}
               </div>
               <div className="h-[1px] flex-1 bg-slate-200"></div>
@@ -1811,33 +1818,59 @@ function AdminDashboardContent() {
   };
 
   return (
-    <div className="min-h-screen p-2 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900">
-      <div className="max-w-7xl mx-auto space-y-4">
+    <div className="min-h-screen p-2.5 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900">
+      <div className="max-w-7xl mx-auto space-y-2.5 sm:space-y-4">
         
-        <div className="text-xs font-semibold pl-1 text-slate-400 uppercase tracking-wider">
+        {/* Section Header Tag (ซ่อนบนมือถือเพื่อประหยัดพื้นที่) */}
+        <div className="hidden sm:block text-xs font-semibold pl-1 text-slate-400 uppercase tracking-wider">
           Admin Dashboard
         </div>
 
-        {/* Header Box */}
-        <div className="rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-3 bg-white">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* 1. Header Box (บนมือถือจัดเป็นคอมแพ็กต์ 1-2 แถว / บนคอมคงเดิม) */}
+        <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-3 sm:p-5 bg-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
             <div>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Getaway Admin Dashboard</h1>
-              <p className="text-xs font-normal text-slate-500 mt-0.5">Task Management & Dispatch System (Realtime)</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-xl font-bold tracking-tight text-slate-900">
+                  Admin Dashboard
+                </h1>
+                <div className="sm:hidden flex items-center border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] bg-slate-50 text-slate-600">
+                  <select
+                    value={adminUser}
+                    onChange={(e) => handleAdminChange(e.target.value)}
+                    className="bg-transparent focus:outline-none text-[10px] cursor-pointer font-bold text-slate-900"
+                  >
+                    {ADMIN_LIST.map((adm) => (<option key={adm} value={adm}>{adm}</option>))}
+                  </select>
+                </div>
+              </div>
+              <p className="hidden sm:block text-xs font-normal text-slate-500 mt-0.5">
+                Task Management & Dispatch System (Realtime)
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsAssignModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#006AFF] hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer transition shadow-xs"
-            >
-              <span className="text-base font-black leading-none">+</span>
-              Assign Holiday Task
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsAssignModalOpen(true)}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#006AFF] hover:bg-blue-700 text-white font-bold rounded-lg sm:rounded-xl text-xs sm:text-sm cursor-pointer transition shadow-xs"
+              >
+                <span className="text-sm sm:text-base font-black leading-none">+</span>
+                Assign Holiday Task
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 rounded-lg sm:rounded-xl text-white bg-rose-600 hover:bg-rose-700 cursor-pointer transition shadow-xs shrink-0"
+              >
+                Logout
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1 border-t border-slate-100">
-            <div className="flex items-center border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs bg-slate-50 text-slate-600">
+          <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3 pt-2 border-t border-slate-100 mt-3">
+            <div className="flex items-center border border-slate-200 rounded-xl px-2.5 py-1 text-xs bg-slate-50 text-slate-600">
               <span className="font-normal">Admin:</span>
               <select
                 value={adminUser}
@@ -1847,60 +1880,88 @@ function AdminDashboardContent() {
                 {ADMIN_LIST.map((adm) => (<option key={adm} value={adm}>{adm}</option>))}
               </select>
             </div>
+          </div>
+        </div>
 
+        {/* 2. SYSTEM OVERVIEW (ย่อส่วนล่างบนมือถือพร้อมปุ่ม Toggle พับเก็บ) */}
+        <div className="rounded-xl border border-slate-200 shadow-xs p-2 sm:p-3 bg-white">
+          <div className="flex justify-between items-center pb-1">
+            <h2 className="text-[10px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span>STAFF OVERVIEW</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            </h2>
             <button
               type="button"
-              onClick={handleLogout}
-              className="font-bold text-xs px-3.5 py-1.5 rounded-xl text-white bg-rose-600 hover:bg-rose-700 cursor-pointer transition shadow-xs"
+              onClick={() => setShowOverview(!showOverview)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
             >
-              Logout
+              {showOverview ? 'Hide ▲' : 'Show ▼'}
             </button>
           </div>
+
+          {showOverview && (
+            <>
+              {/* แถบสรุปบนมือถือ 5 ช่องเรียงกะทัดรัด (Mobile Compact Grid) */}
+              <div className="grid grid-cols-5 gap-1 sm:hidden pt-1 text-center">
+                {STAFF_LIST.map((staff) => {
+                  const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
+                  return (
+                    <div 
+                      key={staff.id} 
+                      className="border border-slate-200 rounded-lg py-1 px-0.5 bg-slate-50 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="font-bold text-[10px] text-slate-900 truncate">{staff.id}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full inline-block ${staffData.isBusy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-600'}`} />
+                      </div>
+                      <div className="text-[9px] text-slate-500 leading-none">
+                        Done: <strong className="text-slate-900 font-bold">{staffData.count}</strong>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* การ์ดเต็มรูปแบบบน Desktop */}
+              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2 pt-1.5">
+                {STAFF_LIST.map((staff) => {
+                  const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
+                  return (
+                    <div 
+                      key={staff.id} 
+                      className="border border-slate-200 rounded-lg p-2 space-y-1 bg-slate-50"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-xs text-slate-900 truncate">
+                          {staff.name}
+                        </span>
+                        <span className={`w-2 h-2 rounded-full inline-block ${staffData.isBusy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-600'}`} />
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-1 flex justify-between items-center text-[10px]">
+                        <span className={`font-semibold ${staffData.isBusy ? 'text-amber-600' : 'text-emerald-700'}`}>
+                          {staffData.isBusy ? 'In Progress' : 'Available'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[10px] text-slate-500">
+                        <span className="font-normal">Done :</span>
+                        <span className="font-bold text-slate-900">{staffData.count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* SYSTEM OVERVIEW */}
-        <div className="rounded-xl border border-slate-200 shadow-xs p-3 space-y-2 bg-white">
-          <h2 className="text-[11px] sm:text-xs font-bold text-slate-800 uppercase tracking-wider">
-            SYSTEM OVERVIEW
-          </h2>
-
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2">
-            {STAFF_LIST.map((staff) => {
-              const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
-              return (
-                <div 
-                  key={staff.id} 
-                  className="border border-slate-200 rounded-lg p-2 space-y-1 bg-slate-50"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[11px] sm:text-xs text-slate-900 truncate">
-                      {staff.name}
-                    </span>
-                    <span className={`w-2 h-2 rounded-full inline-block ${staffData.isBusy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-600'}`} />
-                  </div>
-
-                  <div className="border-t border-slate-200 pt-1 flex justify-between items-center text-[9px] sm:text-[10px]">
-                    <span className={`font-semibold ${staffData.isBusy ? 'text-amber-600' : 'text-emerald-700'}`}>
-                      {staffData.isBusy ? 'In Progress' : 'Available'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[9px] sm:text-[10px] text-slate-500">
-                    <span className="font-normal">Done :</span>
-                    <span className="font-bold text-slate-900">{staffData.count}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="rounded-2xl border border-slate-200 shadow-xs p-2.5 sm:p-3 bg-white">
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+        {/* 3. Navigation Tabs (ขยับขึ้นมาเด่นด้านบนทันที) */}
+        <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-1.5 sm:p-3 bg-white">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2">
             <button
               onClick={() => setActiveTab('history')}
-              className={`py-1.5 px-2 rounded-xl border text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
                 activeTab === 'history'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -1911,7 +1972,7 @@ function AdminDashboardContent() {
 
             <button
               onClick={() => setActiveTab('today')}
-              className={`py-1.5 px-2 rounded-xl border text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
                 activeTab === 'today'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -1922,7 +1983,7 @@ function AdminDashboardContent() {
 
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`py-1.5 px-2 rounded-xl border text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
                 activeTab === 'upcoming'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -1933,7 +1994,7 @@ function AdminDashboardContent() {
 
             <button
               onClick={() => setActiveTab('feedback')}
-              className={`py-1.5 px-2 rounded-xl border text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
                 activeTab === 'feedback'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -1944,13 +2005,13 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="space-y-4">
+        {/* 4. Tab Content Area */}
+        <div className="space-y-3 sm:space-y-4">
           {activeTab === 'history' && renderGroupedTasks(historyTasks)}
           {activeTab === 'today' && renderGroupedTasks(todayTasks)}
           {activeTab === 'upcoming' && renderGroupedTasks(upcomingTasks)}
           {activeTab === 'feedback' && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <AdminReviewAnalytics feedbacks={feedbacks} />
               {feedbacks.map((fb) => (
                 <FeedbackCard key={fb.id} feedback={fb} isLoading={loadingId === fb.id} onReply={handleReplyFeedback} />
