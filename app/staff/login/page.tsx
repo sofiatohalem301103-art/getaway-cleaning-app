@@ -64,10 +64,10 @@ export default function StaffLoginPage() {
   };
 
   return (
-    <main className="w-full min-h-screen flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation">
+    <main className="w-full min-h-[100dvh] flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation overflow-x-hidden">
       
-      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ */}
-      <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-screen bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
+      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์และ iPad แนวนอน */}
+      <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-[100dvh] bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
         
         {/* Soft Background Accent Lights */}
         <div className="absolute top-0 left-1/4 w-[30rem] h-[30rem] bg-white/60 rounded-full blur-3xl pointer-events-none" />
@@ -113,24 +113,24 @@ export default function StaffLoginPage() {
       </div>
 
       {/* 🔵 ฝั่งขวา: ฟอร์ม Staff Login */}
-      <div className="w-full md:w-1/2 lg:w-5/12 min-h-screen bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-6 lg:p-10 xl:p-12 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto">
+      <div className="w-full md:w-1/2 lg:w-5/12 min-h-[100dvh] bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-4 sm:p-6 lg:p-10 xl:p-12 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto box-border">
         
         {/* Top Mobile Badge */}
         <div className="w-full flex justify-center pt-1 md:pt-0">
-          <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-4 py-1.5 rounded-full shadow-xs">
+          <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-3.5 py-1 rounded-full shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[#2C7A39] animate-pulse" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-[#1E3A5F]">
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-[#1E3A5F]">
               Getaway Staff Portal
             </span>
           </div>
         </div>
 
         {/* Center Login Form Block */}
-        <div className="w-full max-w-md my-auto py-4">
+        <div className="w-full max-w-md my-auto py-3 sm:py-4">
           
           {/* Header Section */}
           <div className="w-full text-center">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
+            <h2 className="text-xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
               Staff Log In
             </h2>
             <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1 font-medium">
@@ -139,16 +139,16 @@ export default function StaffLoginPage() {
           </div>
 
           {/* Form Section */}
-          <div className="w-full my-5">
+          <div className="w-full my-4 sm:my-5">
             {errorMessage && (
-              <div className="w-full bg-[#EF8B8D]/20 border border-[#C94A4E]/60 text-[#C94A4E] text-xs py-2.5 px-4 rounded-2xl mb-4 text-center font-bold shadow-xs">
+              <div className="w-full bg-[#EF8B8D]/20 border border-[#C94A4E]/60 text-[#C94A4E] text-xs py-2 sm:py-2.5 px-3.5 sm:px-4 rounded-xl sm:rounded-2xl mb-3.5 sm:mb-4 text-center font-bold shadow-xs break-words">
                 {errorMessage}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="w-full space-y-4">
+            <form onSubmit={handleSubmit} className="w-full space-y-3 sm:space-y-4">
               
-              {/* Staff ID */}
+              {/* Staff ID: ปรับ text-base บนมือถือเพื่อกัน Auto-Zoom */}
               <div className="text-left">
                 <label className="block text-xs font-bold text-[#1E2B37] mb-1">
                   Staff ID
@@ -160,11 +160,11 @@ export default function StaffLoginPage() {
                   placeholder="GW-S1"
                   value={staffId}
                   onChange={handleStaffIdChange}
-                  className="w-full px-4 py-3 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition uppercase"
+                  className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 border border-[#1E2B37]/30 rounded-xl sm:rounded-2xl text-base md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition uppercase shadow-2xs"
                 />
               </div>
 
-              {/* Password */}
+              {/* Password: ปรับ text-base บนมือถือเพื่อกัน Auto-Zoom */}
               <div className="text-left">
                 <label className="block text-xs font-bold text-[#1E2B37] mb-1">
                   Password
@@ -176,27 +176,27 @@ export default function StaffLoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={handlePasswordChange}
-                    className="w-full px-4 py-3 pr-11 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+                    className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 pr-11 border border-[#1E2B37]/30 rounded-xl sm:rounded-2xl text-base md:text-sm bg-white text-[#1E2B37] font-medium placeholder-[#1E1E1E]/30 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition shadow-2xs"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 text-[#1E1E1E]/40 hover:text-[#1E2B37] p-1 cursor-pointer transition-colors"
+                    className="absolute right-3 text-[#1E1E1E]/40 hover:text-[#1E2B37] p-1.5 cursor-pointer transition-colors"
                   >
                     {showPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                     ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.018 10.018 0 014.222-1.063c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" /></svg>
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.018 10.018 0 014.222-1.063c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" /></svg>
                     )}
                   </button>
                 </div>
               </div>
 
               {/* Submit Button */}
-              <div className="pt-2">
+              <div className="pt-1.5 sm:pt-2">
                 <button
                   type="submit"
-                  className="w-full min-h-[48px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-3 rounded-2xl text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none"
+                  className="w-full min-h-[46px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none touch-manipulation"
                 >
                   Log In
                 </button>
@@ -208,7 +208,7 @@ export default function StaffLoginPage() {
           <div className="w-full text-center">
             <Link 
               href="/admin" 
-              className="text-xs text-[#1E2B37]/70 hover:text-[#2563EB] underline font-semibold transition"
+              className="text-xs text-[#1E2B37]/70 hover:text-[#2563EB] underline font-semibold transition touch-manipulation inline-block py-1"
             >
               ← Back to Select Role
             </Link>
@@ -217,9 +217,9 @@ export default function StaffLoginPage() {
         </div>
 
         {/* Bottom Footer */}
-        <div className="w-full text-center pt-2 border-t border-slate-200/60 md:border-slate-100 max-w-md">
-          <p className="text-[11px] text-slate-400 font-medium">
-            © Getaway Cleaning Service — Staff Only
+        <div className="w-full text-center pt-2 border-t border-slate-200/60 md:border-slate-100 max-w-md shrink-0">
+          <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
+            © {new Date().getFullYear()} Getaway Cleaning Service — Staff Only
           </p>
         </div>
 

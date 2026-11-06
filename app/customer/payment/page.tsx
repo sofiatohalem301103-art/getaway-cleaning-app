@@ -23,7 +23,7 @@ function CashIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-function CopyIcon({ className = "w-4 h-4" }: { className?: string }) {
+function CopyIcon({ className = "w-3.5 h-3.5 sm:w-4 sm:h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v2.25A2.25 2.25 0 0113.5 21.75h-7.5A2.25 2.25 0 013.75 19.5V9.75A2.25 2.25 0 016 7.5h2.25m4.5 0H18a2.25 2.25 0 012.25 2.25v9.75A2.25 2.25 0 0118 21.75h-2.25m-4.5 0v-9.75A2.25 2.25 0 0113.5 9.75h4.5" />
@@ -325,59 +325,59 @@ function PaymentContent() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      <div className="w-full text-center space-y-1">
-        <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37]">Payment</h1>
+    <div className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-6">
+      <div className="w-full text-center space-y-0.5 sm:space-y-1">
+        <h1 className="text-lg sm:text-2xl font-bold text-[#1E2B37]">Payment</h1>
         <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">Complete your payment details to confirm booking</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
         {/* Left Column: Booking Summary & Payment Methods */}
-        <div className="lg:col-span-5 space-y-5">
-          <div className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl space-y-3">
-            <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Booking Summary</span>
-              <span className="text-[11px] font-medium px-2.5 py-0.5 bg-white border border-[#E2E8F0] text-slate-600 rounded-full">Overview</span>
+        <div className="lg:col-span-5 space-y-4 sm:space-y-5">
+          <div className="p-3.5 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl space-y-2.5 sm:space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Booking Summary</span>
+              <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 bg-white border border-[#E2E8F0] text-slate-600 rounded-full">Overview</span>
             </div>
             {apartment && (
               <div className="space-y-0.5">
-                <span className="text-xs font-medium text-slate-500">Property</span>
-                <p className="text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{apartment}</p>
+                <span className="text-[11px] sm:text-xs font-medium text-slate-500">Property</span>
+                <p className="text-xs sm:text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{apartment}</p>
               </div>
             )}
             <div className="space-y-0.5 pt-0.5">
-              <span className="text-xs font-medium text-slate-500">Service Program</span>
-              <p className="text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{program}</p>
+              <span className="text-[11px] sm:text-xs font-medium text-slate-500">Service Program</span>
+              <p className="text-xs sm:text-sm font-bold text-[#1E2B37] leading-relaxed break-words">{program}</p>
             </div>
-            <div className="flex justify-between items-center text-sm pt-2 border-t border-[#E2E8F0]">
+            <div className="flex justify-between items-center text-xs sm:text-sm pt-2 border-t border-[#E2E8F0]">
               <span className="text-slate-500 font-medium text-xs sm:text-sm">Selected Unit</span>
-              <span className="px-2.5 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">{room} Bedroom(s)</span>
+              <span className="px-2 py-0.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-bold text-[#1E2B37]">{room} Bedroom(s)</span>
             </div>
             <div className="pt-1">
-              <div className="flex justify-between items-center p-3.5 bg-[#EAF3F9] border border-[#BAE6FD] rounded-xl text-[#1E2B37]">
+              <div className="flex justify-between items-center p-3 sm:p-3.5 bg-[#EAF3F9] border border-[#BAE6FD] rounded-xl text-[#1E2B37]">
                 <span className="text-xs sm:text-sm font-semibold text-[#006AFF]">Total Price</span>
-                <span className="text-xl sm:text-2xl font-black tracking-tight text-[#006AFF]">€{formattedPrice}</span>
+                <span className="text-lg sm:text-2xl font-black tracking-tight text-[#006AFF]">€{formattedPrice}</span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2.5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Payment Method</p>
-            <div className="grid grid-cols-1 gap-2.5">
+          <div className="space-y-2">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Payment Method</p>
+            <div className="grid grid-cols-1 gap-2 sm:gap-2.5">
               {/* Option 1: Bank Transfer */}
               <label
                 onClick={() => setPaymentMethod('bank')}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
+                className={`flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
                   paymentMethod === 'bank' ? 'border-[#006AFF] bg-[#EAF3F9] text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
                 }`}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2.5 sm:space-x-3">
                   <div className={`p-2 rounded-lg ${paymentMethod === 'bank' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
                     <BankIcon />
                   </div>
                   <div>
-                    <p className={`text-sm ${paymentMethod === 'bank' ? 'font-bold' : 'font-semibold'}`}>Bank Transfer</p>
-                    <p className="text-xs text-[#64748B] font-normal">Direct wire or mobile banking</p>
+                    <p className={`text-xs sm:text-sm ${paymentMethod === 'bank' ? 'font-bold' : 'font-semibold'}`}>Bank Transfer</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B] font-normal">Direct wire or mobile banking</p>
                   </div>
                 </div>
                 <input type="radio" checked={paymentMethod === 'bank'} onChange={() => setPaymentMethod('bank')} className="w-4 h-4 text-[#006AFF]" />
@@ -386,17 +386,17 @@ function PaymentContent() {
               {/* Option 2: Cash Payment */}
               <label
                 onClick={() => setPaymentMethod('cash')}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
+                className={`flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
                   paymentMethod === 'cash' ? 'border-[#006AFF] bg-[#EAF3F9] text-[#006AFF]' : 'border-[#E2E8F0] bg-white text-[#1E2B37]'
                 }`}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2.5 sm:space-x-3">
                   <div className={`p-2 rounded-lg ${paymentMethod === 'cash' ? 'bg-[#006AFF] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
                     <CashIcon />
                   </div>
                   <div>
-                    <p className={`text-sm ${paymentMethod === 'cash' ? 'font-bold' : 'font-semibold'}`}>Cash on Service</p>
-                    <p className="text-xs text-[#64748B] font-normal">Pay directly to staff on arrival</p>
+                    <p className={`text-xs sm:text-sm ${paymentMethod === 'cash' ? 'font-bold' : 'font-semibold'}`}>Cash on Service</p>
+                    <p className="text-[10px] sm:text-xs text-[#64748B] font-normal">Pay directly to staff on arrival</p>
                   </div>
                 </div>
                 <input type="radio" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} className="w-4 h-4 text-[#006AFF]" />
@@ -406,43 +406,43 @@ function PaymentContent() {
         </div>
 
         {/* Right Column: Bank Details OR Cash Info */}
-        <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-5">
+        <div className="lg:col-span-7 h-full flex flex-col justify-between space-y-4 sm:space-y-5">
           {paymentMethod === 'bank' ? (
-            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bank Transfer Information</p>
+            <div className="p-3.5 sm:p-5 bg-[#F8FAFC] rounded-xl sm:rounded-2xl border border-[#E2E8F0] space-y-3 sm:space-y-4">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Bank Transfer Information</p>
               
-              <div className="p-4 bg-white rounded-xl border border-[#E2E8F0] space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+              <div className="p-3 sm:p-4 bg-white rounded-xl border border-[#E2E8F0] space-y-2.5 sm:space-y-3 shadow-2xs">
                 <div>
-                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Bank Name</p>
-                  <p className="text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.bankName}</p>
+                  <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Bank Name</p>
+                  <p className="text-xs sm:text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.bankName}</p>
                 </div>
 
-                <div className="pt-2.5 border-t border-[#F1F5F9]">
-                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account Name</p>
-                  <p className="text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.accountName}</p>
+                <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9]">
+                  <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account Name</p>
+                  <p className="text-xs sm:text-sm font-bold text-[#1E2B37] mt-0.5">{bankDetails.accountName}</p>
                 </div>
 
                 {/* Account Number */}
-                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account No.</p>
-                    <p className="text-base font-mono font-bold text-[#0F172A] tracking-wider tabular-nums mt-0.5 select-all">
+                <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Account No.</p>
+                    <p className="text-sm sm:text-base font-mono font-bold text-[#0F172A] tracking-wider tabular-nums mt-0.5 select-all truncate">
                       {bankDetails.accountNo}
                     </p>
                   </div>
                   <button 
                     type="button" 
                     onClick={() => handleCopy(bankDetails.accountNo, 'accountNo')} 
-                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-[11px] sm:text-xs font-semibold text-[#1E2B37] flex items-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0"
                   >
                     <CopyIcon /> {copiedField === 'accountNo' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
                 {/* IBAN */}
-                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-3">
+                <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">IBAN</p>
+                    <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">IBAN</p>
                     <p className="text-xs sm:text-sm font-mono font-bold text-[#0F172A] tracking-wider tabular-nums break-all mt-0.5 select-all">
                       {bankDetails.iban.replace(/(.{4})/g, '$1 ').trim()}
                     </p>
@@ -450,24 +450,24 @@ function PaymentContent() {
                   <button 
                     type="button" 
                     onClick={() => handleCopy(bankDetails.iban, 'iban')} 
-                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-[11px] sm:text-xs font-semibold text-[#1E2B37] flex items-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0"
                   >
                     <CopyIcon /> {copiedField === 'iban' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
                 {/* BIC / SWIFT */}
-                <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between">
+                <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">BIC / SWIFT</p>
-                    <p className="text-sm font-mono font-bold text-[#1E2B37] tracking-widest mt-0.5 select-all">
+                    <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">BIC / SWIFT</p>
+                    <p className="text-xs sm:text-sm font-mono font-bold text-[#1E2B37] tracking-widest mt-0.5 select-all">
                       {bankDetails.bic}
                     </p>
                   </div>
                   <button 
                     type="button" 
                     onClick={() => handleCopy(bankDetails.bic, 'bic')} 
-                    className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-xs font-semibold text-[#1E2B37] flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 rounded-lg text-[11px] sm:text-xs font-semibold text-[#1E2B37] flex items-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0"
                   >
                     <CopyIcon /> {copiedField === 'bic' ? 'Copied!' : 'Copy'}
                   </button>
@@ -476,14 +476,14 @@ function PaymentContent() {
 
               {/* Upload Payment Slip */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#1E2B37]">Upload Payment Slip <span className="text-red-500">*</span></label>
-                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-4 text-center bg-white cursor-pointer transition-colors">
+                <label className="text-[11px] sm:text-xs font-semibold text-[#1E2B37]">Upload Payment Slip <span className="text-red-500">*</span></label>
+                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#006AFF] rounded-xl p-3 sm:p-4 text-center bg-white cursor-pointer transition-colors">
                   <input type="file" accept="image/*,.pdf" onChange={handleSlipChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base" />
                   <div className="flex flex-col items-center space-y-1">
-                    <div className="p-2 bg-[#F1F5F9] rounded-full text-[#006AFF]">
+                    <div className="p-1.5 sm:p-2 bg-[#F1F5F9] rounded-full text-[#006AFF]">
                       <UploadIcon />
                     </div>
-                    <p className="text-xs font-bold text-[#1E2B37]">{slipFile ? slipFile.name : 'Click to upload payment slip'}</p>
+                    <p className="text-xs font-bold text-[#1E2B37] break-all px-2">{slipFile ? slipFile.name : 'Click to upload payment slip'}</p>
                     <p className="text-[10px] text-slate-400 font-normal">PNG, JPG or PDF up to 5MB</p>
                   </div>
                 </div>
@@ -491,45 +491,45 @@ function PaymentContent() {
             </div>
           ) : (
             /* Cash Payment Information Box */
-            <div className="p-4 sm:p-5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cash Payment Instructions</p>
+            <div className="p-3.5 sm:p-5 bg-[#F8FAFC] rounded-xl sm:rounded-2xl border border-[#E2E8F0] space-y-3 sm:space-y-4">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Cash Payment Instructions</p>
               
-              <div className="p-5 bg-white rounded-xl border border-[#E2E8F0] space-y-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-                <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800">
-                  <span className="text-xl">💵</span>
+              <div className="p-4 sm:p-5 bg-white rounded-xl border border-[#E2E8F0] space-y-3 sm:space-y-4 shadow-2xs">
+                <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800">
+                  <span className="text-lg sm:text-xl shrink-0">💵</span>
                   <div>
                     <p className="text-xs font-bold">Pay upon arrival</p>
-                    <p className="text-[11px] text-emerald-700 font-normal">Please prepare exact cash to give directly to our cleaning crew.</p>
+                    <p className="text-[10px] sm:text-[11px] text-emerald-700 font-normal leading-relaxed">Please prepare exact cash to give directly to our cleaning crew.</p>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-xs leading-relaxed">
-                  <div className="flex justify-between py-1.5 border-b border-[#F1F5F9]">
-                    <span className="font-medium text-slate-500">Total Amount Due:</span>
-                    <span className="font-bold text-[#1E2B37] text-sm">€{formattedPrice}</span>
+                <div className="space-y-1.5 text-xs leading-relaxed">
+                  <div className="flex justify-between py-1 border-b border-[#F1F5F9]">
+                    <span className="font-medium text-slate-500 text-[11px] sm:text-xs">Total Amount Due:</span>
+                    <span className="font-bold text-[#1E2B37] text-xs sm:text-sm">€{formattedPrice}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#F1F5F9]">
-                    <span className="font-medium text-slate-500">Payment Timing:</span>
-                    <span className="font-bold text-[#1E2B37]">Before or right after service starts</span>
+                  <div className="flex justify-between py-1 border-b border-[#F1F5F9]">
+                    <span className="font-medium text-slate-500 text-[11px] sm:text-xs">Payment Timing:</span>
+                    <span className="font-bold text-[#1E2B37] text-[11px] sm:text-xs">Before or right after service starts</span>
                   </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-slate-500">Receipt:</span>
-                    <span className="font-bold text-[#1E2B37]">Issued via email automatically</span>
+                  <div className="flex justify-between py-1">
+                    <span className="font-medium text-slate-500 text-[11px] sm:text-xs">Receipt:</span>
+                    <span className="font-bold text-[#1E2B37] text-[11px] sm:text-xs">Issued via email automatically</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-lg text-[11px] text-slate-500 font-normal">
+                <div className="p-2.5 sm:p-3 bg-slate-50 rounded-lg text-[10px] sm:text-[11px] text-slate-500 font-normal">
                   ℹ️ Click <strong className="font-semibold text-slate-700">Continue</strong> to confirm your booking date & time. Our team will bring your service confirmation.
                 </div>
               </div>
             </div>
           )}
 
-          <div className="w-full pt-2 flex items-center gap-3">
-            <button type="button" disabled={isUploading} onClick={() => router.back()} className="w-1/3 py-3.5 bg-white hover:bg-slate-50 border border-[#E2E8F0] font-bold rounded-xl text-sm transition cursor-pointer">
+          <div className="w-full pt-1 sm:pt-2 flex items-center gap-2.5 sm:gap-3">
+            <button type="button" disabled={isUploading} onClick={() => router.back()} className="w-1/3 py-3 sm:py-3.5 bg-white hover:bg-slate-50 border border-[#E2E8F0] font-bold rounded-xl text-xs sm:text-sm transition cursor-pointer active:scale-98">
               ← Back
             </button>
-            <button type="button" disabled={isUploading} onClick={handleContinue} className="w-2/3 py-3.5 bg-[#006AFF] hover:bg-[#0057D3] text-white font-bold rounded-xl text-sm disabled:opacity-50 transition cursor-pointer shadow-sm">
+            <button type="button" disabled={isUploading} onClick={handleContinue} className="w-2/3 py-3 sm:py-3.5 bg-[#006AFF] hover:bg-[#0057D3] text-white font-bold rounded-xl text-xs sm:text-sm disabled:opacity-50 transition cursor-pointer shadow-sm active:scale-98">
               {isUploading ? 'Confirming Booking...' : 'Continue'}
             </button>
           </div>
@@ -541,7 +541,7 @@ function PaymentContent() {
 
 export default function PaymentPage() {
   return (
-    <main className="min-h-screen w-full bg-white py-4 sm:py-8 px-4 sm:px-6">
+    <main className="min-h-screen w-full bg-white py-3 sm:py-8 px-3.5 sm:px-6 overflow-x-hidden">
       <Suspense fallback={<div className="text-sm text-[#64748B] p-8 text-center font-normal">Loading payment page...</div>}>
         <PaymentContent />
       </Suspense>

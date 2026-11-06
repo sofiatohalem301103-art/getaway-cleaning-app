@@ -308,18 +308,19 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   return (
     <>
       <header className="w-full bg-white border-b border-[#E2E8F0] shadow-xs sticky top-0 z-40">
-        <div className="w-full px-4 sm:px-8 sm:px-12 h-20 sm:h-28 flex justify-between items-center">
+        <div className="w-full px-3.5 sm:px-8 md:px-12 h-16 sm:h-20 md:h-24 flex justify-between items-center">
           
+          {/* Logo Brand */}
           <div className="flex items-center h-full py-1">
             <img 
               src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
               alt="Getaway Cleaning Logo" 
-              className="h-16 sm:h-24 w-auto object-contain transition-all cursor-pointer hover:scale-[1.02]"
+              className="h-12 sm:h-16 md:h-20 w-auto object-contain transition-all cursor-pointer hover:scale-[1.02]"
               onClick={() => router.push('/customer/booking')}
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
             <h1 className="hidden md:block text-sm sm:text-base font-semibold text-[#8E9B9E] shrink-0">
               {title}
             </h1>
@@ -329,23 +330,23 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#0F172A] hover:text-[#0082CD] transition-colors cursor-pointer py-1"
+                  className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-bold text-[#0F172A] hover:text-[#0082CD] transition-colors cursor-pointer py-1"
                 >
-                  <span className="underline decoration-2 underline-offset-4 truncate max-w-[120px] sm:max-w-none">
+                  <span className="underline decoration-2 underline-offset-4 truncate max-w-[100px] sm:max-w-none">
                     {profileName || 'Profile'}
                   </span>
-                  <span className="text-[10px]">▼</span>
+                  <span className="text-[9px] sm:text-[10px]">▼</span>
                 </button>
 
                 {isProfileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-52 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 sm:py-2 z-50">
                     <button
                       type="button"
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition cursor-pointer"
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition cursor-pointer"
                     >
                       Profile & Settings
                     </button>
@@ -358,7 +359,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                         setIsProfileDropdownOpen(false);
                         router.push('/customer/history');
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#0082CD] transition flex items-center gap-2 cursor-pointer"
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#0082CD] transition flex items-center gap-2 cursor-pointer"
                     >
                       <span>History</span>
                     </button>
@@ -369,7 +370,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                         setIsProfileDropdownOpen(false);
                         router.push('/customer/feedback');
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#0082CD] transition flex items-center gap-2 cursor-pointer"
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#0082CD] transition flex items-center gap-2 cursor-pointer"
                     >
                       <span>Feedback</span>
                     </button>
@@ -379,7 +380,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold text-rose-500 hover:bg-rose-50 transition flex items-center justify-between cursor-pointer"
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-rose-500 hover:bg-rose-50 transition flex items-center justify-between cursor-pointer"
                     >
                       <span>Log out</span>
                     </button>
@@ -405,52 +406,52 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         </div>
       </header>
 
-      {/* MODAL PROFILE */}
+      {/* MODAL PROFILE: ปรับขนาดฟอนต์ 16px บนมือถือเพื่อกัน Auto-Zoom และรองรับจอเล็ก */}
       {isProfileModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-8 max-h-[90dvh] overflow-y-auto my-auto box-border">
+            <div className="flex justify-between items-center mb-5 sm:mb-6">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-[#0F172A]">Profile Details</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Edit your personal details & preferences</p>
+                <h3 className="text-base sm:text-xl font-bold text-[#0F172A]">Profile Details</h3>
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Edit your personal details & preferences</p>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsProfileModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer text-base font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveProfile} className="space-y-3.5 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">First Name</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">First Name</label>
                   <input
                     type="text"
                     required
                     placeholder="John"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Last Name</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Last Name</label>
                   <input
                     type="text"
                     required
                     placeholder="Doe"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Email Address</label>
                 <input
                   type="email"
                   required
@@ -458,7 +459,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                   placeholder="john@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-base sm:text-sm font-medium transition ${
+                  className={`w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-xl text-base sm:text-sm font-medium transition ${
                     user?.email 
                       ? 'bg-slate-100 text-slate-500 cursor-not-allowed' 
                       : 'bg-slate-50 focus:bg-white focus:border-[#0082CD]'
@@ -467,13 +468,13 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
-                <div className="flex gap-2">
-                  <div className="w-[110px] shrink-0">
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
+                <div className="flex gap-1.5 sm:gap-2">
+                  <div className="w-[100px] sm:w-[110px] shrink-0">
                     <select
                       value={formData.countryCode}
                       onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                      className="w-full px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition appearance-none cursor-pointer text-slate-700"
+                      className="w-full px-2 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition cursor-pointer text-slate-700"
                     >
                       {COUNTRY_CODES.map((c, index) => (
                         <option key={`${c.code}-${index}`} value={c.code}>
@@ -485,43 +486,43 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                   </div>
 
                   {formData.countryCode === 'OTHER' && (
-                    <div className="w-[85px] shrink-0">
+                    <div className="w-[75px] sm:w-[85px] shrink-0">
                       <input
                         type="text"
                         required
                         placeholder="+000"
                         value={formData.customCode}
                         onChange={handleCustomCodeChange}
-                        className="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition text-center"
+                        className="w-full px-2 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition text-center"
                       />
                     </div>
                   )}
 
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <input
                       type="tel"
                       required
                       placeholder="99 123 456"
                       value={formData.phoneNumber}
                       onChange={handlePhoneChange}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                      className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex gap-2.5 sm:gap-3 pt-2 sm:pt-3">
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(false)}
-                  className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition cursor-pointer"
+                  className="w-1/2 py-2.5 sm:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-1/2 py-3 bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-sm rounded-xl transition shadow-sm cursor-pointer disabled:opacity-50"
+                  className="w-1/2 py-2.5 sm:py-3 bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {loading ? 'Saving...' : 'Save Profile'}
                 </button>

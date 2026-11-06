@@ -409,6 +409,7 @@ export default function StaffDashboardPage() {
   const renderTaskCard = (task: any) => {
     const st = String(task.status || '').toLowerCase();
     const isInProgress = st === 'in_progress' || st === 'in progress';
+    const isCompleted = st === 'completed' || st === 'done';
     const isProcessing = loadingId === task.id;
 
     let details: Record<string, any> = {};
@@ -470,12 +471,12 @@ export default function StaffDashboardPage() {
     const taskRefCode = formatRefCode(task.booking_code || task.booking_ref, task.id);
 
     return (
-      <div key={task.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4 text-xs">
+      <div key={task.id} className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-5 space-y-3 sm:space-y-4 text-xs">
         
         {/* ID & Status Badge Header */}
-        <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3">
+        <div className="flex justify-between items-start gap-2 border-b border-slate-100 pb-2.5 sm:pb-3">
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-[10px] font-bold tracking-wider uppercase text-[#006AFF] bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                 REF-{taskRefCode}
               </span>
@@ -487,16 +488,19 @@ export default function StaffDashboardPage() {
               )}
             </div>
 
-            {/* ชื่องาน: เด่นที่สุดในส่วนหัว */}
-            <h3 className="text-sm sm:text-base font-bold text-slate-900 mt-1.5">
+            <h3 className="text-xs sm:text-base font-bold text-slate-900 mt-1.5 break-words">
               {displayProgram}
             </h3>
           </div>
 
-          <span className={`text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
-            isInProgress ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+          <span className={`text-[9px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full border shrink-0 ${
+            isCompleted
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : isInProgress
+              ? 'bg-amber-50 text-amber-700 border-amber-200'
+              : 'bg-slate-100 text-slate-600 border-slate-200'
           }`}>
-            {isInProgress ? 'In Progress' : 'Assigned'}
+            {isCompleted ? 'Completed' : isInProgress ? 'In Progress' : 'Assigned'}
           </span>
         </div>
 
@@ -507,7 +511,7 @@ export default function StaffDashboardPage() {
           </span>
           
           <div className="space-y-1 pl-2 border-l-2 border-[#006AFF] text-xs">
-            <p className="text-slate-600 font-normal">
+            <p className="text-slate-600 font-normal break-words">
               Guest: <strong className="text-slate-900 font-bold">{guestName}</strong>
               {customerPhone && (
                 <span className="ml-1.5 font-normal">
@@ -521,16 +525,16 @@ export default function StaffDashboardPage() {
             </p>
 
             {houseApt && (
-              <p className="text-slate-600 font-normal">Apt/House No: <strong className="text-slate-900 font-bold">{houseApt}</strong></p>
+              <p className="text-slate-600 font-normal break-words">Apt/House No: <strong className="text-slate-900 font-bold">{houseApt}</strong></p>
             )}
             {building && (
-              <p className="text-slate-600 font-normal">Building/Complex: <strong className="text-slate-900 font-bold">{building}</strong></p>
+              <p className="text-slate-600 font-normal break-words">Building/Complex: <strong className="text-slate-900 font-bold">{building}</strong></p>
             )}
             {addressLine && (
-              <p className="text-slate-600 font-normal">Address: <strong className="text-slate-900 font-bold">{addressLine}</strong></p>
+              <p className="text-slate-600 font-normal break-words">Address: <strong className="text-slate-900 font-bold">{addressLine}</strong></p>
             )}
             {cityArea && (
-              <p className="text-slate-600 font-normal">Area/City: <strong className="text-slate-900 font-bold">{cityArea}</strong></p>
+              <p className="text-slate-600 font-normal break-words">Area/City: <strong className="text-slate-900 font-bold">{cityArea}</strong></p>
             )}
           </div>
 
@@ -540,7 +544,7 @@ export default function StaffDashboardPage() {
                 href={mapsLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-bold text-[#006AFF] bg-blue-50 hover:bg-[#006AFF] hover:text-white px-2.5 py-1 rounded-lg text-[11px] transition"
+                className="inline-flex items-center gap-1 font-bold text-[#006AFF] bg-blue-50 hover:bg-[#006AFF] hover:text-white px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] transition break-all"
               >
                 Open Location Link (Google Maps) ↗
               </a>
@@ -557,53 +561,58 @@ export default function StaffDashboardPage() {
 
             <div className="flex flex-wrap gap-1.5 text-xs">
               {propertyType && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Property: <strong className="text-slate-900 font-semibold capitalize">{propertyType}</strong>
                 </div>
               )}
               {bedrooms !== undefined && bedrooms !== null && bedrooms !== '' && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Bedrooms: <strong className="text-slate-900 font-semibold">{bedrooms}</strong>
                 </div>
               )}
               {bathrooms !== undefined && bathrooms !== null && bathrooms !== '' && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Bathrooms: <strong className="text-slate-900 font-semibold">{bathrooms}</strong>
                 </div>
               )}
               {balconies !== undefined && balconies !== null && balconies !== '' && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Balconies: <strong className="text-slate-900 font-semibold">{balconies}</strong>
                 </div>
               )}
               {officeSqm && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Area: <strong className="text-slate-900 font-semibold">{officeSqm} m²</strong>
                 </div>
               )}
               {gardenSqm && (
-                <div className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[11px]">
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
                   Garden: <strong className="text-slate-900 font-semibold">{gardenSqm} m²</strong>
                 </div>
               )}
             </div>
 
             {gardenOtherDetails && (
-              <div className="text-xs text-slate-900 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/60 mt-1">
+              <div className="text-xs text-slate-900 bg-amber-50/70 p-2 sm:p-2.5 rounded-xl border border-amber-200/60 mt-1 break-words">
                 <span className="font-bold text-amber-800">Note:</span> <span className="font-normal">{gardenOtherDetails}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Action Button */}
-        <div className="pt-2 flex justify-end border-t border-slate-100">
-          {!isInProgress ? (
+        {/* Action Button: เช็กสถานะ completed เพื่อไม่ให้แสดงปุ่ม Start Job ซ้ำ */}
+        <div className="pt-1.5 sm:pt-2 flex justify-end border-t border-slate-100">
+          {isCompleted ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
+              Completed ✓
+            </span>
+          ) : !isInProgress ? (
             <button
               type="button"
               onClick={() => handleUpdateStatus(task.id, 'In Progress')}
               disabled={isProcessing}
-              className="w-full sm:w-auto font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer bg-[#006AFF] hover:bg-blue-700 text-white shadow-xs disabled:opacity-50 active:scale-98"
+              className="w-full sm:w-auto font-bold text-xs px-5 py-2.5 min-h-[44px] rounded-xl transition cursor-pointer bg-[#006AFF] hover:bg-blue-700 text-white shadow-xs disabled:opacity-50 active:scale-98 touch-manipulation flex items-center justify-center"
             >
               {isProcessing ? 'Updating...' : 'Start Job'}
             </button>
@@ -612,7 +621,7 @@ export default function StaffDashboardPage() {
               type="button"
               onClick={() => handleUpdateStatus(task.id, 'Completed')}
               disabled={isProcessing}
-              className="w-full sm:w-auto font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs disabled:opacity-50 active:scale-98"
+              className="w-full sm:w-auto font-bold text-xs px-5 py-2.5 min-h-[44px] rounded-xl transition cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs disabled:opacity-50 active:scale-98 touch-manipulation flex items-center justify-center"
             >
               {isProcessing ? 'Updating...' : 'Complete Job'}
             </button>
@@ -655,15 +664,15 @@ export default function StaffDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen p-2.5 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900">
+    <div className="min-h-screen p-2.5 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-2.5 sm:space-y-4">
         
-        {/* Section Header Tag (ซ่อนบนจอมือถือเพื่อคืนพื้นที่) */}
+        {/* Section Header Tag */}
         <div className="hidden sm:block text-xs font-semibold pl-1 text-slate-400 uppercase tracking-wider">
           STAFF DASHBOARD
         </div>
 
-        {/* 1. Header Box (บนมือถือย่อเหลือ 1 แถว / บนคอมคงเดิม) */}
+        {/* 1. Header Box */}
         <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-2.5 sm:p-5 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div>
@@ -683,7 +692,7 @@ export default function StaffDashboardPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-xs bg-rose-600 hover:bg-rose-700 text-white shrink-0"
+              className="font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-xs bg-rose-600 hover:bg-rose-700 text-white shrink-0 touch-manipulation"
             >
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -698,7 +707,7 @@ export default function StaffDashboardPage() {
           </div>
         </div>
 
-        {/* 2. System Overview Box (มือถือจัดเป็นแถบกะทัดรัด พร้อมปุ่มพับเก็บ) */}
+        {/* 2. System Overview Box */}
         <div className="rounded-xl border border-slate-200 shadow-xs p-2 sm:p-3 bg-white">
           <div className="flex justify-between items-center pb-1">
             <h2 className="text-[10px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -716,7 +725,7 @@ export default function StaffDashboardPage() {
 
           {showOverview && (
             <>
-              {/* แถบสรุปบนมือถือ (Compact Bar บนจอเล็ก) */}
+              {/* แถบสรุปบนมือถือ */}
               <div className="grid grid-cols-4 gap-1 sm:hidden pt-1 text-center">
                 <div className="bg-slate-50 border border-slate-200 rounded-lg py-1 px-0.5">
                   <span className="text-[9px] text-slate-400 block font-normal">Staff</span>
@@ -736,9 +745,8 @@ export default function StaffDashboardPage() {
                 </div>
               </div>
 
-              {/* การ์ดเต็มบนจอคอมพิวเตอร์ (Desktop View) */}
+              {/* การ์ดเต็มบน Desktop */}
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1.5">
-                {/* Card 1: Status */}
                 <div className="border border-slate-200 rounded-lg p-2.5 space-y-1 bg-slate-50">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-xs text-slate-900 truncate">{formattedStaffCode}</span>
@@ -750,7 +758,6 @@ export default function StaffDashboardPage() {
                   </div>
                 </div>
 
-                {/* Card 2: Today Jobs */}
                 <div className="border border-slate-200 rounded-lg p-2.5 space-y-1 bg-slate-50">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-xs text-slate-900 truncate">Today Jobs</span>
@@ -763,7 +770,6 @@ export default function StaffDashboardPage() {
                   </div>
                 </div>
 
-                {/* Card 3: Upcoming Jobs */}
                 <div className="border border-slate-200 rounded-lg p-2.5 space-y-1 bg-slate-50">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-xs text-slate-900 truncate">Upcoming</span>
@@ -776,7 +782,6 @@ export default function StaffDashboardPage() {
                   </div>
                 </div>
 
-                {/* Card 4: Rating */}
                 <div className="border border-slate-200 rounded-lg p-2.5 space-y-1 bg-slate-50">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-xs text-slate-900 truncate">Rating</span>
@@ -793,12 +798,12 @@ export default function StaffDashboardPage() {
           )}
         </div>
 
-        {/* 3. Navigation Tabs (ขยับขึ้นมาเด่นและมองเห็นงานทันที) */}
+        {/* 3. Navigation Tabs */}
         <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-1.5 sm:p-3 bg-white">
           <div className="grid grid-cols-4 gap-1 sm:gap-2">
             <button
               onClick={() => setActiveTab('history')}
-              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer touch-manipulation ${
                 activeTab === 'history'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -809,7 +814,7 @@ export default function StaffDashboardPage() {
 
             <button
               onClick={() => setActiveTab('mytasks')}
-              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer touch-manipulation ${
                 activeTab === 'mytasks'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -820,7 +825,7 @@ export default function StaffDashboardPage() {
 
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer touch-manipulation ${
                 activeTab === 'upcoming'
                   ? 'bg-blue-50 border-blue-300 text-[#006AFF] font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -831,7 +836,7 @@ export default function StaffDashboardPage() {
 
             <button
               onClick={markFeedbacksAsRead}
-              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer relative ${
+              className={`py-1.5 px-0.5 sm:px-2 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs text-center transition cursor-pointer relative touch-manipulation ${
                 activeTab === 'reviews'
                   ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
                   : 'bg-white border-slate-200 text-slate-700 font-medium hover:bg-slate-50'
@@ -861,19 +866,19 @@ export default function StaffDashboardPage() {
               </div>
             ) : (
               feedbacks.map((fb) => (
-                <div key={fb.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 space-y-2">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                    <span className="font-bold text-[#006AFF] text-xs">
+                <div key={fb.id} className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 space-y-2">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-1.5 gap-2">
+                    <span className="font-bold text-[#006AFF] text-xs shrink-0">
                       REF-{fb.booking_ref}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
                       ★ {fb.rating || 0} / 5
                     </span>
                   </div>
-                  <div className="text-xs text-slate-600 font-normal">
+                  <div className="text-xs text-slate-600 font-normal break-words">
                     Guest: <strong className="font-bold text-slate-900">{fb.resolved_customer_name}</strong>
                   </div>
-                  <p className="text-xs text-slate-800 italic bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200 font-normal leading-relaxed">
+                  <p className="text-xs text-slate-800 italic bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200 font-normal leading-relaxed break-words">
                     "{fb.comment || 'No comment provided.'}"
                   </p>
                 </div>

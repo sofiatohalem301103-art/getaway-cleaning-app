@@ -229,18 +229,18 @@ const extractProgramName = (task: any): string => {
 
   const price = Number(task.total_amount || task.price || task.amount || 0);
 
-  if (price === 120) return 'Turn over Cleaning';
+  if (price === 120) return 'Turnover Cleaning';
   if (price === 70) return 'General cleaning';
 
   const fullText = JSON.stringify(task).toLowerCase();
   if (fullText.includes('turn over') || fullText.includes('turnover')) {
-    return 'Turn over Cleaning';
+    return 'Turnover Cleaning';
   }
   if (fullText.includes('general')) {
     return 'General cleaning';
   }
 
-  return price > 100 ? 'Turn over Cleaning' : 'General cleaning';
+  return price > 100 ? 'Turnover Cleaning' : 'General cleaning';
 };
 
 const getCleanDate = (dateVal: any): string => {
@@ -394,7 +394,7 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-xs space-y-2 mb-3">
-      {/* Header ย่อพร้อมปุ่มซ่อน/แสดง */}
+      {/* Header with Toggle */}
       <div className="flex justify-between items-center pb-1 border-b border-slate-100">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -415,7 +415,7 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
 
       {showStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 pt-1">
-          {/* ซีกซ้าย: ตัวเลขสรุปคะแนน */}
+          {/* Left: Overall Score */}
           <div className="flex sm:flex-col justify-between sm:justify-center items-center sm:items-start p-2.5 sm:p-3.5 bg-slate-50 rounded-xl border border-slate-100">
             <div>
               <div className="flex items-baseline gap-1.5">
@@ -434,7 +434,7 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
             </div>
           </div>
 
-          {/* ซีกขวา: กราฟแท่ง 5 ดาวแบบแถวบาง */}
+          {/* Right: Star Distribution Bar */}
           <div className="space-y-1 p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-100 justify-center flex flex-col">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = distribution[star as 1|2|3|4|5];
@@ -508,36 +508,35 @@ function FeedbackCard({
 
   return (
     <div 
-      className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs"
-      style={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#1E1E1E' }}
+      className="p-3 sm:p-4 rounded-xl border shadow-xs space-y-3 text-xs bg-white border-slate-200 text-slate-900"
     >
-      <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: '#F1F5F9' }}>
-        <span className="text-sm font-normal text-slate-600">
+      <div className="flex justify-between items-center border-b pb-2 border-slate-100">
+        <span className="text-xs sm:text-sm font-normal text-slate-600">
           Customer: <strong className="font-bold text-slate-900">{displayCustomerName}</strong>
         </span>
 
-        <div className="flex items-center gap-1 font-bold" style={{ color: '#FFB800' }}>
+        <div className="flex items-center gap-1 font-bold text-amber-500">
           {'★'.repeat(feedback.rating || feedback.rating_score || 5)}
-          <span className="text-[10px] font-normal" style={{ color: '#8E9B9E' }}>
+          <span className="text-[10px] font-normal text-slate-400">
             ({feedback.rating || feedback.rating_score || 5}/5)
           </span>
         </div>
       </div>
 
-      <div className="p-3 rounded-lg border space-y-2" style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }}>
-        <p className="text-xs sm:text-sm italic font-normal" style={{ color: '#1E2B37' }}>
+      <div className="p-3 rounded-lg border space-y-2 bg-slate-50 border-slate-200">
+        <p className="text-xs sm:text-sm italic font-normal text-slate-800 break-words">
           "{feedback.comment || 'No comment provided.'}"
         </p>
 
         {hasReplied && (
-          <div className="pt-2 border-t text-xs" style={{ borderColor: '#E2E8F0', color: '#006AFF' }}>
+          <div className="pt-2 border-t text-xs border-slate-200 text-[#006AFF]">
             <span className="font-bold">Admin Reply: </span>
-            <span className="font-normal">{feedback.admin_reply || replyText}</span>
+            <span className="font-normal break-words">{feedback.admin_reply || replyText}</span>
           </div>
         )}
       </div>
 
-      <div className="pt-2 border-t space-y-2" style={{ borderColor: '#F1F5F9' }}>
+      <div className="pt-2 border-t space-y-2 border-slate-100">
         <label className="font-semibold block text-slate-800">
           {hasReplied ? 'Edit Admin Reply:' : 'Admin Reply:'}
         </label>
@@ -547,27 +546,25 @@ function FeedbackCard({
           onChange={(e) => setReplyText(e.target.value)}
           disabled={isLoading || isSubmitting}
           placeholder="Type your reply to customer..."
-          className="w-full p-2 sm:p-2.5 border rounded-lg text-xs font-normal focus:outline-none focus:ring-2"
-          style={{ backgroundColor: '#FFFFFF', borderColor: '#D9D9D9', color: '#1E1E1E' }}
+          className="w-full p-2.5 border rounded-lg text-base sm:text-xs font-normal focus:outline-none focus:border-[#006AFF] bg-white border-slate-300 text-slate-900"
         ></textarea>
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           {hasReplied ? (
-            <span className="text-[10px] sm:text-xs font-medium" style={{ color: '#008800' }}>
+            <span className="text-[10px] sm:text-xs font-medium text-emerald-700">
               ✓ Replied {feedback.replied_by ? `by ${feedback.replied_by}` : ''}
             </span>
           ) : (
-            <span className="text-[10px] sm:text-xs font-normal" style={{ color: '#8E9B9E' }}>Not replied yet</span>
+            <span className="text-[10px] sm:text-xs font-normal text-slate-400">Not replied yet</span>
           )}
 
           <button
             type="button"
             onClick={handleSendReply}
             disabled={isLoading || isSubmitting}
-            className="w-full sm:w-auto px-4 py-1.5 rounded-lg font-bold text-xs transition active:scale-95 cursor-pointer text-white"
-            style={{
-              backgroundColor: hasReplied ? '#008800' : '#006AFF'
-            }}
+            className={`w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-lg font-bold text-xs transition active:scale-95 cursor-pointer text-white shadow-xs ${
+              hasReplied ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-[#006AFF] hover:bg-blue-700'
+            }`}
           >
             {isSubmitting ? 'Saving...' : hasReplied ? 'Update Reply' : 'Send Reply'}
           </button>
@@ -669,7 +666,7 @@ function TaskCard({
   const cardKeyId = task.id || task.booking_id || task.booking_ref;
 
   return (
-    <div className="p-3.5 sm:p-5 rounded-xl border shadow-xs space-y-3.5 sm:space-y-4 text-xs bg-white border-slate-200 text-slate-800">
+    <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border shadow-xs space-y-3 sm:space-y-4 text-xs bg-white border-slate-200 text-slate-800">
       
       {/* Header */}
       <div className="flex justify-between items-start sm:items-center border-b border-slate-100 pb-2.5 sm:pb-3 gap-2">
@@ -708,18 +705,17 @@ function TaskCard({
         {/* Main Details */}
         <div className="md:col-span-2 space-y-2.5 sm:space-y-3">
           <div>
-            {/* ชื่องาน: เด่นที่สุด */}
-            <p className="font-bold text-sm sm:text-base text-slate-900 leading-snug">
+            <p className="font-bold text-sm sm:text-base text-slate-900 leading-snug break-words">
               {displayProgram}
             </p>
-            <p className="text-slate-600 mt-1 leading-relaxed font-normal text-xs">
+            <p className="text-slate-600 mt-1 leading-relaxed font-normal text-xs break-words">
               Customer: <strong className="font-bold text-slate-900">{displayCustomerName}</strong>
             </p>
           </div>
 
           <div className="space-y-1 sm:space-y-1.5 text-slate-600 leading-relaxed font-normal">
             {displayEmail && displayEmail !== '-' && (
-              <p className="text-xs">
+              <p className="text-xs break-all">
                 Email: <span className="font-medium text-slate-900">{displayEmail}</span>
               </p>
             )}
@@ -736,12 +732,12 @@ function TaskCard({
               </p>
             )}
 
-            <p className="text-xs">
+            <p className="text-xs break-words">
               Address: <strong className="font-bold text-slate-900">{displayAddress}</strong>
             </p>
 
             {!isHolidayHome && (building || houseApt || cityArea) && !displayAddress.includes(building || '___') && (
-              <p className="text-[11px] text-slate-500 leading-normal font-normal">
+              <p className="text-[11px] text-slate-500 leading-normal font-normal break-words">
                 {building && <span>Building: <strong className="text-slate-800 font-semibold">{building}</strong> </span>}
                 {houseApt && <span>| Apt/House No: <strong className="text-slate-800 font-semibold">{houseApt}</strong> </span>}
                 {cityArea && <span>| Area: <strong className="text-slate-800 font-semibold">{cityArea}</strong></span>}
@@ -754,7 +750,7 @@ function TaskCard({
                   href={mapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-semibold underline text-xs text-[#006AFF] hover:text-blue-800"
+                  className="inline-flex items-center gap-1 font-semibold underline text-xs text-[#006AFF] hover:text-blue-800 break-all"
                 >
                   📍 Open Location Link ↗
                 </a>
@@ -806,7 +802,7 @@ function TaskCard({
               </div>
 
               {gardenOtherDetails && (
-                <p className="text-[10px] sm:text-[11px] text-amber-900 bg-amber-50 p-2 rounded border border-amber-200 leading-relaxed font-normal">
+                <p className="text-[10px] sm:text-[11px] text-amber-900 bg-amber-50 p-2 rounded border border-amber-200 leading-relaxed font-normal break-words">
                   <strong className="font-bold">Note:</strong> {gardenOtherDetails}
                 </p>
               )}
@@ -814,7 +810,7 @@ function TaskCard({
           )}
 
           {/* Amount & Method Badge */}
-          <div className="pt-1.5 flex items-center gap-2">
+          <div className="pt-1.5 flex items-center gap-2 flex-wrap">
             <p className="text-xs sm:text-sm text-slate-600 font-normal">
               Amount: <strong className="font-bold text-slate-900">{amountVal > 0 ? `€${amountVal}` : 'Pending Price Quote'}</strong>
             </p>
@@ -879,7 +875,7 @@ function TaskCard({
             )}
           </div>
 
-          <div className="pt-2 sm:pt-3 flex flex-col items-start md:items-end gap-1.5">
+          <div className="pt-2 sm:pt-3 flex flex-col items-start md:items-end gap-1.5 w-full">
             {isPaid ? (
               <span className="text-[10px] font-bold px-2.5 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
                 ✓ Paid Verified
@@ -889,7 +885,7 @@ function TaskCard({
                 <button
                   onClick={() => handleAcknowledgeQuote(task)}
                   disabled={isLoading}
-                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-sky-700 disabled:opacity-50"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded bg-sky-600 hover:bg-sky-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-sky-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Processing...' : 'Acknowledge Request'}
                 </button>
@@ -897,7 +893,7 @@ function TaskCard({
                 <button
                   onClick={() => handleSetPriceAndQuote(task)}
                   disabled={isLoading}
-                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-amber-700 disabled:opacity-50"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white transition active:scale-95 cursor-pointer shadow-xs border border-amber-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Processing...' : 'Set Price & Send Quote'}
                 </button>
@@ -907,14 +903,14 @@ function TaskCard({
                 <button
                   onClick={() => handleSetPriceAndQuote(task)}
                   disabled={isLoading}
-                  className="text-[10px] font-medium px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
+                  className="text-[10px] font-medium px-2 py-2 sm:py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleConfirmPayment(task)}
                   disabled={isLoading}
-                  className="flex-1 sm:flex-none text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
+                  className="flex-1 sm:flex-none text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
                 >
                   {isLoading ? 'Processing...' : `Confirm Paid (€${amountVal})`}
                 </button>
@@ -924,7 +920,7 @@ function TaskCard({
                 <button
                   onClick={() => handleConfirmOrder(task)}
                   disabled={isLoading}
-                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#006AFF] hover:bg-blue-700 text-white border-blue-700"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#006AFF] hover:bg-blue-700 text-white border-blue-700"
                 >
                   {isLoading ? 'Processing...' : 'Confirm Order'}
                 </button>
@@ -932,7 +928,7 @@ function TaskCard({
                 <button
                   onClick={() => handleConfirmPayment(task)}
                   disabled={isLoading}
-                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800"
+                  className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800"
                 >
                   {isLoading ? 'Processing...' : 'Confirm Cash Received'}
                 </button>
@@ -941,7 +937,7 @@ function TaskCard({
               <button
                 onClick={() => handleConfirmPayment(task)}
                 disabled={isLoading}
-                className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
+                className="w-full sm:w-auto text-[10px] sm:text-[11px] font-bold px-3 py-2 sm:py-1.5 rounded transition active:scale-95 cursor-pointer shadow-xs border disabled:opacity-50 bg-[#002B49] text-white border-slate-800 hover:bg-slate-800"
               >
                 {isLoading ? 'Processing...' : 'Confirm Payment'}
               </button>
@@ -951,15 +947,15 @@ function TaskCard({
       </div>
 
       {/* Staff Assignment */}
-      <div className="pt-2.5 sm:pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="pt-2.5 sm:pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           <span className="font-normal whitespace-nowrap text-slate-500 text-[11px] sm:text-xs">Assigned:</span>
 
           <select
             value={activeStaffChoice}
             onChange={(e) => handleSelectStaffLocal(cardKeyId, e.target.value)}
             disabled={isLoading}
-            className="flex-1 sm:flex-none border border-slate-200 rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer bg-white text-slate-800"
+            className="flex-1 min-w-[130px] sm:flex-none border border-slate-200 rounded-lg px-2 py-1.5 sm:py-1 text-base sm:text-xs font-normal focus:outline-none cursor-pointer bg-white text-slate-800"
           >
             <option value="">Select Staff...</option>
             {STAFF_LIST.map((staff) => (
@@ -973,7 +969,7 @@ function TaskCard({
             type="button"
             onClick={() => handleDispatchTask(task, activeStaffChoice)}
             disabled={!hasSelectedStaff || isLoading || (!isChangedStaff && Boolean(currentAssigned))}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60 ${
+            className={`px-3 py-1.5 sm:py-1 rounded-lg text-xs font-bold transition whitespace-nowrap border cursor-pointer disabled:opacity-60 ${
               !hasSelectedStaff || (!isChangedStaff && Boolean(currentAssigned))
                 ? 'bg-slate-200 text-slate-400 border-slate-300'
                 : 'bg-[#006AFF] text-white border-blue-700 hover:bg-blue-700'
@@ -1067,7 +1063,7 @@ function AssignHolidayTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto font-sans">
-      <div className="bg-white rounded-[24px] max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
+      <div className="bg-white rounded-2xl sm:rounded-[24px] max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto my-auto box-border">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[#1E2B37]">Assign Holiday Task</h2>
@@ -1079,14 +1075,14 @@ function AssignHolidayTaskModal({
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Property Unit</label>
-            <select value={selectedProperty} onChange={(e) => setSelectedProperty(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={selectedProperty} onChange={(e) => setSelectedProperty(e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-normal text-[#1E2B37]">
               {HOLIDAY_PROPERTIES.map((prop) => (<option key={prop} value={prop}>{prop}</option>))}
             </select>
           </div>
 
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Program</label>
-            <select value={programName} onChange={(e) => setProgramName(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={programName} onChange={(e) => setProgramName(e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-normal text-[#1E2B37]">
               <option value="General cleaning">General cleaning</option>
               <option value="Turnover cleaning">Turnover cleaning</option>
             </select>
@@ -1100,12 +1096,12 @@ function AssignHolidayTaskModal({
                 value={scheduledDate} 
                 onChange={(e) => setScheduledDate(e.target.value)} 
                 required 
-                className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]" 
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-normal text-[#1E2B37]" 
               />
             </div>
             <div className="space-y-1 text-left">
               <label className="text-xs font-semibold text-[#1E2B37]">Working Time</label>
-              <select value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-bold text-[#1E2B37]">
+              <select value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-bold text-[#1E2B37]">
                 {HOLIDAY_TIME_SLOTS.map((time) => (<option key={time} value={time}>{formatTimeAMPM(time)}</option>))}
               </select>
             </div>
@@ -1113,14 +1109,14 @@ function AssignHolidayTaskModal({
 
           <div className="space-y-1 text-left w-full">
             <label className="text-xs font-semibold text-[#1E2B37]">Assign Staff</label>
-            <select value={assignedStaff} onChange={(e) => setAssignedStaff(e.target.value)} className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs font-normal text-[#1E2B37]">
+            <select value={assignedStaff} onChange={(e) => setAssignedStaff(e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-normal text-[#1E2B37]">
               {STAFF_LIST.map((staff) => (<option key={staff.id} value={staff.name}>{staff.name}</option>))}
             </select>
           </div>
 
           <div className="flex flex-col sm:flex-row-reverse items-center gap-2 pt-2 sm:pt-3 border-t border-slate-100">
-            <button type="submit" disabled={loading} className="w-full sm:w-2/3 py-2.5 bg-[#0F172A] text-white font-bold rounded-xl sm:rounded-2xl text-xs transition cursor-pointer">{loading ? 'Saving...' : 'Confirm Task Assignment'}</button>
-            <button type="button" onClick={onClose} disabled={loading} className="w-full sm:w-1/3 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl sm:rounded-2xl text-xs transition cursor-pointer">Cancel</button>
+            <button type="submit" disabled={loading} className="w-full sm:w-2/3 py-2.5 bg-[#0F172A] text-white font-bold rounded-xl text-xs sm:text-sm transition cursor-pointer">{loading ? 'Saving...' : 'Confirm Task Assignment'}</button>
+            <button type="button" onClick={onClose} disabled={loading} className="w-full sm:w-1/3 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl text-xs sm:text-sm transition cursor-pointer">Cancel</button>
           </div>
         </form>
       </div>
@@ -1207,7 +1203,7 @@ function AdminDashboardContent() {
           const { data: usersData } = await supabase
             .from('users')
             .select('*')
-            .in('ids', userIds);
+            .in('id', userIds);
 
           if (usersData) {
             usersData.forEach((u) => { usersMap[u.id] = u; });
@@ -1818,15 +1814,15 @@ function AdminDashboardContent() {
   };
 
   return (
-    <div className="min-h-screen p-2.5 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900">
+    <div className="min-h-screen p-2.5 sm:p-4 md:p-6 font-sans bg-slate-50 text-slate-900 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-2.5 sm:space-y-4">
         
-        {/* Section Header Tag (ซ่อนบนมือถือเพื่อประหยัดพื้นที่) */}
+        {/* Section Header Tag */}
         <div className="hidden sm:block text-xs font-semibold pl-1 text-slate-400 uppercase tracking-wider">
           Admin Dashboard
         </div>
 
-        {/* 1. Header Box (บนมือถือจัดเป็นคอมแพ็กต์ 1-2 แถว / บนคอมคงเดิม) */}
+        {/* 1. Header Box */}
         <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-3 sm:p-5 bg-white">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
             <div>
@@ -1834,11 +1830,11 @@ function AdminDashboardContent() {
                 <h1 className="text-sm sm:text-xl font-bold tracking-tight text-slate-900">
                   Admin Dashboard
                 </h1>
-                <div className="sm:hidden flex items-center border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] bg-slate-50 text-slate-600">
+                <div className="sm:hidden flex items-center border border-slate-200 rounded-lg px-2 py-0.5 text-xs bg-slate-50 text-slate-600">
                   <select
                     value={adminUser}
                     onChange={(e) => handleAdminChange(e.target.value)}
-                    className="bg-transparent focus:outline-none text-[10px] cursor-pointer font-bold text-slate-900"
+                    className="bg-transparent focus:outline-none text-base sm:text-xs cursor-pointer font-bold text-slate-900"
                   >
                     {ADMIN_LIST.map((adm) => (<option key={adm} value={adm}>{adm}</option>))}
                   </select>
@@ -1853,7 +1849,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setIsAssignModalOpen(true)}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#006AFF] hover:bg-blue-700 text-white font-bold rounded-lg sm:rounded-xl text-xs sm:text-sm cursor-pointer transition shadow-xs"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-2 sm:px-4 sm:py-2 bg-[#006AFF] hover:bg-blue-700 text-white font-bold rounded-lg sm:rounded-xl text-xs sm:text-sm cursor-pointer transition shadow-xs active:scale-98"
               >
                 <span className="text-sm sm:text-base font-black leading-none">+</span>
                 Assign Holiday Task
@@ -1862,7 +1858,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 rounded-lg sm:rounded-xl text-white bg-rose-600 hover:bg-rose-700 cursor-pointer transition shadow-xs shrink-0"
+                className="font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-white bg-rose-600 hover:bg-rose-700 cursor-pointer transition shadow-xs shrink-0 active:scale-98"
               >
                 Logout
               </button>
@@ -1883,7 +1879,7 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        {/* 2. SYSTEM OVERVIEW (ย่อส่วนล่างบนมือถือพร้อมปุ่ม Toggle พับเก็บ) */}
+        {/* 2. STAFF OVERVIEW */}
         <div className="rounded-xl border border-slate-200 shadow-xs p-2 sm:p-3 bg-white">
           <div className="flex justify-between items-center pb-1">
             <h2 className="text-[10px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -1901,7 +1897,7 @@ function AdminDashboardContent() {
 
           {showOverview && (
             <>
-              {/* แถบสรุปบนมือถือ 5 ช่องเรียงกะทัดรัด (Mobile Compact Grid) */}
+              {/* Mobile Compact Grid */}
               <div className="grid grid-cols-5 gap-1 sm:hidden pt-1 text-center">
                 {STAFF_LIST.map((staff) => {
                   const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
@@ -1922,7 +1918,7 @@ function AdminDashboardContent() {
                 })}
               </div>
 
-              {/* การ์ดเต็มรูปแบบบน Desktop */}
+              {/* Desktop Full Cards */}
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2 pt-1.5">
                 {STAFF_LIST.map((staff) => {
                   const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
@@ -1956,7 +1952,7 @@ function AdminDashboardContent() {
           )}
         </div>
 
-        {/* 3. Navigation Tabs (ขยับขึ้นมาเด่นด้านบนทันที) */}
+        {/* 3. Navigation Tabs */}
         <div className="rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs p-1.5 sm:p-3 bg-white">
           <div className="grid grid-cols-4 gap-1 sm:gap-2">
             <button

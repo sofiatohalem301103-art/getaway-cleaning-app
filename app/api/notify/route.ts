@@ -153,12 +153,19 @@ function generatePdfBuffer(params: any): Buffer {
   doc.setTextColor(0, 0, 0);
 
   doc.text('1', marginX + 3, itemY);
-  doc.text(program, marginX + 12, itemY);
 
-  let subY = itemY + 4.5;
+  doc.setFont('helvetica', 'bold');
+  const programLines = doc.splitTextToSize(program, 100);
+  doc.text(programLines, marginX + 12, itemY);
+
+  let subY = itemY + (programLines.length * 4.2);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(90, 90, 90);
-  doc.text(`Property : ${room}`, marginX + 12, subY);
-  subY += 4;
+
+  const roomLines = doc.splitTextToSize(`Property : ${room}`, 100);
+  doc.text(roomLines, marginX + 12, subY);
+  subY += (roomLines.length * 4);
+
   doc.text(`Date : ${formattedDate}`, marginX + 12, subY);
   subY += 4;
   doc.text(`Time : ${formattedTime}`, marginX + 12, subY);
@@ -199,6 +206,7 @@ function generatePdfBuffer(params: any): Buffer {
   let sumY = lineAfterItemsY + 10;
   const labelX = marginX + 130;
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
   doc.setTextColor(80, 80, 80);
   doc.text('Sub Total', labelX, sumY);
   doc.setTextColor(0, 0, 0);
@@ -234,7 +242,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🟢 1. จัดการส่งอีเมลรหัส OTP 6 หลัก
+    // 🟢 1. Handle OTP Email (English Version Only)
     if (body.otp) {
       const targetEmail = cleanText(body.email, '');
       if (!targetEmail) {
@@ -248,37 +256,49 @@ export async function POST(req: Request) {
         .split('')
         .map(
           (digit) =>
-            `<span style="display: inline-block; width: 36px; height: 44px; line-height: 44px; margin: 0 3px; font-size: 26px; font-weight: 800; color: #111827; background-color: #f3f4f6; border-radius: 6px; text-align: center;">${digit}</span>`
+            `<span style="display: inline-block; width: 34px; max-width: 38px; height: 44px; line-height: 44px; margin: 0 2px; font-size: 24px; font-weight: 800; color: #111827; background-color: #f3f4f6; border-radius: 6px; text-align: center; box-sizing: border-box;">${digit}</span>`
         )
         .join('');
 
       const otpHtml = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 30px 10px; margin: 0; color: #1f2937;">
-          <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; padding: 24px;">
-            <div style="margin-bottom: 24px;">
-              <span style="font-size: 26px; font-weight: 800; color: #1E2B37; letter-spacing: -0.5px;">Getaway Cleaning</span>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 20px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; padding: 24px 16px; border: 1px solid #f1f5f9; border-radius: 16px;">
+            <div style="margin-bottom: 20px;">
+              <span style="font-size: 24px; font-weight: 800; color: #1E2B37; letter-spacing: -0.5px;">Getaway Cleaning</span>
             </div>
             <p style="font-size: 15px; color: #374151; margin-bottom: 12px; font-weight: 500;">
               Hi ${userPrefix},
             </p>
-            <p style="font-size: 14px; color: #4b5563; line-height: 1.5; margin-bottom: 24px;">
+            <p style="font-size: 14px; color: #4b5563; line-height: 1.5; margin-bottom: 20px;">
               Here is your verification code to log in or complete your request at Getaway Cleaning.
             </p>
             <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px; font-weight: 500; text-align: center;">
               Use this code in the app:
             </p>
-            <div style="text-align: center; margin-bottom: 20px;">
+            
+            <!-- OTP 6-digits block -->
+            <div style="text-align: center; margin-bottom: 16px; white-space: nowrap;">
               ${otpDigitsHtml}
             </div>
-            <div style="text-align: center; margin-bottom: 32px;">
-              <div style="display: inline-block; background-color: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 14px; padding: 8px 18px; border-radius: 20px;">
-                คัดลอกรหัส: ${otpString}
+
+            <!-- Tap & hold to copy block -->
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="display: inline-block; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 8px 16px; user-select: all; -webkit-user-select: all;">
+                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Verification Code: </span>
+                <strong style="font-size: 16px; color: #006AFF; letter-spacing: 2px; font-family: monospace;">${otpString}</strong>
               </div>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 6px; margin-bottom: 0;">
+                (Tap and hold the code above to copy)
+              </p>
             </div>
-            <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 16px;">
+
+            <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
               If you didn’t request a verification code, you can safely ignore this message.
             </p>
           </div>
@@ -301,7 +321,7 @@ export async function POST(req: Request) {
     }
 
     // -------------------------------------------------------------
-    // 🔵 2. ระบบจัดการการจองและแจ้งเตือนทางอีเมล
+    // 🔵 2. Booking Notification Handlers (All English)
     // -------------------------------------------------------------
     const { 
       action = 'confirm_payment',
@@ -335,20 +355,23 @@ export async function POST(req: Request) {
     const formattedAmount = numAmount.toFixed(2);
 
     // =========================================================================
-    // เคส A: action === 'acknowledge_quote'
+    // Case A: action === 'acknowledge_quote'
     // =========================================================================
     if (action === 'acknowledge_quote') {
       const acknowledgeHtml = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
-          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
-            <div style="margin-bottom: 24px;">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 20px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px sm:padding: 36px; box-sizing: border-box;">
+            <div style="margin-bottom: 20px;">
               <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
             </div>
 
-            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+            <h1 style="font-size: 19px; font-weight: 700; color: #111827; margin-bottom: 14px;">
               We've Received Your Request!
             </h1>
             <p style="font-size: 14px; color: #374151; line-height: 1.6;">
@@ -356,9 +379,9 @@ export async function POST(req: Request) {
               Thank you for choosing Getaway Cleaning. We have received your custom cleaning request for booking <strong>${cleanRef}</strong>. Our team is currently reviewing your property details and calculating your price quotation.
             </p>
 
-            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 16px sm:padding: 20px; border-radius: 8px; margin: 18px 0;">
               <div style="font-size: 13px; font-weight: 700; color: #0284c7; margin-bottom: 8px;">📋 Request Summary</div>
-              <div style="font-size: 13px; color: #4b5563; line-height: 1.8;">
+              <div style="font-size: 13px; color: #4b5563; line-height: 1.8; word-break: break-word;">
                 <strong>Service:</strong> ${selectedProgram}<br>
                 <strong>Property / Address:</strong> ${validRoom}<br>
                 <strong>Requested Date:</strong> ${validDate}<br>
@@ -366,13 +389,13 @@ export async function POST(req: Request) {
               </div>
             </div>
 
-            <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+            <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
               <p style="font-size: 13px; color: #0369a1; margin: 0; line-height: 1.5;">
                 ℹ️ <strong>Status: Under Review.</strong> We will send you an official quotation via email as soon as the price evaluation is complete.
               </p>
             </div>
 
-            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 20px; border-top: 1px solid #f3f4f6; padding-top: 14px;">
               Questions? Reach us at +357 96330400 or info@getaway-cleaning.com.
             </p>
           </div>
@@ -396,20 +419,23 @@ export async function POST(req: Request) {
     }
 
     // =========================================================================
-    // เคส B: action === 'send_quote'
+    // Case B: action === 'send_quote'
     // =========================================================================
     if (action === 'send_quote') {
       const quoteHtml = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
-          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
-            <div style="margin-bottom: 24px;">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; padding: 20px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px sm:padding: 36px; box-sizing: border-box;">
+            <div style="margin-bottom: 20px;">
               <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
             </div>
 
-            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+            <h1 style="font-size: 19px; font-weight: 700; color: #111827; margin-bottom: 14px;">
               Your Price Quotation is Ready!
             </h1>
             <p style="font-size: 14px; color: #374151; line-height: 1.6;">
@@ -417,10 +443,10 @@ export async function POST(req: Request) {
               We have completed the price evaluation for your custom cleaning booking <strong>${cleanRef}</strong>. Here are the approved quote details:
             </p>
 
-            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 6px; margin: 20px 0;">
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px sm:padding: 20px; border-radius: 8px; margin: 18px 0;">
               <div style="font-size: 13px; color: #166534;">Estimated Total Amount</div>
               <div style="font-size: 26px; font-weight: 800; color: #16a34a;">€ ${formattedAmount}</div>
-              <div style="font-size: 13px; color: #374151; margin-top: 12px; line-height: 1.8;">
+              <div style="font-size: 13px; color: #374151; margin-top: 12px; line-height: 1.8; word-break: break-word;">
                 <strong>Service:</strong> ${selectedProgram}<br>
                 <strong>Property / Address:</strong> ${validRoom}<br>
                 <strong>Scheduled Date:</strong> ${validDate}<br>
@@ -428,13 +454,13 @@ export async function POST(req: Request) {
               </div>
             </div>
 
-            <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+            <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
               <p style="font-size: 13px; color: #854d0e; margin: 0; line-height: 1.5;">
                 💵 You can pay this amount in cash directly to our cleaning crew upon arrival or complete via bank transfer. An official Sales Receipt will be issued once payment is received.
               </p>
             </div>
 
-            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 20px; border-top: 1px solid #f3f4f6; padding-top: 14px;">
               Questions? Reach us at +357 96330400 or info@getaway-cleaning.com.
             </p>
           </div>
@@ -458,20 +484,23 @@ export async function POST(req: Request) {
     }
 
     // =========================================================================
-    // เคส C: action === 'confirm_order'
+    // Case C: action === 'confirm_order'
     // =========================================================================
     if (action === 'confirm_order') {
       const orderConfirmedHtml = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
-          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
-            <div style="margin-bottom: 24px;">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 20px 10px; margin: 0; color: #1f2937;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px sm:padding: 36px; box-sizing: border-box;">
+            <div style="margin-bottom: 20px;">
               <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
             </div>
 
-            <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+            <h1 style="font-size: 19px; font-weight: 700; color: #111827; margin-bottom: 14px;">
               Booking Confirmed & Scheduled!
             </h1>
             <p style="font-size: 14px; color: #374151; line-height: 1.6;">
@@ -479,10 +508,10 @@ export async function POST(req: Request) {
               Our team has confirmed your booking schedule <strong>${cleanRef}</strong>. Our cleaning crew is scheduled to arrive at your property as details below:
             </p>
 
-            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 16px sm:padding: 20px; border-radius: 8px; margin: 18px 0;">
               <div style="font-size: 13px; color: #6b7280;">Amount to Pay (Upon Arrival)</div>
               <div style="font-size: 24px; font-weight: 800; color: #006AFF;">€ ${formattedAmount}</div>
-              <div style="font-size: 13px; color: #4b5563; margin-top: 12px; line-height: 1.8;">
+              <div style="font-size: 13px; color: #4b5563; margin-top: 12px; line-height: 1.8; word-break: break-word;">
                 <strong>Service:</strong> ${selectedProgram}<br>
                 <strong>Property / Address:</strong> ${validRoom}<br>
                 <strong>Date:</strong> ${validDate}<br>
@@ -491,13 +520,13 @@ export async function POST(req: Request) {
               </div>
             </div>
 
-            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
               <p style="font-size: 13px; color: #065f46; margin: 0; line-height: 1.5;">
                 💵 <strong>Payment Notice:</strong> Please prepare the exact cash amount of <strong>€${formattedAmount}</strong> to hand directly to our cleaning crew upon arrival. Once payment is received, an official Sales Receipt will be issued to your email.
               </p>
             </div>
 
-            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+            <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: 20px; border-top: 1px solid #f3f4f6; padding-top: 14px;">
               If you have any questions or need to reschedule, please contact us at +357 96330400 or info@getaway-cleaning.com.
             </p>
           </div>
@@ -525,7 +554,7 @@ export async function POST(req: Request) {
     }
 
     // =========================================================================
-    // เคส D: action === 'confirm_payment' (ใบเสร็จรับเงินจริง + แนบ PDF)
+    // Case D: action === 'confirm_payment' (Sales Receipt PDF attached)
     // =========================================================================
     const today = new Date();
     const receiptDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -534,7 +563,6 @@ export async function POST(req: Request) {
     let existingDetails: any = {};
 
     try {
-      // ตรวจสอบข้อมูลปัจจุบันของการจองนี้
       const { data: currentBooking } = await supabaseServer
         .from('bookings')
         .select('details')
@@ -550,7 +578,6 @@ export async function POST(req: Request) {
       if (existingDetails.receipt_no) {
         receiptNo = existingDetails.receipt_no;
       } else {
-        // 🟢 นับเฉพาะบิลก่อนหน้าที่มีการจ่ายจริง โดยตัดตัวเองออก (.neq) ป้องกันนับซ้ำ
         const { count, error: countError } = await supabaseServer
           .from('bookings')
           .select('*', { count: 'exact', head: true })
@@ -578,7 +605,6 @@ export async function POST(req: Request) {
       receipt_date: receiptDate,
     };
 
-    // 1. บันทึก / อัปเดต รายการจองลง Supabase (พร้อมเก็บ receipt_no)
     const { error: dbError } = await supabaseServer
       .from('bookings')
       .upsert(
@@ -604,7 +630,6 @@ export async function POST(req: Request) {
       console.error('Failed to save/update booking in Supabase:', dbError);
     }
 
-    // 2. สร้าง PDF ใบเสร็จรับเงิน
     const pdfBuffer = generatePdfBuffer({
       customerName: validCustomerName,
       program: selectedProgram,
@@ -617,18 +642,20 @@ export async function POST(req: Request) {
       price: formattedAmount
     });
 
-    // 3. ส่งอีเมลยืนยันการชำระเงิน + แนบไฟล์ PDF
     const customerEmailHtml = `
       <!DOCTYPE html>
       <html>
-      <head><meta charset="utf-8"></head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 10px; margin: 0; color: #1f2937;">
-        <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px;">
-          <div style="margin-bottom: 24px;">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 20px 10px; margin: 0; color: #1f2937;">
+        <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px sm:padding: 36px; box-sizing: border-box;">
+          <div style="margin-bottom: 20px;">
             <span style="font-size: 24px; font-weight: 800; color: #111827;">Getaway Cleaning</span>
           </div>
 
-          <h1 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+          <h1 style="font-size: 19px; font-weight: 700; color: #111827; margin-bottom: 14px;">
             Payment Confirmed!
           </h1>
           <p style="font-size: 14px; color: #374151; line-height: 1.6;">
@@ -636,10 +663,10 @@ export async function POST(req: Request) {
             Your payment for booking <strong>${cleanRef}</strong> has been received and confirmed by our team.
           </p>
 
-          <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+          <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 16px sm:padding: 20px; border-radius: 8px; margin: 18px 0;">
             <div style="font-size: 13px; color: #6b7280;">Total Paid</div>
             <div style="font-size: 24px; font-weight: 800; color: #111827;">€ ${formattedAmount}</div>
-            <div style="font-size: 13px; color: #4b5563; margin-top: 8px;">
+            <div style="font-size: 13px; color: #4b5563; margin-top: 10px; line-height: 1.8; word-break: break-word;">
               <strong>Receipt No:</strong> ${receiptNo}<br>
               <strong>Payment Method:</strong> ${validPaymentMethod}<br>
               <strong>Property:</strong> ${validRoom}<br>

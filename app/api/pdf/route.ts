@@ -277,7 +277,7 @@ export async function GET(req: NextRequest) {
   const headerBottomY = tableTopY + 6.5;
   doc.line(marginX, headerBottomY, rightX, headerBottomY);
 
-  // --- TABLE BODY ---
+  // --- TABLE BODY (พร้อมระบบ Auto-Wrap ข้อความป้องกันการทับซ้อน) ---
   let itemY = headerBottomY + 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
@@ -285,22 +285,27 @@ export async function GET(req: NextRequest) {
 
   doc.text('1', marginX + 3, itemY);
   
-  // ชื่องานบริการเป็นตัวหนาเล็กน้อย
+  // ชื่องานบริการ: ตัดคำอัตโนมัติหากยาวเกิน 100mm
   doc.setFont('helvetica', 'bold');
-  doc.text(program, marginX + 12, itemY);
+  const programLines = doc.splitTextToSize(program, 100);
+  doc.text(programLines, marginX + 12, itemY);
 
-  let subY = itemY + 4.5;
+  let currentSubY = itemY + (programLines.length * 4.2);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text(`Property : ${room}`, marginX + 12, subY);
-  subY += 4;
-  doc.text(`Date : ${rawDate}`, marginX + 12, subY);
-  subY += 4;
-  doc.text(`Time : ${rawTime}`, marginX + 12, subY);
+
+  // ข้อมูลที่อยู่ / Property: ตัดคำอัตโนมัติหากยาวเกิน 100mm
+  const roomLines = doc.splitTextToSize(`Property : ${room}`, 100);
+  doc.text(roomLines, marginX + 12, currentSubY);
+  currentSubY += (roomLines.length * 4);
+
+  doc.text(`Date : ${rawDate}`, marginX + 12, currentSubY);
+  currentSubY += 4;
+  doc.text(`Time : ${rawTime}`, marginX + 12, currentSubY);
 
   if (hoursParam) {
-    subY += 4;
-    doc.text(`Duration : ${hoursParam} hrs`, marginX + 12, subY);
+    currentSubY += 4;
+    doc.text(`Duration : ${hoursParam} hrs`, marginX + 12, currentSubY);
   }
 
   doc.setTextColor(0, 0, 0);
@@ -308,7 +313,7 @@ export async function GET(req: NextRequest) {
   doc.text(formatAmount(subTotalNum), marginX + 148, itemY, { align: 'right' });
   doc.text(formatAmount(subTotalNum), rightX - 3, itemY, { align: 'right' });
 
-  const lineAfterItemsY = subY + 6;
+  const lineAfterItemsY = currentSubY + 6;
   doc.setDrawColor(220, 220, 220);
   doc.line(marginX, lineAfterItemsY, rightX, lineAfterItemsY);
 

@@ -56,18 +56,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="w-full min-h-screen bg-white flex flex-col justify-between p-4 sm:p-6 lg:p-8 text-[#1E2B37] font-sans antialiased box-border">
+    <main className="w-full min-h-[100dvh] bg-white flex flex-col justify-between p-3.5 sm:p-6 lg:p-8 text-[#1E2B37] font-sans antialiased box-border overflow-x-hidden">
       
       {/* Container หลัก */}
-      <div className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-4">
+      <div className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center py-2 sm:py-4">
         
         {/* ==========================================
-            ฝั่งซ้าย: ข้อความต้อนรับ
+            ฝั่งซ้าย: ข้อความต้อนรับ (แสดงบนจอคอมพิวเตอร์/iPad แนวนอน)
            ========================================== */}
         <div className="hidden lg:flex lg:col-span-7 flex-col justify-center space-y-4 pr-4">
           <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-[#1E2B37] tracking-tight leading-[1.2]">
             Book your cleaning service <br />
-            <span className="text-[#1E2B37]">with absolute confidence.</span>
+            <span className="text-[#006AFF]">with absolute confidence.</span>
           </h1>
           <p className="text-sm lg:text-base text-slate-500 font-normal max-w-lg leading-relaxed">
             Trusted housekeeping experts dedicated to making your home impeccably clean and inviting.
@@ -75,11 +75,11 @@ export default function LoginPage() {
         </div>
 
         {/* ==========================================
-            ฝั่งขวา: แบบฟอร์มการ์ด
+            ฝั่งขวา: แบบฟอร์มการ์ด (รองรับตั้งแต่ iPhone SE ถึงจอใหญ่)
            ========================================== */}
         <div className="lg:col-span-5 w-full max-w-md mx-auto">
           
-          <div className="bg-white border-0 sm:border sm:border-slate-200/80 shadow-none sm:shadow-xl sm:shadow-slate-200/50 rounded-none sm:rounded-3xl p-6 sm:p-8 space-y-5">
+          <div className="bg-white border-0 sm:border sm:border-slate-200/80 shadow-none sm:shadow-xl sm:shadow-slate-200/50 rounded-2xl sm:rounded-3xl p-4 sm:p-8 space-y-4 sm:space-y-5">
             
             {/* Header */}
             <div className="space-y-1 text-center lg:text-left">
@@ -92,20 +92,21 @@ export default function LoginPage() {
               <div className="space-y-1.5 text-left">
                 <label className="text-xs font-semibold text-[#1E2B37] px-0.5">Email Address</label>
                 
+                {/* ขนาดฟอนต์ text-base บนมือถือช่วยป้องกัน Auto-Zoom ของเบราว์เซอร์ */}
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@email.com"
                   required
-                  className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[16px] sm:text-sm text-[#1E2B37] placeholder:text-slate-400 focus:outline-none focus:border-[#1E2B37] focus:bg-white transition-all shadow-xs"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-base sm:text-sm text-[#1E2B37] placeholder:text-slate-400 focus:outline-none focus:border-[#006AFF] focus:bg-white transition-all shadow-xs"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 bg-[#1E2B37] hover:bg-[#2c3e50] active:scale-98 disabled:opacity-50 text-white font-semibold rounded-2xl text-xs sm:text-sm transition-all shadow-md cursor-pointer"
+                className="w-full py-3 sm:py-3.5 bg-[#0F172A] hover:bg-[#1E293B] active:scale-98 disabled:opacity-50 text-white font-semibold rounded-xl sm:rounded-2xl text-xs sm:text-sm transition-all shadow-md cursor-pointer"
               >
                 {isLoading ? 'Sending OTP...' : 'Continue with Email'}
               </button>
@@ -125,7 +126,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('google')}
-                className="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-700 flex items-center justify-center space-x-3 transition cursor-pointer active:scale-98 shadow-xs"
+                className="w-full py-2.5 sm:py-3 px-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold text-slate-700 flex items-center justify-center space-x-3 transition cursor-pointer active:scale-98 shadow-xs"
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -145,7 +146,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="w-full text-center py-2 max-w-7xl mx-auto shrink-0">
-        <p className="text-[11px] text-slate-400 font-medium">
+        <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
           © {new Date().getFullYear()} Getaway Cleaning Service
         </p>
       </footer>

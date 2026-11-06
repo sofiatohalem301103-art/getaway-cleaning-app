@@ -43,10 +43,10 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <main className="w-full min-h-screen flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation">
+    <main className="w-full min-h-[100dvh] flex flex-col md:flex-row font-sans text-[#1E2B37] bg-[#F8FAFC] md:bg-white touch-manipulation overflow-x-hidden">
       
-      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์ */}
-      <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-screen bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
+      {/* 🟢 ฝั่งซ้าย: Split Screen บนคอมพิวเตอร์และ iPad แนวนอน */}
+      <div className="hidden md:flex w-full md:w-1/2 lg:w-7/12 min-h-[100dvh] bg-gradient-to-br from-[#EBF5FC] via-[#E2F0FD] to-[#D5E8F8] p-8 lg:p-12 xl:p-16 text-[#1E3A5F] flex-col justify-between relative overflow-hidden">
         
         {/* Background Accent Lights */}
         <div className="absolute top-0 left-1/4 w-[30rem] h-[30rem] bg-white/60 rounded-full blur-3xl pointer-events-none" />
@@ -92,24 +92,24 @@ export default function AdminLoginPage() {
       </div>
 
       {/* 🔵 ฝั่งขวา: ฟอร์มล็อกอิน */}
-      <div className="w-full md:w-1/2 lg:w-5/12 min-h-screen bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-6 lg:p-10 xl:p-12 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto">
+      <div className="w-full md:w-1/2 lg:w-5/12 min-h-[100dvh] bg-[#F8FAFC] md:bg-white flex flex-col justify-between items-center p-4 sm:p-6 lg:p-10 xl:p-12 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] md:py-8 overflow-y-auto box-border">
         
         {/* Top Mobile Badge */}
         <div className="w-full flex justify-center pt-1 md:pt-0">
-          <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-4 py-1.5 rounded-full shadow-xs">
+          <div className="md:hidden inline-flex items-center gap-2 bg-white border border-blue-100/80 px-3.5 py-1 rounded-full shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[#2C7A39] animate-pulse" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-[#1E3A5F]">
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-[#1E3A5F]">
               Getaway Control Center
             </span>
           </div>
         </div>
 
         {/* Center Login Form Block */}
-        <div className="w-full max-w-md my-auto py-4">
+        <div className="w-full max-w-md my-auto py-3 sm:py-4">
           
           {/* Header Section */}
           <div className="w-full text-center">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
+            <h2 className="text-xl sm:text-3xl font-extrabold text-[#1E2B37] tracking-tight">
               Admin Login
             </h2>
             <p className="text-xs sm:text-sm text-[#1E1E1E]/60 mt-1 font-medium">
@@ -118,20 +118,20 @@ export default function AdminLoginPage() {
           </div>
 
           {errorMessage && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-semibold text-center">
+            <div className="mt-3.5 sm:mt-4 p-2.5 sm:p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-semibold text-center break-words">
               {errorMessage}
             </div>
           )}
 
           {/* Form Section */}
-          <form onSubmit={handleAdminLogin} className="w-full space-y-3.5 my-5">
+          <form onSubmit={handleAdminLogin} className="w-full space-y-3 sm:space-y-3.5 my-4 sm:my-5">
             
             {/* Select Admin Profile */}
             <div className="text-left">
-              <label className="block text-xs font-bold text-[#1E2B37] mb-1.5">
+              <label className="block text-xs font-bold text-[#1E2B37] mb-1 sm:mb-1.5">
                 Select Admin Profile
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {[
                   { name: 'Sam', label: 'Sam' },
                   { name: 'Sylvia', label: 'Sylvia' },
@@ -141,7 +141,7 @@ export default function AdminLoginPage() {
                     key={admin.name}
                     type="button"
                     onClick={() => setSelectedAdmin(admin.name)}
-                    className={`py-2 px-3 text-xs font-bold rounded-full border transition-all duration-150 cursor-pointer flex items-center justify-center select-none ${
+                    className={`py-2 px-2 sm:px-3 text-xs font-bold rounded-full border transition-all duration-150 cursor-pointer flex items-center justify-center select-none touch-manipulation active:scale-95 ${
                       selectedAdmin === admin.name
                         ? 'bg-[#EAF3F9] border-[#2563EB] text-[#2563EB] shadow-xs'
                         : 'bg-[#EAF3F9]/50 border-[#93C5FD]/60 text-[#1E2B37]/70 hover:bg-[#EAF3F9]'
@@ -153,7 +153,7 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Admin Email */}
+            {/* Admin Email: ปรับ text-base บนมือถือเพื่อกัน Auto-Zoom */}
             <div className="text-left">
               <label className="block text-xs font-bold text-[#1E2B37] mb-1">
                 Admin Email
@@ -164,11 +164,11 @@ export default function AdminLoginPage() {
                 placeholder="admin@getaway-cleaning.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+                className="w-full px-3.5 sm:px-4 py-2.5 border border-[#1E2B37]/30 rounded-xl sm:rounded-2xl text-base md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition shadow-2xs"
               />
             </div>
 
-            {/* Password */}
+            {/* Password: ปรับ text-base บนมือถือเพื่อกัน Auto-Zoom */}
             <div className="text-left">
               <label className="block text-xs font-bold text-[#1E2B37] mb-1">
                 Password
@@ -179,7 +179,7 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#1E2B37]/30 rounded-2xl text-[16px] md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
+                className="w-full px-3.5 sm:px-4 py-2.5 border border-[#1E2B37]/30 rounded-xl sm:rounded-2xl text-base md:text-sm bg-white text-[#1E2B37] font-medium focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition shadow-2xs"
               />
             </div>
 
@@ -188,7 +188,7 @@ export default function AdminLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full min-h-[46px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-2.5 rounded-full text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none disabled:opacity-60"
+                className="w-full min-h-[46px] bg-[#2563EB] hover:bg-[#006AFF] active:scale-[0.98] text-white font-bold py-2.5 rounded-full text-xs sm:text-sm transition duration-150 shadow-md cursor-pointer flex items-center justify-center select-none touch-manipulation disabled:opacity-60"
               >
                 {loading ? 'Signing In...' : `Sign In as ${selectedAdmin}`}
               </button>
@@ -199,7 +199,7 @@ export default function AdminLoginPage() {
           <div className="w-full text-center">
             <Link 
               href="/admin" 
-              className="text-xs text-[#1E2B37]/70 hover:text-[#2563EB] underline font-semibold transition"
+              className="text-xs text-[#1E2B37]/70 hover:text-[#2563EB] underline font-semibold transition touch-manipulation inline-block py-1"
             >
               ← Back to Select Role
             </Link>
@@ -208,9 +208,9 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Bottom Footer */}
-        <div className="w-full text-center pt-2 border-t border-slate-200/60 md:border-slate-100 max-w-md">
-          <p className="text-[11px] text-slate-400 font-medium">
-            © Getaway Cleaning Service — Internal System
+        <div className="w-full text-center pt-2 border-t border-slate-200/60 md:border-slate-100 max-w-md shrink-0">
+          <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
+            © {new Date().getFullYear()} Getaway Cleaning Service — Internal System
           </p>
         </div>
 

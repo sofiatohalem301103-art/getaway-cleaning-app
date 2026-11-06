@@ -238,54 +238,54 @@ function HistoryContent() {
   }, {} as Record<string, Booking[]>);
 
   return (
-    <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center py-4 sm:py-8 px-4 sm:px-6 text-[#1E2B37] font-sans antialiased overflow-y-auto">
+    <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center py-3.5 sm:py-8 px-3.5 sm:px-6 text-[#1E2B37] font-sans antialiased overflow-x-hidden overflow-y-auto">
       
-      {/* Container หลัก */}
-      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-between items-center space-y-6">
+      {/* Container หลัก: ปรับ max-w-2xl เพื่อความสวยงามทั้งบนมือถือและจอคอม */}
+      <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-between items-center space-y-4 sm:space-y-6">
         
         {/* Header */}
-        <div className="w-full text-center pb-2 shrink-0 space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
+        <div className="w-full text-center pb-1 sm:pb-2 shrink-0 space-y-0.5 sm:space-y-1">
+          <h1 className="text-lg sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             My Bookings
           </h1>
           <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">View and manage your booking history</p>
         </div>
 
         {/* List Container */}
-        <div className="w-full space-y-6 flex-1 flex flex-col items-center">
+        <div className="w-full space-y-4 sm:space-y-6 flex-1 flex flex-col items-center">
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
               <div className="w-8 h-8 border-2 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
               <p className="text-xs sm:text-sm font-medium text-[#8E9B9E]">Loading bookings...</p>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="py-12 text-center flex flex-col items-center justify-center space-y-4 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 w-full">
-              <p className="text-sm font-bold text-[#1E2B37]">No booking history found.</p>
+            <div className="py-10 sm:py-12 text-center flex flex-col items-center justify-center space-y-4 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 w-full">
+              <p className="text-xs sm:text-sm font-bold text-[#1E2B37]">No booking history found.</p>
               <button
                 type="button"
                 onClick={() => router.push('/customer/booking')}
-                className="px-5 py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation active:scale-[0.98]"
+                className="px-5 py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation active:scale-[0.98] shadow-xs"
               >
                 Book Service Now
               </button>
             </div>
           ) : (
             Object.entries(groupedBookings).map(([date, items]) => (
-              <div key={date} className="space-y-3 w-full flex flex-col items-center">
+              <div key={date} className="space-y-2.5 sm:space-y-3 w-full flex flex-col items-center">
                 
                 {/* Sticky Header วันที่ */}
-                <div className="sticky top-0 bg-white/95 backdrop-blur-md py-2 z-10 flex items-center justify-between w-full px-1">
-                  <span className="text-xs sm:text-sm font-bold text-[#1E2B37] tracking-wide flex items-center gap-2">
+                <div className="sticky top-0 bg-white/95 backdrop-blur-md py-1.5 sm:py-2 z-10 flex items-center justify-between w-full px-1">
+                  <span className="text-xs sm:text-sm font-bold text-[#1E2B37] tracking-wide flex items-center gap-1.5 sm:gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#006AFF]"></span>
                     {formatDateDisplay(date)}
                   </span>
-                  <span className="text-[11px] font-medium text-slate-500 bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-0.5 rounded-full">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-[#F8FAFC] border border-[#E2E8F0] px-2 sm:px-2.5 py-0.5 rounded-full">
                     {items.length} {items.length > 1 ? 'bookings' : 'booking'}
                   </span>
                 </div>
 
                 {/* List การ์ด */}
-                <div className="flex flex-col items-center gap-3 w-full">
+                <div className="flex flex-col items-center gap-2.5 sm:gap-3 w-full">
                   {items.map((booking) => {
                     if (!booking) return null;
                     
@@ -329,16 +329,16 @@ function HistoryContent() {
                     return (
                       <div
                         key={booking.id}
-                        className="p-4 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl transition-all flex flex-col justify-between items-center gap-3.5 w-full"
+                        className="p-3.5 sm:p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl transition-all flex flex-col justify-between items-center gap-3 w-full"
                       >
-                        <div className="space-y-3 w-full">
+                        <div className="space-y-2.5 sm:space-y-3 w-full">
                           {/* Reference & Status Header */}
-                          <div className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2.5">
-                            <span className="text-xs font-bold text-[#006AFF] bg-[#EAF3F9] px-2.5 py-1 rounded-lg">
+                          <div className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2 sm:pb-2.5">
+                            <span className="text-[11px] sm:text-xs font-bold text-[#006AFF] bg-[#EAF3F9] px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg">
                               {formattedRef}
                             </span>
                             <span
-                              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${
+                              className={`inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 rounded-full capitalize shrink-0 ${
                                 isCompleted
                                   ? 'bg-[#E6F9E6] text-[#008800]'
                                   : cleanStatus === 'confirmed' || cleanStatus === 'in_progress' || cleanStatus === 'assigned'
@@ -360,22 +360,22 @@ function HistoryContent() {
                           </div>
 
                           {/* Details */}
-                          <div className="space-y-2 text-xs">
-                            <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1.5 sm:space-y-2 text-xs">
+                            <div className="flex items-start justify-between gap-2">
                               <span className="font-medium text-slate-500 shrink-0">Location</span>
-                              <p className="font-bold text-[#1E2B37] text-right leading-tight">
+                              <p className="font-bold text-[#1E2B37] text-right leading-tight break-words max-w-[65%]">
                                 {locationText}
                               </p>
                             </div>
 
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-start justify-between gap-2">
                               <span className="font-medium text-slate-500 shrink-0">Program</span>
-                              <span className="font-bold text-[#1E2B37] text-right">
+                              <span className="font-bold text-[#1E2B37] text-right break-words max-w-[65%]">
                                 {programName}
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center justify-between gap-2">
                               <span className="font-medium text-slate-500 shrink-0">Time</span>
                               <span className="font-bold text-[#1E2B37] text-right">
                                 {bookingTime}
@@ -385,11 +385,11 @@ function HistoryContent() {
                         </div>
 
                         {/* Action & Feedback Area */}
-                        <div className="w-full pt-2.5 border-t border-[#E2E8F0] shrink-0 flex flex-col items-center justify-center">
+                        <div className="w-full pt-2 sm:pt-2.5 border-t border-[#E2E8F0] shrink-0 flex flex-col items-center justify-center">
                           {isCompleted ? (
                             existingFeedback ? (
                               <div className="space-y-2 w-full">
-                                <div className="w-full py-2 bg-white border border-[#E2E8F0] rounded-lg text-center flex items-center justify-center gap-1.5">
+                                <div className="w-full py-1.5 sm:py-2 bg-white border border-[#E2E8F0] rounded-lg text-center flex items-center justify-center gap-1.5">
                                   <span className="text-xs font-bold text-[#008800]">
                                     ✓ Feedback Submitted
                                   </span>
@@ -401,24 +401,24 @@ function HistoryContent() {
                                 </div>
 
                                 {(existingFeedback.comment || existingFeedback.admin_reply) && (
-                                  <div className="p-3 bg-white border border-[#E2E8F0] rounded-lg text-left space-y-2">
+                                  <div className="p-2.5 sm:p-3 bg-white border border-[#E2E8F0] rounded-lg text-left space-y-1.5 sm:space-y-2">
                                     {existingFeedback.comment && (
                                       <div className="space-y-0.5">
-                                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                                           My Feedback
                                         </span>
-                                        <p className="text-xs text-slate-800 font-normal leading-relaxed italic">
+                                        <p className="text-xs text-slate-800 font-normal leading-relaxed italic break-words">
                                           "{existingFeedback.comment}"
                                         </p>
                                       </div>
                                     )}
 
                                     {existingFeedback.admin_reply && (
-                                      <div className="pt-2 border-t border-[#E2E8F0] space-y-0.5">
-                                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                                      <div className="pt-1.5 sm:pt-2 border-t border-[#E2E8F0] space-y-0.5">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                                           Our Reply
                                         </span>
-                                        <p className="text-xs text-slate-700 font-normal leading-relaxed">
+                                        <p className="text-xs text-slate-700 font-normal leading-relaxed break-words">
                                           {existingFeedback.admin_reply}
                                         </p>
                                       </div>
@@ -452,7 +452,7 @@ function HistoryContent() {
         </div>
 
         {/* Footer */}
-        <div className="w-full shrink-0 pt-4 space-y-2 text-center flex flex-col items-center justify-center">
+        <div className="w-full shrink-0 pt-3 sm:pt-4 space-y-1.5 sm:space-y-2 text-center flex flex-col items-center justify-center">
           <button
             type="button"
             onClick={() => router.push('/customer/booking')}
@@ -461,8 +461,8 @@ function HistoryContent() {
             ← Back to Booking
           </button>
 
-          <p className="text-xs text-[#94A3B8] font-normal">
-            © Getaway Cleaning Service
+          <p className="text-[10px] sm:text-xs text-[#94A3B8] font-normal">
+            © {new Date().getFullYear()} Getaway Cleaning Service
           </p>
         </div>
 
