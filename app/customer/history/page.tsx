@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -22,6 +22,9 @@ interface Booking {
   status: string;
   customer_id?: string;
   user_id?: string;
+  customer_email?: string;
+  customer_name?: string;
+  customer_phone?: string;
   details?: any;
 }
 
@@ -55,7 +58,17 @@ function HistoryContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [submittedFeedbacks, setSubmittedFeedbacks] = useState<Record<string, Feedback>>({});
   const [loading, setLoading] = useState<boolean>(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // ใช้ Ref เพื่อให้ Realtime Listener ตรวจสอบเจ้าของข้อมูลได้แบบ Realtime ไม่หลุด Scope
+  const userEmailRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    userEmailRef.current = userEmail;
+    userIdRef.current = userId;
+  }, [userEmail, userId]);
 
   // ดึงรายการ Feedbacks
   const fetchFeedbacksForBookings = useCallback(async (bookingIds: (string | number)[]) => {
@@ -87,7 +100,7 @@ function HistoryContent() {
     }
   }, []);
 
-  // ฟังก์ชันดึงข้อมูลผู้ใช้และการจองทั้งหมด
+  // ฟังก์ชันดึงข้อมูลผู้ใช้และรายการจองเฉพาะอีเมล/ID ของตัวเองเท่านั้น
   const fetchUserAndInitialData = useCallback(async (isMounted = true) => {
     try {
       if (isMounted) setLoading(true);
@@ -100,46 +113,52 @@ function HistoryContent() {
         if (localData) storedUser = JSON.parse(localData);
       } catch (e) {}
 
-      const currentUserId = user?.id || storedUser?.id || null;
+      // ดึงอีเมลจากทุกจุดที่เป็นไปได้
+      const currentEmail = (
+        user?.email || 
+        localStorage.getItem('user_email') || 
+        storedUser?.email || 
+        ''
+      ).trim().toLowerCase();
 
-      if (isMounted) setUserId(currentUserId);
+      // ดึง User ID
+      const currentUserId = user?.id || storedUser?.id || localStorage.getItem('user_id') || null;
 
-      let bookingData: Booking[] | null = null;
-      let bookingError = null;
-
-      if (currentUserId) {
-        const { data, error } = await supabase
-          .from('bookings')
-          .select('*')
-          .or(`customer_id.eq.${currentUserId},user_id.eq.${currentUserId}`)
-          .order('created_at', { ascending: false });
-
-        bookingData = data as Booking[];
-        bookingError = error;
-      } else {
-        const { data, error } = await supabase
-          .from('bookings')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        bookingData = data as Booking[];
-        bookingError = error;
+      if (isMounted) {
+        setUserEmail(currentEmail || null);
+        setUserId(currentUserId);
       }
 
-      if (bookingError) {
-        console.error('Error fetching bookings:', bookingError.message);
-        const { data: fallbackData } = await supabase
-          .from('bookings')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (fallbackData && isMounted) {
-          setBookings(fallbackData as Booking[]);
+      // หากไม่มีทั้งอีเมลและ User ID แสดงว่ายังไม่ได้ล็อกอิน ให้เคลียร์เป็นค่าว่าง
+      if (!currentEmail && !currentUserId) {
+        if (isMounted) {
+          setBookings([]);
+          setLoading(false);
         }
-      } else if (bookingData && isMounted) {
-        const sortedBookings = [...bookingData].sort((a, b) => {
+        return;
+      }
+
+      // สร้างเงื่อนไขค้นหา: ต้องตรงกับ Email ของตัวเอง หรือ User ID ของตัวเองเท่านั้น
+      const filterConditions: string[] = [];
+      if (currentEmail) {
+        filterConditions.push(`customer_email.eq.${currentEmail}`);
+      }
+      if (currentUserId) {
+        filterConditions.push(`customer_id.eq.${currentUserId}`);
+        filterConditions.push(`user_id.eq.${currentUserId}`);
+      }
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .or(filterConditions.join(','))
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching bookings:', error.message);
+        if (isMounted) setBookings([]);
+      } else if (data && isMounted) {
+        const sortedBookings = [...(data as Booking[])].sort((a, b) => {
           const dateA = a.scheduled_date || a.booking_date || '';
           const dateB = b.scheduled_date || b.booking_date || '';
           return dateB.localeCompare(dateA);
@@ -151,6 +170,7 @@ function HistoryContent() {
       }
     } catch (err: any) {
       console.error('Failed to load history data:', err?.message || err);
+      if (isMounted) setBookings([]);
     } finally {
       if (isMounted) setLoading(false);
     }
@@ -170,7 +190,7 @@ function HistoryContent() {
     };
   }, [fetchUserAndInitialData]);
 
-  // Realtime Listener
+  // Realtime Listener พร้อมตัวตรวจจับสิทธิ์ความเป็นเจ้าของ
   useEffect(() => {
     const channelId = Math.random().toString(36).substring(2, 7);
 
@@ -180,20 +200,30 @@ function HistoryContent() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
+          const item = (payload.new || {}) as Booking;
+          const myEmail = userEmailRef.current?.trim().toLowerCase();
+          const myId = userIdRef.current;
+
+          // ตรวจสอบว่า Booking ที่อัปเดตเป็นของตัวเองหรือไม่ หากไม่ใช่ของตัวเองให้ข้ามทันที
+          const isMyBooking =
+            (myEmail && item.customer_email?.trim().toLowerCase() === myEmail) ||
+            (myId && (item.customer_id === myId || item.user_id === myId));
+
+          if (!isMyBooking) return;
+
           if (payload.eventType === 'UPDATE' && payload.new) {
-            const updatedBooking = payload.new as Booking;
             setBookings((prev) =>
-              prev.map((item) =>
-                String(item.id) === String(updatedBooking.id) ? { ...item, ...updatedBooking } : item
+              prev.map((existing) =>
+                String(existing.id) === String(item.id) ? { ...existing, ...item } : existing
               )
             );
             
-            const cleanStatus = (updatedBooking.status || '').trim().toLowerCase();
+            const cleanStatus = (item.status || '').trim().toLowerCase();
             if (['completed', 'done', 'finished', 'success'].includes(cleanStatus)) {
-              fetchFeedbacksForBookings([updatedBooking.id]);
+              fetchFeedbacksForBookings([item.id]);
             }
           } else if (payload.eventType === 'INSERT' && payload.new) {
-            setBookings((prev) => [payload.new as Booking, ...prev]);
+            setBookings((prev) => [item, ...prev]);
           }
         }
       )
@@ -240,7 +270,7 @@ function HistoryContent() {
   return (
     <main className="min-h-screen w-full bg-white flex flex-col justify-between items-center py-3.5 sm:py-8 px-3.5 sm:px-6 text-[#1E2B37] font-sans antialiased overflow-x-hidden overflow-y-auto">
       
-      {/* Container หลัก: ปรับ max-w-2xl เพื่อความสวยงามทั้งบนมือถือและจอคอม */}
+      {/* Container หลัก */}
       <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-between items-center space-y-4 sm:space-y-6">
         
         {/* Header */}
@@ -248,7 +278,9 @@ function HistoryContent() {
           <h1 className="text-lg sm:text-2xl font-bold text-[#1E2B37] tracking-tight">
             My Bookings
           </h1>
-          <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">View and manage your booking history</p>
+          <p className="text-xs sm:text-sm text-[#8E9B9E] font-normal">
+            {userEmail ? `Signed in as ${userEmail}` : 'View and manage your booking history'}
+          </p>
         </div>
 
         {/* List Container */}
@@ -256,11 +288,12 @@ function HistoryContent() {
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
               <div className="w-8 h-8 border-2 border-[#006AFF] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-xs sm:text-sm font-medium text-[#8E9B9E]">Loading bookings...</p>
+              <p className="text-xs sm:text-sm font-medium text-[#8E9B9E]">Loading your bookings...</p>
             </div>
           ) : bookings.length === 0 ? (
             <div className="py-10 sm:py-12 text-center flex flex-col items-center justify-center space-y-4 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 w-full">
               <p className="text-xs sm:text-sm font-bold text-[#1E2B37]">No booking history found.</p>
+              <p className="text-xs text-slate-400">You don't have any bookings under this account yet.</p>
               <button
                 type="button"
                 onClick={() => router.push('/customer/booking')}
