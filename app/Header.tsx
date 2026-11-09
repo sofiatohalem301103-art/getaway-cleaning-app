@@ -8,7 +8,6 @@ interface HeaderProps {
   title?: string;
 }
 
-// ตัด flag ออก เหลือเฉพาะ code และ iso เพื่อความคลีนและแก้ปัญหาตัวอักษรซ้ำบน Windows
 const COUNTRY_CODES = [
   { code: '+357', iso: 'CY' },
   { code: '+44', iso: 'GB' },
@@ -63,6 +62,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   const [profileName, setProfileName] = useState<string>('');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isPromptedFromLogin, setIsPromptedFromLogin] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const profileDropdownRef = useRef<HTMLDivElement>(null);
@@ -94,7 +94,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   const parsePhone = (rawPhone: string) => {
     if (!rawPhone) return { code: '+357', custom: '', num: '' };
     
-    // เรียงรหัสที่ยาวกว่าขึ้นก่อน ป้องกันกรณีจับคู่ผิด
     const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
     const matched = sortedCodes.find(c => rawPhone.startsWith(c.code));
     
@@ -103,7 +102,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
       return { code: matched.code, custom: '', num: formatPhoneNumber(rawNum) };
     }
 
-    // ตรวจสอบกรณีเป็นรหัสประเทศอื่นนอกรายการ
     const customMatch = rawPhone.match(/^(\+\d{1,4})/);
     if (customMatch) {
       const customCode = customMatch[1];
@@ -123,6 +121,23 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // 🔔 ดักฟัง Event จากหน้าอื่น เพื่อสั่งเปิด Modal แก้ไขโปรไฟล์
+  useEffect(() => {
+    const handleOpenProfileModal = () => {
+      setIsProfileModalOpen(true);
+    };
+    window.addEventListener('open-profile-modal', handleOpenProfileModal);
+    return () => window.removeEventListener('open-profile-modal', handleOpenProfileModal);
+  }, []);
+
+  // 🟢 ตรวจสอบสถานะ setup_profile จาก URL เพื่อเปิด Modal อัตโนมัติหลังล็อกอิน
+  useEffect(() => {
+    if (searchParams?.get('setup_profile') === 'true') {
+      setIsProfileModalOpen(true);
+      setIsPromptedFromLogin(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -283,6 +298,19 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     setProfileName(fullName);
     setLoading(false);
     setIsProfileModalOpen(false);
+    setIsPromptedFromLogin(false);
+
+    // 📡 แจ้งเตือนหน้า Booking ให้รับข้อมูลใหม่ทันที
+    window.dispatchEvent(
+      new CustomEvent('profile-updated', {
+        detail: { name: fullName, phone: fullPhone, email: finalEmail },
+      })
+    );
+
+    // ลบ query param ?setup_profile=true ออกจาก URL
+    if (searchParams?.get('setup_profile')) {
+      router.replace(pathname || '/customer/booking');
+    }
   };
 
   const handleLogout = async () => {
@@ -335,6 +363,9 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                   <span className="underline decoration-2 underline-offset-4 truncate max-w-[100px] sm:max-w-none">
                     {profileName || 'Profile'}
                   </span>
+                  {!profileName && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  )}
                   <span className="text-[9px] sm:text-[10px]">▼</span>
                 </button>
 
@@ -346,9 +377,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                         setIsProfileDropdownOpen(false);
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition cursor-pointer"
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0082CD] transition cursor-pointer flex items-center justify-between"
                     >
-                      Profile & Settings
+                      <span>Profile & Settings</span>
+                      {!profileName && <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded">Setup</span>}
                     </button>
 
                     <div className="border-t border-slate-100 my-1" />
@@ -406,10 +438,23 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         </div>
       </header>
 
-      {/* MODAL PROFILE: ปรับขนาดฟอนต์ 16px บนมือถือเพื่อกัน Auto-Zoom และรองรับจอเล็ก */}
+      {/* MODAL PROFILE: มีแจ้งเตือนข้อความชัดเจนเมื่อล็อกอินเข้ามาครั้งแรก */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-8 max-h-[90dvh] overflow-y-auto my-auto box-border">
+          <div className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-8 max-h-[90dvh] overflow-y-auto my-auto box-border animate-in fade-in zoom-in duration-200">
+            
+            {/* กล่องแจ้งเตือนพิเศษเมื่อเพิ่งล็อกอินเข้ามา */}
+            {isPromptedFromLogin && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800 text-xs font-medium space-y-0.5">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>⚠️</span> Action Required
+                </p>
+                <p className="text-[11px] leading-relaxed text-amber-700 font-normal">
+                  Please complete your name and phone number before proceeding with your booking.
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mb-5 sm:mb-6">
               <div>
                 <h3 className="text-base sm:text-xl font-bold text-[#0F172A]">Profile Details</h3>
@@ -417,7 +462,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               </div>
               <button 
                 type="button"
-                onClick={() => setIsProfileModalOpen(false)}
+                onClick={() => {
+                  setIsProfileModalOpen(false);
+                  setIsPromptedFromLogin(false);
+                }}
                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer text-base font-bold"
               >
                 ✕
@@ -427,7 +475,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
             <form onSubmit={handleSaveProfile} className="space-y-3.5 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">First Name</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">First Name *</label>
                   <input
                     type="text"
                     required
@@ -438,7 +486,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Last Name</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Last Name *</label>
                   <input
                     type="text"
                     required
@@ -468,7 +516,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               </div>
 
               <div>
-                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Phone Number *</label>
                 <div className="flex gap-1.5 sm:gap-2">
                   <div className="w-[100px] sm:w-[110px] shrink-0">
                     <select
@@ -514,7 +562,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               <div className="flex gap-2.5 sm:gap-3 pt-2 sm:pt-3">
                 <button
                   type="button"
-                  onClick={() => setIsProfileModalOpen(false)}
+                  onClick={() => {
+                    setIsProfileModalOpen(false);
+                    setIsPromptedFromLogin(false);
+                  }}
                   className="w-1/2 py-2.5 sm:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
                 >
                   Cancel

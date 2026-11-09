@@ -1003,6 +1003,23 @@ function BookingForm() {
     phone: '',
   });
 
+  // 📡 ดักฟังข้อมูลโปรไฟล์ที่มีการอัปเดตจาก Header Modal
+  useEffect(() => {
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail) {
+        setCustomerInfo((prev) => ({
+          ...prev,
+          name: e.detail.name || prev.name,
+          phone: e.detail.phone || prev.phone,
+          email: e.detail.email || prev.email,
+        }));
+      }
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdated);
+    return () => window.removeEventListener('profile-updated', handleProfileUpdated);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const tomorrow = new Date();
@@ -1152,6 +1169,13 @@ function BookingForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // 🔒 เช็คโปรไฟล์ชื่อและเบอร์โทร หากยังไม่ได้เซต ให้เตือนและเปิด Header Profile Modal ทันที
+    if (!customerInfo.name?.trim() || !customerInfo.phone?.trim()) {
+      alert("Please set up your profile details (Name & Phone Number) in the header first.");
+      window.dispatchEvent(new Event('open-profile-modal'));
+      return;
+    }
 
     if (!selectedDate) {
       alert("Please select a service date.");
@@ -1426,7 +1450,31 @@ function BookingForm() {
 
   return (
     <main className="min-h-screen w-full bg-white py-3 sm:py-8 overflow-x-hidden">
-      <div className="max-w-4xl mx-auto px-3.5 sm:px-6">
+      <div className="max-w-4xl mx-auto px-3.5 sm:px-6 space-y-4">
+        
+        {/* ⚠️ แถบแจ้งเตือนด้านบน หากข้อมูลโปรไฟล์ยังไม่ครบถ้วน */}
+        {(!customerInfo.name || !customerInfo.phone) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl shrink-0">👤</span>
+              <div className="text-xs sm:text-sm font-medium">
+                <span className="font-bold block">Profile Incomplete</span>
+                <span className="text-amber-700 font-normal">
+                  Please complete your name and phone number in the header before booking.
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event('open-profile-modal'))}
+              className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl shrink-0 transition cursor-pointer shadow-xs"
+            >
+              Set Up Profile Now →
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div className="space-y-0.5 sm:space-y-1">
             <h1 className="text-lg sm:text-2xl font-bold text-[#1E2B37]">

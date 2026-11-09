@@ -6,19 +6,36 @@ import React, { useMemo, useState, useEffect } from 'react';
 
 export default function StartCustomerPage() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
+      // 1. ตรวจสอบระยะเลื่อนเพื่อปรับสไตล์ Navbar
       if (window.scrollY > 20) {
         setIsScrolled(true);
       } else {
         setIsScrolled(false);
+      }
+
+      // 2. แสดงปุ่ม Scroll to Top เมื่อเลื่อนจอลงมาเกิน 400px
+      if (window.scrollY > 400) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // ฟังก์ชันเลื่อนจอกลับขึ้นด้านบนอย่างนุ่มนวล
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
 
   const tomorrowDateString = useMemo(() => {
     const tomorrow = new Date();
@@ -36,26 +53,31 @@ export default function StartCustomerPage() {
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#F8FAFC] text-[#1E2B37] font-sans antialiased overflow-x-hidden">
+    <main className="min-h-screen w-full bg-[#F8FAFC] text-[#1E2B37] font-sans antialiased overflow-x-hidden relative">
       
       {/* ================= NAVIGATION BAR (SMART STICKY HEADER) ================= */}
       <nav 
         className={`sticky top-0 z-50 w-full transition-all duration-300 ${
           isScrolled 
             ? 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80 py-0' 
-            : 'bg-white/80 backdrop-blur-md border-b border-slate-100 py-1.5 sm:py-2'
+            : 'bg-white/80 backdrop-blur-md border-b border-slate-100 py-1 sm:py-1.5'
         }`}
       >
         <div 
           className={`max-w-7xl mx-auto px-4 sm:px-8 md:px-12 flex items-center justify-between transition-all duration-300 ${
-            isScrolled ? 'h-13 sm:h-16' : 'h-15 sm:h-20'
+            isScrolled ? 'h-14 sm:h-16' : 'h-16 sm:h-20'
           }`}
         >
           
-          <a href="#home" className="flex items-center gap-1.5 sm:gap-2 group">
-            <span className="text-base sm:text-xl font-bold tracking-tight text-slate-900 group-hover:opacity-90 transition truncate max-w-[200px] sm:max-w-none">
-              GETAWAY <span className="text-[#006AFF]">CLEANING</span>
-            </span>
+          {/* Logo Brand ใน Navbar */}
+          <a href="#home" className="flex items-center gap-2 group py-1">
+            <img 
+              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
+              alt="Getaway Cleaning Logo" 
+              className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${
+                isScrolled ? 'h-10 sm:h-12' : 'h-12 sm:h-16'
+              }`}
+            />
           </a>
 
           <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-slate-600">
@@ -70,7 +92,7 @@ export default function StartCustomerPage() {
               href={getBookingUrl()}
               className={`inline-flex items-center justify-center bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-full shadow-md shadow-blue-500/20 transition-all duration-300 cursor-pointer ${
                 isScrolled 
-                  ? 'px-4 sm:px-5 py-1 text-xs' 
+                  ? 'px-4 sm:px-5 py-1.5 text-xs' 
                   : 'px-4.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm'
               }`}
             >
@@ -150,7 +172,7 @@ export default function StartCustomerPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
             </div>
 
-            {/* Floating Promise Card: ปรับให้ยืดหยุ่นบนจอเล็กไม่ตกขอบ */}
+            {/* Floating Promise Card */}
             <div className="absolute -bottom-4 left-3 right-3 sm:right-auto sm:-bottom-6 sm:-left-6 bg-white/95 backdrop-blur-md p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xl border border-slate-100 flex items-center gap-3 sm:gap-4 max-w-xs">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl shrink-0">✓</div>
               <div>
@@ -440,10 +462,14 @@ export default function StartCustomerPage() {
       <footer className="bg-slate-900 text-slate-400 py-10 sm:py-12 px-4 sm:px-8 md:px-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           
-          <div className="space-y-2">
-            <h3 className="text-xl sm:text-2xl font-black text-white tracking-wide">GETAWAY CLEANING</h3>
+          <div className="space-y-3">
+            <img 
+              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
+              alt="Getaway Cleaning Logo" 
+              className="h-12 sm:h-14 w-auto object-contain brightness-0 invert opacity-90"
+            />
             <p className="text-xs text-blue-400 font-medium">A Cleaner Space. A Better Life.</p>
-            <p className="text-xs text-slate-400 font-normal pt-1 sm:pt-2 max-w-sm">
+            <p className="text-xs text-slate-400 font-normal max-w-sm">
               Let us take care of the cleaning while you enjoy what matters most.
             </p>
           </div>
@@ -460,6 +486,27 @@ export default function StartCustomerPage() {
 
         </div>
       </footer>
+
+      {/* ================= FLOATING SCROLL TO TOP BUTTON ================= */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+          className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-12 sm:h-12 bg-white/95 hover:bg-white text-slate-700 hover:text-[#006AFF] border border-slate-200/90 shadow-xl rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-xs animate-in fade-in zoom-in touch-manipulation"
+        >
+          <svg 
+            className="w-5 h-5 sm:w-6 sm:h-6" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={2.5} 
+            viewBox="0 0 24 24" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+          </svg>
+        </button>
+      )}
 
     </main>
   );

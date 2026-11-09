@@ -62,23 +62,45 @@ export default function LoginPage() {
       <div className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center py-2 sm:py-4">
         
         {/* ==========================================
-            ฝั่งซ้าย: ข้อความต้อนรับ (แสดงบนจอคอมพิวเตอร์/iPad แนวนอน)
+            ฝั่งซ้าย: โลโก้ขนาดใหญ่ + ข้อความต้อนรับ (Desktop)
            ========================================== */}
-        <div className="hidden lg:flex lg:col-span-7 flex-col justify-center space-y-4 pr-4">
-          <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-[#1E2B37] tracking-tight leading-[1.2]">
-            Book your cleaning service <br />
-            <span className="text-[#006AFF]">with absolute confidence.</span>
-          </h1>
-          <p className="text-sm lg:text-base text-slate-500 font-normal max-w-lg leading-relaxed">
-            Trusted housekeeping experts dedicated to making your home impeccably clean and inviting.
-          </p>
+        <div className="hidden lg:flex lg:col-span-7 flex-col justify-center space-y-6 pr-4">
+          
+          {/* โลโก้ขนาดใหญ่พิเศษบน Desktop */}
+          <div className="cursor-pointer inline-block" onClick={() => router.push('/')}>
+            <img
+              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png"
+              alt="Getaway Cleaning Logo"
+              className="h-28 sm:h-36 lg:h-44 w-auto max-w-[420px] object-contain hover:scale-[1.02] transition-transform duration-200 drop-shadow-xs"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-[#1E2B37] tracking-tight leading-[1.2]">
+              Book your cleaning service <br />
+              <span className="text-[#006AFF]">with absolute confidence.</span>
+            </h1>
+            <p className="text-sm lg:text-base text-slate-500 font-normal max-w-lg leading-relaxed">
+              Trusted housekeeping experts dedicated to making your home impeccably clean and inviting.
+            </p>
+          </div>
         </div>
 
         {/* ==========================================
-            ฝั่งขวา: แบบฟอร์มการ์ด (รองรับตั้งแต่ iPhone SE ถึงจอใหญ่)
+            ฝั่งขวา: แบบฟอร์มการ์ด (รองรับทุกอุปกรณ์)
            ========================================== */}
         <div className="lg:col-span-5 w-full max-w-md mx-auto">
           
+          {/* โลโก้ขนาดใหญ่เด่นชัดสำหรับจอมือถือ */}
+          <div className="flex lg:hidden justify-center mb-5 sm:mb-7">
+            <img
+              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png"
+              alt="Getaway Cleaning Logo"
+              className="h-20 sm:h-24 w-auto max-w-[280px] object-contain cursor-pointer hover:scale-[1.02] transition-transform"
+              onClick={() => router.push('/')}
+            />
+          </div>
+
           <div className="bg-white border-0 sm:border sm:border-slate-200/80 shadow-none sm:shadow-xl sm:shadow-slate-200/50 rounded-2xl sm:rounded-3xl p-4 sm:p-8 space-y-4 sm:space-y-5">
             
             {/* Header */}
@@ -92,7 +114,6 @@ export default function LoginPage() {
               <div className="space-y-1.5 text-left">
                 <label className="text-xs font-semibold text-[#1E2B37] px-0.5">Email Address</label>
                 
-                {/* ขนาดฟอนต์ text-base บนมือถือช่วยป้องกัน Auto-Zoom ของเบราว์เซอร์ */}
                 <input
                   type="email"
                   value={email}

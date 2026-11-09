@@ -343,7 +343,7 @@ function ConfirmationContent() {
         <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl px-3.5 py-3 sm:px-5 sm:py-4 mb-5 sm:mb-8 text-center">
           <span className="text-xs sm:text-sm md:text-base font-medium text-slate-700 leading-relaxed block">
             {isHoliday
-              ? 'Our team will handle your cleaning according to the scheduled date and time.'
+              ? 'Dear client, please bear with us. We will get back to you with confirmation of the date and specific time within 24 hours. Thank you for your understanding.'
               : 'Our admin team will review your property details and contact you shortly with a confirmation.'}
           </span>
         </div>

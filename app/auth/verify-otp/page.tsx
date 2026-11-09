@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 function VerifyOtpContent() {
+  const router = useRouter();
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -175,7 +176,9 @@ function VerifyOtpContent() {
       localStorage.setItem('user_is_authenticated', 'true');
       localStorage.setItem('user_email', email);
 
-      // ✅ บันทึก/อัปเดตข้อมูลผู้ใช้ในตาราง users ของ Supabase
+      let isProfileComplete = false;
+
+      // ✅ ตรวจสอบและบันทึกผู้ใช้ในตาราง users ของ Supabase
       if (supabase && email) {
         try {
           const { data: existingUser } = await supabase
@@ -196,13 +199,21 @@ function VerifyOtpContent() {
             }
           } else {
             localStorage.setItem('user', JSON.stringify(existingUser));
+            if (existingUser.full_name?.trim() && existingUser.phone?.trim()) {
+              isProfileComplete = true;
+            }
           }
         } catch (err) {
           console.error('Database Sync Error:', err);
         }
       }
 
-      window.location.href = '/customer/booking';
+      // ถ้ายังไม่ได้กรอกโปรไฟล์ ให้ส่ง flag ไปเปิด Modal ที่หน้า Booking ทันที
+      if (!isProfileComplete) {
+        window.location.href = '/customer/booking?setup_profile=true';
+      } else {
+        window.location.href = '/customer/booking';
+      }
     } else {
       alert('Incorrect OTP code. Please check your email and try again');
     }
@@ -251,7 +262,6 @@ function VerifyOtpContent() {
           <div className="w-full space-y-5 sm:space-y-6">
             <form onSubmit={handleVerify} className="space-y-5 sm:space-y-6">
               
-              {/* ช่องกรอก OTP (จัดวางให้พอดีกับ iPhone SE 375px และป้องกันการ Zoom) */}
               <div className="flex justify-center items-center gap-1.5 xs:gap-2 sm:gap-3" onPaste={handlePaste}>
                 {otp.map((digit, idx) => (
                   <input
