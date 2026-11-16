@@ -141,33 +141,27 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const savedFirstName = localStorage.getItem('user_first_name') || '';
-      const savedLastName = localStorage.getItem('user_last_name') || '';
-      const savedName = localStorage.getItem('user_name') || `${savedFirstName} ${savedLastName}`.trim();
-      const savedEmail = localStorage.getItem('user_email') || '';
-      const savedPhone = localStorage.getItem('user_phone') || '';
-
-      const { code, custom, num } = parsePhone(savedPhone);
-
-      if (savedName) setProfileName(savedName);
-
-      setFormData({
-        firstName: savedFirstName || savedName.split(' ')[0] || '',
-        lastName: savedLastName || savedName.split(' ').slice(1).join(' ') || '',
-        email: savedEmail,
-        countryCode: code,
-        customCode: custom,
-        phoneNumber: num,
-      });
-
       if (supabase) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
           setUser(authUser);
+
+          // หากอีเมลใน localStorage ไม่ตรงกับบัญชีที่ล็อกอินอยู่ ให้ล้างค่าเก่าทิ้งทันที
+          const prevEmail = (localStorage.getItem('user_email') || '').trim().toLowerCase();
+          const authEmail = (authUser.email || '').trim().toLowerCase();
+          if (authEmail && prevEmail && prevEmail !== authEmail) {
+            localStorage.removeItem('user_first_name');
+            localStorage.removeItem('user_last_name');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_phone');
+            localStorage.removeItem('guest_user_id');
+          }
+
+          if (authEmail) localStorage.setItem('user_email', authEmail);
+          localStorage.setItem('user_id', authUser.id);
           
-          const currentUserEmail = authUser.email || savedEmail;
           const providerData = authUser.user_metadata;
-          let fullName = providerData?.full_name || providerData?.name || savedName;
+          let fullName = providerData?.full_name || providerData?.name || '';
           
           let extractedFirstName = providerData?.given_name || providerData?.first_name || '';
           let extractedLastName = providerData?.family_name || providerData?.last_name || '';
@@ -186,33 +180,59 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
           if (userData) {
             fullName = userData.full_name || fullName;
-            const fullPhone = userData.phone || savedPhone;
+            const fullPhone = userData.phone || '';
             const parsed = parsePhone(fullPhone);
 
             const profileNameParts = fullName ? fullName.split(' ') : [];
-            const pFirstName = profileNameParts[0] || extractedFirstName || savedFirstName;
-            const pLastName = profileNameParts.slice(1).join(' ') || extractedLastName || savedLastName;
+            const pFirstName = profileNameParts[0] || extractedFirstName;
+            const pLastName = profileNameParts.slice(1).join(' ') || extractedLastName;
+
+            if (fullName) localStorage.setItem('user_name', fullName);
+            if (fullPhone) localStorage.setItem('user_phone', fullPhone);
 
             setFormData({
               firstName: pFirstName,
               lastName: pLastName,
-              email: userData.email || currentUserEmail || savedEmail,
+              email: userData.email || authEmail,
               countryCode: parsed.code,
               customCode: parsed.custom,
               phoneNumber: parsed.num,
             });
           } else {
-            setFormData(prev => ({
-              ...prev,
-              firstName: extractedFirstName || prev.firstName,
-              lastName: extractedLastName || prev.lastName,
-              email: currentUserEmail || savedEmail,
-            }));
+            setFormData({
+              firstName: extractedFirstName,
+              lastName: extractedLastName,
+              email: authEmail,
+              countryCode: '+357',
+              customCode: '',
+              phoneNumber: '',
+            });
           }
 
-          if (fullName) setProfileName(fullName);
+          setProfileName(fullName || '');
+          return;
         }
       }
+
+      // กรณีไม่ได้ล็อกอินผ่าน Supabase Auth ให้โหลดจาก localStorage
+      const savedFirstName = localStorage.getItem('user_first_name') || '';
+      const savedLastName = localStorage.getItem('user_last_name') || '';
+      const savedName = localStorage.getItem('user_name') || `${savedFirstName} ${savedLastName}`.trim();
+      const savedEmail = localStorage.getItem('user_email') || '';
+      const savedPhone = localStorage.getItem('user_phone') || '';
+
+      const { code, custom, num } = parsePhone(savedPhone);
+
+      if (savedName) setProfileName(savedName);
+
+      setFormData({
+        firstName: savedFirstName || savedName.split(' ')[0] || '',
+        lastName: savedLastName || savedName.split(' ').slice(1).join(' ') || '',
+        email: savedEmail,
+        countryCode: code,
+        customCode: custom,
+        phoneNumber: num,
+      });
     };
 
     loadUserData();
@@ -240,7 +260,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
     const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
     const fullPhone = `${activeCode} ${formData.phoneNumber.trim()}`.trim();
-    const finalEmail = formData.email.trim() || localStorage.getItem('user_email') || user?.email || '';
+    const finalEmail = (user?.email || formData.email.trim() || localStorage.getItem('user_email') || '').toLowerCase();
 
     localStorage.setItem('user_first_name', formData.firstName);
     localStorage.setItem('user_last_name', formData.lastName);
@@ -250,30 +270,32 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
     try {
       if (supabase && finalEmail) {
-        const cleanEmail = finalEmail.toLowerCase();
+        // ยึด ID ของบัญชีที่ล็อกอินอยู่เป็นหลักเสมอ ไม่ไปทับด้วย ID ของคนอื่น
         let targetUserId = user?.id;
 
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', cleanEmail)
-          .maybeSingle();
+        if (!targetUserId) {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', finalEmail)
+            .maybeSingle();
 
-        if (existingUser?.id) {
-          targetUserId = existingUser.id;
-        } else if (!targetUserId) {
-          let guestId = localStorage.getItem('guest_user_id');
-          if (!guestId) {
-            guestId = crypto.randomUUID();
-            localStorage.setItem('guest_user_id', guestId);
+          if (existingUser?.id) {
+            targetUserId = existingUser.id;
+          } else {
+            let guestId = localStorage.getItem('guest_user_id');
+            if (!guestId) {
+              guestId = crypto.randomUUID();
+              localStorage.setItem('guest_user_id', guestId);
+            }
+            targetUserId = guestId;
           }
-          targetUserId = guestId;
         }
 
         const { error: userError } = await supabase.from('users').upsert({
           id: targetUserId,
           full_name: fullName,
-          email: cleanEmail,
+          email: finalEmail,
           phone: fullPhone,
           role: 'customer',
         }, { onConflict: 'id' });
@@ -318,6 +340,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
       await supabase.auth.signOut();
       setUser(null);
       localStorage.clear();
+      sessionStorage.clear();
       setProfileName('');
       setIsProfileDropdownOpen(false);
       router.push('/auth/login');

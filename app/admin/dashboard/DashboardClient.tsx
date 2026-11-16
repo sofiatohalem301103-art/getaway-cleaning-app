@@ -1513,6 +1513,7 @@ function AdminDashboardContent() {
 
       let isSuccess = false;
 
+      // 1. Update bookings table
       if (task.id) {
         const { error } = await supabase
           .from('bookings')
@@ -1530,6 +1531,39 @@ function AdminDashboardContent() {
       }
 
       if (!isSuccess) throw new Error('Could not update payment status in Supabase.');
+
+      // 2. Sync payments table (update status to completed and set paid_at timestamp)
+      let paymentUpdated = false;
+      const nowIso = new Date().toISOString();
+
+      if (task.id) {
+        const { error: payErr1, data: payData1 } = await supabase
+          .from('payments')
+          .update({
+            status: 'completed',
+            paid_at: nowIso,
+          })
+          .eq('booking_id', task.id)
+          .select();
+
+        if (!payErr1 && payData1 && payData1.length > 0) {
+          paymentUpdated = true;
+        }
+      }
+
+      if (!paymentUpdated && task.booking_ref) {
+        const { error: payErr2 } = await supabase
+          .from('payments')
+          .update({
+            status: 'completed',
+            paid_at: nowIso,
+          })
+          .eq('transaction_id', `TXN-${task.booking_ref}`);
+
+        if (payErr2) {
+          console.error('Failed to update payments table:', payErr2.message);
+        }
+      }
 
       const customerEmail = extractCustomerEmail(task);
 

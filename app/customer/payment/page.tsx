@@ -263,30 +263,45 @@ function PaymentContent() {
         bookingPayload.user_id = activeUserId;
       }
 
+      // 1. บันทึกลงตาราง bookings พร้อมดักจับ Error
       const { data: bookingResult, error: bookingError } = await supabase
         .from('bookings')
         .insert([bookingPayload])
         .select()
-        .maybeSingle();
+        .single();
 
       if (bookingError) {
         console.error('Booking insert error:', bookingError);
-      } else if (bookingResult) {
-        createdBookingId = bookingResult.id;
+        alert(`ไม่สามารถบันทึกการจองได้ (Bookings): ${bookingError.message}`);
+        setIsUploading(false);
+        return;
       }
 
+      createdBookingId = bookingResult.id;
+
+      // 2. บันทึกลงตาราง payments พร้อมดักจับ Error
       const paymentPayload: any = {
-        booking_id: createdBookingId || null,
+        booking_id: createdBookingId,
         amount: numericPrice,
         payment_method: paymentMethod === 'bank' ? 'bank_transfer' : 'cash',
         status: 'pending',
         proof_of_payment_url: uploadedSlipUrl || null,
         transaction_id: `TXN-${generatedRef}`,
-        paid_at: new Date().toISOString(),
+        paid_at: paymentMethod === 'bank' ? new Date().toISOString() : null,
       };
 
-      await supabase.from('payments').insert([paymentPayload]);
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert([paymentPayload]);
 
+      if (paymentError) {
+        console.error('Payment insert error:', paymentError);
+        alert(`บันทึกการจองแล้ว แต่บันทึกการชำระเงินไม่สำเร็จ (Payments): ${paymentError.message}`);
+        setIsUploading(false);
+        return;
+      }
+
+      // 3. บันทึกแจ้งเตือน (Notifications)
       try {
         const notificationPayload: any = {
           user_id: activeUserId || null,

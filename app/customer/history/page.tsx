@@ -53,6 +53,47 @@ const formatDateDisplay = (dateString: string) => {
   return `${parseInt(day, 10)} ${monthName} ${year}`;
 };
 
+// Helper เช็กความเป็นเจ้าของรายการจองอย่างเข้มงวด
+const isBookingOwnedByUser = (
+  booking: Booking,
+  targetEmail: string | null,
+  targetUserId: string | null
+): boolean => {
+  if (!booking) return false;
+  if (!targetEmail && !targetUserId) return false;
+
+  const cleanTargetEmail = targetEmail ? targetEmail.trim().toLowerCase() : '';
+
+  // 1. เช็กจาก User ID / Customer ID หลัก
+  if (targetUserId) {
+    if (String(booking.user_id || '') === String(targetUserId)) return true;
+    if (String(booking.customer_id || '') === String(targetUserId)) return true;
+  }
+
+  // 2. เช็กจากคอลัมน์ customer_email
+  if (cleanTargetEmail) {
+    if (String(booking.customer_email || '').trim().toLowerCase() === cleanTargetEmail) {
+      return true;
+    }
+
+    // 3. เช็กจากอีเมลที่อาจถูกเก็บไว้ใน JSON details
+    let detailsObj: Record<string, any> = {};
+    if (booking.details) {
+      if (typeof booking.details === 'string') {
+        try { detailsObj = JSON.parse(booking.details); } catch (e) {}
+      } else if (typeof booking.details === 'object') {
+        detailsObj = booking.details;
+      }
+    }
+    const detailEmail = String(detailsObj.customer_email || detailsObj.email || '').trim().toLowerCase();
+    if (detailEmail && detailEmail === cleanTargetEmail) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 function HistoryContent() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -61,7 +102,6 @@ function HistoryContent() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // ใช้ Ref เพื่อให้ Realtime Listener ตรวจสอบเจ้าของข้อมูลได้แบบ Realtime ไม่หลุด Scope
   const userEmailRef = useRef<string | null>(null);
   const userIdRef = useRef<string | null>(null);
 
@@ -70,7 +110,6 @@ function HistoryContent() {
     userIdRef.current = userId;
   }, [userEmail, userId]);
 
-  // ดึงรายการ Feedbacks
   const fetchFeedbacksForBookings = useCallback(async (bookingIds: (string | number)[]) => {
     if (!bookingIds || bookingIds.length === 0) return;
     try {
@@ -100,48 +139,48 @@ function HistoryContent() {
     }
   }, []);
 
-  // ฟังก์ชันดึงข้อมูลผู้ใช้และรายการจองเฉพาะอีเมล/ID ของตัวเองเท่านั้น
   const fetchUserAndInitialData = useCallback(async (isMounted = true) => {
     try {
       if (isMounted) setLoading(true);
 
+      // ดึง Session จาก Supabase Auth เป็นหลัก (ป้องกันค่าค้างใน localStorage ข้ามบัญชี)
       const { data: { user } } = await supabase.auth.getUser();
-      
-      let storedUser: any = null;
-      try {
-        const localData = localStorage.getItem('user') || localStorage.getItem('sb-user');
-        if (localData) storedUser = JSON.parse(localData);
-      } catch (e) {}
 
-      // ดึงอีเมลจากทุกจุดที่เป็นไปได้
-      const currentEmail = (
-        user?.email || 
-        localStorage.getItem('user_email') || 
-        storedUser?.email || 
-        ''
-      ).trim().toLowerCase();
+      let currentEmail = '';
+      let currentUserId: string | null = null;
 
-      // ดึง User ID
-      const currentUserId = user?.id || storedUser?.id || localStorage.getItem('user_id') || null;
+      if (user) {
+        currentEmail = (user.email || '').trim().toLowerCase();
+        currentUserId = user.id;
+        // อัปเดต localStorage ให้ตรงกับผู้ใช้ปัจจุบันเสมอ
+        if (typeof window !== 'undefined' && currentEmail) {
+          localStorage.setItem('user_email', currentEmail);
+          localStorage.setItem('user_id', currentUserId);
+        }
+      } else {
+        // กรณีไม่ได้ล็อกอินผ่าน Supabase Auth ให้ลองเช็กอีเมลที่กรอกไว้ใน Session ปัจจุบัน
+        currentEmail = (localStorage.getItem('user_email') || '').trim().toLowerCase();
+      }
 
       if (isMounted) {
         setUserEmail(currentEmail || null);
         setUserId(currentUserId);
       }
 
-      // หากไม่มีทั้งอีเมลและ User ID แสดงว่ายังไม่ได้ล็อกอิน ให้เคลียร์เป็นค่าว่าง
+      // หากไม่มีข้อมูลระบุตัวตนเลย ให้ล้างรายการทิ้งทันที
       if (!currentEmail && !currentUserId) {
         if (isMounted) {
           setBookings([]);
+          setSubmittedFeedbacks({});
           setLoading(false);
         }
         return;
       }
 
-      // สร้างเงื่อนไขค้นหา: ต้องตรงกับ Email ของตัวเอง หรือ User ID ของตัวเองเท่านั้น
+      // สร้างเงื่อนไขค้นหาจาก Supabase (ใช้ ilike สำหรับอีเมลเพื่อไม่ให้ติดเรื่องตัวพิมพ์เล็ก-ใหญ่)
       const filterConditions: string[] = [];
       if (currentEmail) {
-        filterConditions.push(`customer_email.eq.${currentEmail}`);
+        filterConditions.push(`customer_email.ilike.${currentEmail}`);
       }
       if (currentUserId) {
         filterConditions.push(`customer_id.eq.${currentUserId}`);
@@ -158,7 +197,12 @@ function HistoryContent() {
         console.error('Error fetching bookings:', error.message);
         if (isMounted) setBookings([]);
       } else if (data && isMounted) {
-        const sortedBookings = [...(data as Booking[])].sort((a, b) => {
+        // กรองซ้ำฝั่ง Client อีกชั้นเพื่อให้มั่นใจว่าไม่มีข้อมูลของบัญชีอื่นหลุดปนมาเด็ดขาด
+        const strictlyOwnedBookings = (data as Booking[]).filter((b) =>
+          isBookingOwnedByUser(b, currentEmail, currentUserId)
+        );
+
+        const sortedBookings = [...strictlyOwnedBookings].sort((a, b) => {
           const dateA = a.scheduled_date || a.booking_date || '';
           const dateB = b.scheduled_date || b.booking_date || '';
           return dateB.localeCompare(dateA);
@@ -176,7 +220,7 @@ function HistoryContent() {
     }
   }, [fetchFeedbacksForBookings]);
 
-  // Initial Load & Focus Re-fetch
+  // Initial Load, Focus Re-fetch และดักฟังการเปลี่ยนบัญชี (Auth State Change)
   useEffect(() => {
     let isMounted = true;
     fetchUserAndInitialData(isMounted);
@@ -184,9 +228,27 @@ function HistoryContent() {
     const handleFocus = () => fetchUserAndInitialData(true);
     window.addEventListener('focus', handleFocus);
 
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('user_email');
+          localStorage.removeItem('user_id');
+          localStorage.removeItem('user_name');
+          localStorage.removeItem('user_phone');
+        }
+        setUserEmail(null);
+        setUserId(null);
+        setBookings([]);
+        setSubmittedFeedbacks({});
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        fetchUserAndInitialData(true);
+      }
+    });
+
     return () => {
       isMounted = false;
       window.removeEventListener('focus', handleFocus);
+      authListener?.subscription?.unsubscribe();
     };
   }, [fetchUserAndInitialData]);
 
@@ -201,15 +263,10 @@ function HistoryContent() {
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
           const item = (payload.new || {}) as Booking;
-          const myEmail = userEmailRef.current?.trim().toLowerCase();
+          const myEmail = userEmailRef.current;
           const myId = userIdRef.current;
 
-          // ตรวจสอบว่า Booking ที่อัปเดตเป็นของตัวเองหรือไม่ หากไม่ใช่ของตัวเองให้ข้ามทันที
-          const isMyBooking =
-            (myEmail && item.customer_email?.trim().toLowerCase() === myEmail) ||
-            (myId && (item.customer_id === myId || item.user_id === myId));
-
-          if (!isMyBooking) return;
+          if (!isBookingOwnedByUser(item, myEmail, myId)) return;
 
           if (payload.eventType === 'UPDATE' && payload.new) {
             setBookings((prev) =>
@@ -223,7 +280,10 @@ function HistoryContent() {
               fetchFeedbacksForBookings([item.id]);
             }
           } else if (payload.eventType === 'INSERT' && payload.new) {
-            setBookings((prev) => [item, ...prev]);
+            setBookings((prev) => {
+              if (prev.some((b) => String(b.id) === String(item.id))) return prev;
+              return [item, ...prev];
+            });
           }
         }
       )

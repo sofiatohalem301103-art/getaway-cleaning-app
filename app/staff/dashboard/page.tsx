@@ -358,6 +358,51 @@ export default function StaffDashboardPage() {
     }
   };
 
+  // ✅ เพิ่มฟังก์ชันสำหรับพนักงานกดยืนยันว่าได้รับเงินสดหน้างานแล้ว
+  const handleCashCollected = async (task: any) => {
+    const amount = Number(task.total_amount || 0);
+    if (!window.confirm(`Confirm that you have collected €${amount} cash from the customer?`)) {
+      return;
+    }
+
+    setLoadingId(task.id);
+    try {
+      let currentDetails: Record<string, any> = {};
+      if (task.details) {
+        if (typeof task.details === 'string') {
+          try { currentDetails = JSON.parse(task.details); } catch (e) {}
+        } else if (typeof task.details === 'object') {
+          currentDetails = task.details;
+        }
+      }
+
+      const updatedDetails = {
+        ...currentDetails,
+        cash_collected_by_staff: true,
+        cash_collected_by: currentStaff?.name || 'Staff',
+        cash_collected_at: new Date().toISOString(),
+        payment_status: 'Cash Collected by Staff (Pending Admin)',
+      };
+
+      const { error } = await supabase
+        .from('bookings')
+        .update({ details: JSON.stringify(updatedDetails) })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      alert('Cash collection recorded! Admin has been notified.');
+
+      if (currentStaff) {
+        await loadStaffTasks(currentStaff.id, currentStaff.name);
+      }
+    } catch (err: any) {
+      alert('Error recording cash collection: ' + err.message);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentStaff');
     router.push('/staff/login');
@@ -420,6 +465,16 @@ export default function StaffDashboardPage() {
         details = task.details;
       }
     }
+
+    // ตรวจสอบว่าเป็นงานจ่ายเงินสดหรือไม่ และเก็บเงินแล้วหรือยัง
+    const paymentMethodStr = String(task.payment_method || details.payment_method || details.payment_status || '').toLowerCase();
+    const isCashTask = paymentMethodStr.includes('cash');
+    const amountDue = Number(task.total_amount || 0);
+    const isCashCollected = Boolean(
+      details.cash_collected_by_staff ||
+      details.payment_status === 'Paid / Verified' ||
+      task.status === 'Paid'
+    );
 
     const assignedByAdmin = 
       task.assigned_by || 
@@ -484,6 +539,17 @@ export default function StaffDashboardPage() {
               {assignedByAdmin && (
                 <span className="text-[10px] font-normal text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md inline-block">
                   Assigned by: <strong className="text-slate-800 font-semibold">{assignedByAdmin}</strong>
+                </span>
+              )}
+
+              {/* ป้ายแจ้งเตือนให้เก็บเงินสดหน้างาน */}
+              {isCashTask && amountDue > 0 && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
+                  isCashCollected
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}>
+                  {isCashCollected ? `✓ Cash Collected (€${amountDue})` : `💵 Collect Cash: €${amountDue}`}
                 </span>
               )}
             </div>
@@ -600,10 +666,22 @@ export default function StaffDashboardPage() {
           </div>
         )}
 
-        {/* Action Button: เช็กสถานะ completed เพื่อไม่ให้แสดงปุ่ม Start Job ซ้ำ */}
-        <div className="pt-1.5 sm:pt-2 flex justify-end border-t border-slate-100">
+        {/* Action Buttons: ปุ่มเก็บเงินสด + ปุ่มเริ่ม/จบงาน */}
+        <div className="pt-1.5 sm:pt-2 flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 border-t border-slate-100">
+          {isCashTask && amountDue > 0 && !isCashCollected && (
+            <button
+              type="button"
+              onClick={() => handleCashCollected(task)}
+              disabled={isProcessing}
+              className="w-full sm:w-auto font-bold text-xs px-4 py-2.5 min-h-[44px] rounded-xl transition cursor-pointer bg-amber-500 hover:bg-amber-600 text-white shadow-xs disabled:opacity-50 active:scale-98 touch-manipulation flex items-center justify-center gap-1.5"
+            >
+              <span>💵</span>
+              <span>{isProcessing ? 'Updating...' : `Confirm Cash Collected (€${amountDue})`}</span>
+            </button>
+          )}
+
           {isCompleted ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
               Completed ✓
             </span>

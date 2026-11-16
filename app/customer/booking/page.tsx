@@ -871,7 +871,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         Select Service Date
       </label>
       <p className="text-xs text-[#8E9B9E] font-normal">
-        Please choose a date starting from tomorrow
+        Please choose a date at least 2 days in advance
       </p>
     </div>
 
@@ -1022,11 +1022,12 @@ function BookingForm() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const year = tomorrow.getFullYear();
-      const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-      const day = String(tomorrow.getDate()).padStart(2, '0');
+      // บล็อก 2 วัน (วันนี้ + พรุ่งนี้) เริ่มจองได้ตั้งแต่วันมะรืน (+2 วัน)
+      const minBookingDate = new Date();
+      minBookingDate.setDate(minBookingDate.getDate() + 2);
+      const year = minBookingDate.getFullYear();
+      const month = String(minBookingDate.getMonth() + 1).padStart(2, '0');
+      const day = String(minBookingDate.getDate()).padStart(2, '0');
       const minDateStr = `${year}-${month}-${day}`;
       
       setMinDate(minDateStr);
