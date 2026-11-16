@@ -6,11 +6,13 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
       disallow: [
-        '/booking',
         '/customer/',
-        '/auth/',
         '/admin/',
+        '/staff/',
+        '/auth/',
+        '/api/',
       ],
     },
+    sitemap: 'https://www.getaway-cleaning.com/sitemap.xml',
   };
 }
