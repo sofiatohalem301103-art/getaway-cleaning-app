@@ -522,31 +522,31 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
             <form onSubmit={handleSaveProfile} className="space-y-3.5 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">First Name *</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">First Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="John"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 text-[#0F172A] placeholder:text-slate-400 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Last Name *</label>
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Last Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="Doe"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 text-[#0F172A] placeholder:text-slate-400 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Email Address</label>
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Email Address</label>
                 <input
                   type="email"
                   required
@@ -556,39 +556,39 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={`w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-xl text-base sm:text-sm font-medium transition ${
                     user?.email
-                      ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                      : 'bg-slate-50 focus:bg-white focus:border-[#0082CD]'
+                      ? 'bg-slate-100 text-slate-700 cursor-not-allowed'
+                      : 'bg-slate-50 text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#0082CD]'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] sm:text-xs font-semibold text-slate-600 mb-1">Phone Number *</label>
-                <div className="flex gap-1.5 sm:gap-2">
-                  <div className="w-[100px] sm:w-[110px] shrink-0">
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Phone Number *</label>
+                <div className="flex items-center gap-2 w-full">
+                  <div className="w-[122px] sm:w-[132px] shrink-0">
                     <select
                       value={formData.countryCode}
                       onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                      className="w-full px-2 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition cursor-pointer text-slate-700"
+                      className="w-full pl-2.5 pr-6 py-2 sm:py-2.5 bg-slate-50 text-[#0F172A] border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition cursor-pointer"
                     >
                       {COUNTRY_CODES.map((c, index) => (
-                        <option key={`${c.code}-${index}`} value={c.code}>
+                        <option key={`${c.code}-${index}`} value={c.code} className="bg-white text-[#0F172A]">
                           {c.code} ({c.iso})
                         </option>
                       ))}
-                      <option value="OTHER">Other</option>
+                      <option value="OTHER" className="bg-white text-[#0F172A]">Other</option>
                     </select>
                   </div>
 
                   {formData.countryCode === 'OTHER' && (
-                    <div className="w-[75px] sm:w-[85px] shrink-0">
+                    <div className="w-[72px] sm:w-[82px] shrink-0">
                       <input
                         type="text"
                         required
                         placeholder="+000"
                         value={formData.customCode}
                         onChange={handleCustomCodeChange}
-                        className="w-full px-2 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition text-center"
+                        className="w-full px-2 py-2 sm:py-2.5 bg-slate-50 text-[#0F172A] placeholder:text-slate-400 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition text-center"
                       />
                     </div>
                   )}
@@ -600,7 +600,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                       placeholder="99 123 456"
                       value={formData.phoneNumber}
                       onChange={handlePhoneChange}
-                      className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
+                      className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 text-[#0F172A] placeholder:text-slate-400 border border-slate-200 rounded-xl text-base sm:text-sm font-medium focus:outline-none focus:border-[#0082CD] focus:bg-white transition"
                     />
                   </div>
                 </div>
