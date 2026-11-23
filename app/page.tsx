@@ -2,83 +2,180 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function StartCustomerPage() {
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
+  const [user, setUser] = useState<any>(null);
+  const [profileName, setProfileName] = useState<string>('');
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => {
-      // 1. ตรวจสอบระยะเลื่อนเพื่อปรับสไตล์ Navbar
-      if (window.scrollY > 20) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      const currentScroll =
+        window.scrollY ||
+        document.documentElement.scrollTop ||
+        document.body.scrollTop ||
+        0;
 
-      // 2. แสดงปุ่ม Scroll to Top เมื่อเลื่อนจอลงมาเกิน 400px
-      if (window.scrollY > 400) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
+      setIsScrolled(currentScroll > 20);
+      setShowBackToTop(currentScroll > 300);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadLoginStatus = async () => {
+      try {
+        if (supabase) {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            setUser(authUser);
+
+            let fullName =
+              authUser.user_metadata?.full_name ||
+              authUser.user_metadata?.name ||
+              '';
+
+            const { data: userData } = await supabase
+              .from('users')
+              .select('full_name')
+              .eq('id', authUser.id)
+              .maybeSingle();
+
+            if (userData?.full_name) {
+              fullName = userData.full_name;
+            }
+
+            if (!fullName) {
+              const first = localStorage.getItem('user_first_name') || '';
+              const last = localStorage.getItem('user_last_name') || '';
+              fullName =
+                localStorage.getItem('user_name') ||
+                `${first} ${last}`.trim();
+            }
+
+            setProfileName(fullName || authUser.email || 'Profile');
+            return;
+          }
+        }
+
+        const savedFirst = localStorage.getItem('user_first_name') || '';
+        const savedLast = localStorage.getItem('user_last_name') || '';
+        const savedName =
+          localStorage.getItem('user_name') ||
+          `${savedFirst} ${savedLast}`.trim();
+
+        if (savedName) {
+          setProfileName(savedName);
+        }
+      } catch (err) {
+        console.error('Error loading login status on home page:', err);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    loadLoginStatus();
   }, []);
 
-  // ฟังก์ชันเลื่อนจอกลับขึ้นด้านบนอย่างนุ่มนวล
+  const handleLogout = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+    setUser(null);
+    setProfileName('');
+    setIsProfileDropdownOpen(false);
+    localStorage.clear();
+    sessionStorage.clear();
+    router.push('/auth/login');
+  };
+
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth',
     });
+    document.documentElement.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   };
 
-  const tomorrowDateString = useMemo(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+  const minBookingDateString = useMemo(() => {
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 2);
+    return minDate.toISOString().split('T')[0];
   }, []);
 
   const getBookingUrl = (programName?: string) => {
     const params = new URLSearchParams();
-    params.set('startDate', tomorrowDateString);
+    params.set('startDate', minBookingDateString);
     if (programName) params.set('program', programName);
-    
+
     const targetBookingPath = `/customer/booking?${params.toString()}`;
+    if (user || profileName) {
+      return targetBookingPath;
+    }
     return `/auth/login?redirect=${encodeURIComponent(targetBookingPath)}`;
   };
 
   return (
     <main className="min-h-screen w-full bg-[#F8FAFC] text-[#1E2B37] font-sans antialiased overflow-x-hidden relative">
       
-      {/* ================= NAVIGATION BAR (SMART STICKY HEADER) ================= */}
+      {/* ================= NAVIGATION BAR (FIXED TOP HEADER) ================= */}
       <nav 
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
           isScrolled 
             ? 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80 py-0' 
-            : 'bg-white/80 backdrop-blur-md border-b border-slate-100 py-1 sm:py-1.5'
+            : 'bg-white/90 backdrop-blur-md border-b border-slate-100 py-1 sm:py-1.5'
         }`}
       >
         <div 
-          className={`max-w-7xl mx-auto px-4 sm:px-8 md:px-12 flex items-center justify-between transition-all duration-300 ${
-            isScrolled ? 'h-14 sm:h-16' : 'h-16 sm:h-20'
+          className={`max-w-7xl mx-auto px-3.5 sm:px-6 md:px-12 flex items-center justify-between gap-2 transition-all duration-300 ${
+            isScrolled ? 'h-16 sm:h-20' : 'h-20 sm:h-24'
           }`}
         >
           
           {/* Logo Brand ใน Navbar */}
-          <a href="#home" className="flex items-center gap-2 group py-1">
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="flex items-center gap-2 group py-1 cursor-pointer shrink-0 touch-manipulation"
+          >
             <img 
               src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
               alt="Getaway Cleaning Logo" 
               className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${
-                isScrolled ? 'h-10 sm:h-12' : 'h-12 sm:h-16'
+                isScrolled ? 'h-11 sm:h-14' : 'h-14 sm:h-18 md:h-24'
               }`}
             />
-          </a>
+          </button>
 
           <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-slate-600">
             <a href="#home" className="hover:text-[#006AFF] transition">Home</a>
@@ -87,13 +184,77 @@ export default function StartCustomerPage() {
             <a href="#services" className="hover:text-[#006AFF] transition">Services Program</a>
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-4 min-w-0">
+            {(user || profileName) && (
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-[#0F172A] hover:text-[#006AFF] transition-colors cursor-pointer py-1 touch-manipulation"
+                >
+                  <span className="underline decoration-2 underline-offset-4 truncate max-w-[85px] sm:max-w-[160px]">
+                    {profileName || 'Profile'}
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] shrink-0">▼</span>
+                </button>
+
+                {isProfileDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 sm:py-2 z-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push('/customer/booking?setup_profile=true');
+                      }}
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#006AFF] transition cursor-pointer"
+                    >
+                      <span>Profile & Settings</span>
+                    </button>
+
+                    <div className="border-t border-slate-100 my-1" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push('/customer/history');
+                      }}
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#006AFF] transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>History</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push('/customer/feedback');
+                      }}
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#006AFF] transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>Feedback</span>
+                    </button>
+
+                    <div className="border-t border-slate-100 my-1" />
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-rose-500 hover:bg-rose-50 transition flex items-center justify-between cursor-pointer"
+                    >
+                      <span>Log out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <a 
               href={getBookingUrl()}
-              className={`inline-flex items-center justify-center bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-full shadow-md shadow-blue-500/20 transition-all duration-300 cursor-pointer ${
+              className={`inline-flex items-center justify-center bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-full shadow-md shadow-blue-500/20 transition-all duration-300 cursor-pointer whitespace-nowrap touch-manipulation ${
                 isScrolled 
-                  ? 'px-4 sm:px-5 py-1.5 text-xs' 
-                  : 'px-4.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm'
+                  ? 'px-3.5 sm:px-5 py-1.5 text-[11px] sm:text-xs' 
+                  : 'px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm'
               }`}
             >
               Book Now
@@ -104,7 +265,7 @@ export default function StartCustomerPage() {
       </nav>
 
       {/* ================= SECTION 1: HERO BANNER ================= */}
-      <section id="home" className="relative w-full bg-gradient-to-b from-[#EBF5FF]/60 via-[#F8FAFC] to-[#F8FAFC] py-12 sm:py-16 md:py-20 px-4 sm:px-8 md:px-12 overflow-hidden">
+      <section id="home" className="relative w-full bg-gradient-to-b from-[#EBF5FF]/60 via-[#F8FAFC] to-[#F8FAFC] pt-24 sm:pt-28 md:pt-32 pb-12 sm:py-16 md:pb-20 px-4 sm:px-8 md:px-12 overflow-hidden">
         
         {/* Subtle Ambient Glow */}
         <div className="absolute top-10 right-10 w-72 sm:w-96 h-72 sm:h-96 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
@@ -112,7 +273,7 @@ export default function StartCustomerPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
           {/* Content Left */}
-          <div className="lg:col-span-7 space-y-4 sm:space-y-6 text-left">
+          <div className="lg:col-span-7 min-w-0 space-y-4 sm:space-y-6 text-left">
             
             {/* Badge */}
             <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50 border border-blue-100 text-[#006AFF] px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold tracking-wide">
@@ -141,13 +302,13 @@ export default function StartCustomerPage() {
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 pt-1 sm:pt-2">
               <a 
                 href={getBookingUrl()} 
-                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-blue-500/25 transition transform active:scale-98 text-center text-xs sm:text-sm tracking-wide cursor-pointer"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-[#006AFF] hover:bg-[#2563EB] text-white font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-blue-500/25 transition transform active:scale-98 text-center text-xs sm:text-sm tracking-wide cursor-pointer touch-manipulation"
               >
                 BOOK YOUR CLEANING TODAY!
               </a>
               <a 
                 href="#services" 
-                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold rounded-xl sm:rounded-2xl transition text-center text-xs sm:text-sm shadow-xs cursor-pointer active:scale-98"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold rounded-xl sm:rounded-2xl transition text-center text-xs sm:text-sm shadow-xs cursor-pointer active:scale-98 touch-manipulation"
               >
                 Explore Services
               </a>
@@ -156,18 +317,18 @@ export default function StartCustomerPage() {
             {/* Open Date Status */}
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 font-normal pt-1">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span className="leading-tight">Bookings open starting tomorrow ({tomorrowDateString}) | Mon–Sat, 09:00–16:00</span>
+              <span className="leading-tight">Bookings open from {minBookingDateString} (2 days in advance) | Mon–Sat, 09:00–16:00</span>
             </div>
 
           </div>
 
           {/* Image Right */}
-          <div className="lg:col-span-5 relative mt-6 lg:mt-0">
+          <div className="lg:col-span-5 min-w-0 relative mt-6 lg:mt-0">
             <div className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-slate-100">
               <img 
                 src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80" 
                 alt="Clean & Spotless Living Room" 
-                className="w-full h-[320px] sm:h-[420px] md:h-[480px] object-cover"
+                className="w-full h-[280px] sm:h-[400px] md:h-[480px] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
             </div>
@@ -175,7 +336,7 @@ export default function StartCustomerPage() {
             {/* Floating Promise Card */}
             <div className="absolute -bottom-4 left-3 right-3 sm:right-auto sm:-bottom-6 sm:-left-6 bg-white/95 backdrop-blur-md p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xl border border-slate-100 flex items-center gap-3 sm:gap-4 max-w-xs">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl shrink-0">✓</div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[9px] sm:text-[10px] uppercase font-semibold tracking-wider text-slate-400">Our Promise</p>
                 <p className="text-[11px] sm:text-xs font-bold text-slate-800 leading-snug">
                   Quality you can see and freshness you can feel
@@ -197,25 +358,25 @@ export default function StartCustomerPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             
-            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-base sm:text-lg">✓</div>
               <h3 className="font-bold text-slate-900 text-sm sm:text-base">Professional & Reliable</h3>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">Trusted housekeeping team dedicated to quality service.</p>
             </div>
 
-            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-base sm:text-lg">✓</div>
               <h3 className="font-bold text-slate-900 text-sm sm:text-base">Exceptional Attention</h3>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">Attentive to every detail and reachable surface in your space.</p>
             </div>
 
-            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-base sm:text-lg">✓</div>
               <h3 className="font-bold text-slate-900 text-sm sm:text-base">Flexible Solutions</h3>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">Tailored for regular cleaning, one-time general or deep clean.</p>
             </div>
 
-            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 text-[#006AFF] rounded-xl flex items-center justify-center font-bold text-base sm:text-lg">✓</div>
               <h3 className="font-bold text-slate-900 text-sm sm:text-base">Guaranteed Freshness</h3>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">Leaving your property neat, hygienic, fresh, and presentable.</p>
@@ -237,7 +398,7 @@ export default function StartCustomerPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 relative">
             
-            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3 min-w-0">
               <span className="text-3xl sm:text-4xl font-black text-[#006AFF]/20">01</span>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">Book & Contact</h3>
               <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -245,7 +406,7 @@ export default function StartCustomerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3 min-w-0">
               <span className="text-3xl sm:text-4xl font-black text-[#006AFF]/20">02</span>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">Property Inspection</h3>
               <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -253,7 +414,7 @@ export default function StartCustomerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3 min-w-0">
               <span className="text-3xl sm:text-4xl font-black text-[#006AFF]/20">03</span>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">Tailored Quotation</h3>
               <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -261,7 +422,7 @@ export default function StartCustomerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5 sm:space-y-3 min-w-0">
               <span className="text-3xl sm:text-4xl font-black text-[#006AFF]/20">04</span>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">Service Executed</h3>
               <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -293,7 +454,7 @@ export default function StartCustomerPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             
             {/* 1. GENERAL CLEANING */}
-            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group">
+            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group min-w-0">
               <div>
                 <div className="h-44 sm:h-52 w-full overflow-hidden relative">
                   <img 
@@ -332,7 +493,7 @@ export default function StartCustomerPage() {
             </div>
 
             {/* 2. DEEP CLEANING */}
-            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group relative">
+            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group relative min-w-0">
               <div>
                 <div className="h-44 sm:h-52 w-full overflow-hidden relative">
                   <img 
@@ -382,7 +543,7 @@ export default function StartCustomerPage() {
             </div>
 
             {/* 3. OFFICE CLEANING */}
-            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group">
+            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group min-w-0">
               <div>
                 <div className="h-44 sm:h-52 w-full overflow-hidden relative">
                   <img 
@@ -419,7 +580,7 @@ export default function StartCustomerPage() {
             </div>
 
             {/* 4. GARDEN CLEANING */}
-            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group">
+            <div className="bg-slate-50 rounded-2xl sm:rounded-3xl border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:shadow-lg transition group min-w-0">
               <div>
                 <div className="h-44 sm:h-52 w-full overflow-hidden relative">
                   <img 
@@ -462,7 +623,7 @@ export default function StartCustomerPage() {
       <footer className="bg-slate-900 text-slate-400 py-10 sm:py-12 px-4 sm:px-8 md:px-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <img 
               src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
               alt="Getaway Cleaning Logo" 
@@ -474,7 +635,7 @@ export default function StartCustomerPage() {
             </p>
           </div>
 
-          <div className="space-y-1.5 text-left md:text-right text-xs text-slate-400 font-normal">
+          <div className="space-y-1.5 text-left md:text-right text-xs text-slate-400 font-normal min-w-0">
             <p className="text-white font-bold text-sm">Getaway Cleaning Services</p>
             <p>Tel: 00357 96330400</p>
             <p>Email: info@getawayhomes.com</p>
@@ -493,7 +654,8 @@ export default function StartCustomerPage() {
           type="button"
           onClick={scrollToTop}
           aria-label="Scroll to top"
-          className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-12 sm:h-12 bg-white/95 hover:bg-white text-slate-700 hover:text-[#006AFF] border border-slate-200/90 shadow-xl rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-xs animate-in fade-in zoom-in touch-manipulation"
+          style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+          className="fixed right-4 sm:right-6 z-50 w-11 h-11 sm:w-12 sm:h-12 bg-white/95 hover:bg-white text-slate-700 hover:text-[#006AFF] border border-slate-200/90 shadow-xl rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-xs touch-manipulation"
         >
           <svg 
             className="w-5 h-5 sm:w-6 sm:h-6" 

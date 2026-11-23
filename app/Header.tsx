@@ -77,9 +77,9 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   });
 
   const isCustomerArea = pathname?.includes('/customer');
-  const isOtpStep = 
-    pathname?.includes('/verify') || 
-    pathname?.includes('/otp') || 
+  const isOtpStep =
+    pathname?.includes('/verify') ||
+    pathname?.includes('/otp') ||
     searchParams?.get('step') === 'verify' ||
     searchParams?.has('email');
 
@@ -93,10 +93,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
   const parsePhone = (rawPhone: string) => {
     if (!rawPhone) return { code: '+357', custom: '', num: '' };
-    
+
     const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
     const matched = sortedCodes.find(c => rawPhone.startsWith(c.code));
-    
+
     if (matched) {
       const rawNum = rawPhone.replace(matched.code, '').trim();
       return { code: matched.code, custom: '', num: formatPhoneNumber(rawNum) };
@@ -122,7 +122,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 🔔 ดักฟัง Event จากหน้าอื่น เพื่อสั่งเปิด Modal แก้ไขโปรไฟล์
   useEffect(() => {
     const handleOpenProfileModal = () => {
       setIsProfileModalOpen(true);
@@ -131,22 +130,28 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     return () => window.removeEventListener('open-profile-modal', handleOpenProfileModal);
   }, []);
 
-  // 🟢 ตรวจสอบสถานะ setup_profile จาก URL เพื่อเปิด Modal อัตโนมัติหลังล็อกอิน
   useEffect(() => {
-    if (searchParams?.get('setup_profile') === 'true') {
+    const hasSetupParam = searchParams?.get('setup_profile') === 'true';
+    const isBookingRoute = Boolean(pathname?.startsWith('/customer/booking'));
+    const savedName = typeof window !== 'undefined' ? (localStorage.getItem('user_name') || '').trim() : '';
+    const savedPhone = typeof window !== 'undefined' ? (localStorage.getItem('user_phone') || '').trim() : '';
+
+    if (hasSetupParam || (isBookingRoute && (!savedName || !savedPhone))) {
       setIsProfileModalOpen(true);
       setIsPromptedFromLogin(true);
     }
-  }, [searchParams]);
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     const loadUserData = async () => {
+      let hasName = false;
+      let hasPhone = false;
+
       if (supabase) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
           setUser(authUser);
 
-          // หากอีเมลใน localStorage ไม่ตรงกับบัญชีที่ล็อกอินอยู่ ให้ล้างค่าเก่าทิ้งทันที
           const prevEmail = (localStorage.getItem('user_email') || '').trim().toLowerCase();
           const authEmail = (authUser.email || '').trim().toLowerCase();
           if (authEmail && prevEmail && prevEmail !== authEmail) {
@@ -159,10 +164,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
           if (authEmail) localStorage.setItem('user_email', authEmail);
           localStorage.setItem('user_id', authUser.id);
-          
+
           const providerData = authUser.user_metadata;
           let fullName = providerData?.full_name || providerData?.name || '';
-          
+
           let extractedFirstName = providerData?.given_name || providerData?.first_name || '';
           let extractedLastName = providerData?.family_name || providerData?.last_name || '';
 
@@ -190,6 +195,9 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
             if (fullName) localStorage.setItem('user_name', fullName);
             if (fullPhone) localStorage.setItem('user_phone', fullPhone);
 
+            hasName = Boolean(fullName?.trim());
+            hasPhone = Boolean(parsed.num.replace(/\D/g, '').trim());
+
             setFormData({
               firstName: pFirstName,
               lastName: pLastName,
@@ -199,6 +207,9 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
               phoneNumber: parsed.num,
             });
           } else {
+            hasName = Boolean(fullName?.trim());
+            hasPhone = false;
+
             setFormData({
               firstName: extractedFirstName,
               lastName: extractedLastName,
@@ -210,11 +221,18 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
           }
 
           setProfileName(fullName || '');
+
+          if (pathname?.startsWith('/customer/booking') && (!hasName || !hasPhone)) {
+            setIsProfileModalOpen(true);
+            setIsPromptedFromLogin(true);
+          } else if (hasName && hasPhone) {
+            setIsProfileModalOpen(false);
+            setIsPromptedFromLogin(false);
+          }
           return;
         }
       }
 
-      // กรณีไม่ได้ล็อกอินผ่าน Supabase Auth ให้โหลดจาก localStorage
       const savedFirstName = localStorage.getItem('user_first_name') || '';
       const savedLastName = localStorage.getItem('user_last_name') || '';
       const savedName = localStorage.getItem('user_name') || `${savedFirstName} ${savedLastName}`.trim();
@@ -225,6 +243,9 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
       if (savedName) setProfileName(savedName);
 
+      hasName = Boolean(savedName.trim());
+      hasPhone = Boolean(num.replace(/\D/g, '').trim());
+
       setFormData({
         firstName: savedFirstName || savedName.split(' ')[0] || '',
         lastName: savedLastName || savedName.split(' ').slice(1).join(' ') || '',
@@ -233,6 +254,14 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         customCode: custom,
         phoneNumber: num,
       });
+
+      if (pathname?.startsWith('/customer/booking') && (!hasName || !hasPhone)) {
+        setIsProfileModalOpen(true);
+        setIsPromptedFromLogin(true);
+      } else if (hasName && hasPhone) {
+        setIsProfileModalOpen(false);
+        setIsPromptedFromLogin(false);
+      }
     };
 
     loadUserData();
@@ -254,8 +283,8 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     e.preventDefault();
     setLoading(true);
 
-    const activeCode = formData.countryCode === 'OTHER' 
-      ? formData.customCode.trim() 
+    const activeCode = formData.countryCode === 'OTHER'
+      ? formData.customCode.trim()
       : formData.countryCode;
 
     const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
@@ -270,7 +299,6 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
 
     try {
       if (supabase && finalEmail) {
-        // ยึด ID ของบัญชีที่ล็อกอินอยู่เป็นหลักเสมอ ไม่ไปทับด้วย ID ของคนอื่น
         let targetUserId = user?.id;
 
         if (!targetUserId) {
@@ -322,14 +350,12 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
     setIsProfileModalOpen(false);
     setIsPromptedFromLogin(false);
 
-    // 📡 แจ้งเตือนหน้า Booking ให้รับข้อมูลใหม่ทันที
     window.dispatchEvent(
       new CustomEvent('profile-updated', {
         detail: { name: fullName, phone: fullPhone, email: finalEmail },
       })
     );
 
-    // ลบ query param ?setup_profile=true ออกจาก URL
     if (searchParams?.get('setup_profile')) {
       router.replace(pathname || '/customer/booking');
     }
@@ -359,15 +385,15 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
   return (
     <>
       <header className="w-full bg-white border-b border-[#E2E8F0] shadow-xs sticky top-0 z-40">
-        <div className="w-full px-3.5 sm:px-8 md:px-12 h-16 sm:h-20 md:h-24 flex justify-between items-center">
-          
+        <div className="w-full px-3.5 sm:px-8 md:px-12 h-18 sm:h-24 md:h-28 flex justify-between items-center">
+
           {/* Logo Brand */}
           <div className="flex items-center h-full py-1">
-            <img 
-              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png" 
-              alt="Getaway Cleaning Logo" 
-              className="h-12 sm:h-16 md:h-20 w-auto object-contain transition-all cursor-pointer hover:scale-[1.02]"
-              onClick={() => router.push('/customer/booking')}
+            <img
+              src="/getaway-cleaning-logo-transparent__1_-removebg-preview.png"
+              alt="Getaway Cleaning Logo"
+              className="h-14 sm:h-20 md:h-24 w-auto object-contain transition-all cursor-pointer hover:scale-[1.02] touch-manipulation"
+              onClick={() => router.push('/')}
             />
           </div>
 
@@ -461,12 +487,10 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
         </div>
       </header>
 
-      {/* MODAL PROFILE: มีแจ้งเตือนข้อความชัดเจนเมื่อล็อกอินเข้ามาครั้งแรก */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-8 max-h-[90dvh] overflow-y-auto my-auto box-border animate-in fade-in zoom-in duration-200">
-            
-            {/* กล่องแจ้งเตือนพิเศษเมื่อเพิ่งล็อกอินเข้ามา */}
+
             {isPromptedFromLogin && (
               <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800 text-xs font-medium space-y-0.5">
                 <p className="font-bold flex items-center gap-1.5">
@@ -483,7 +507,7 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                 <h3 className="text-base sm:text-xl font-bold text-[#0F172A]">Profile Details</h3>
                 <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Edit your personal details & preferences</p>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setIsProfileModalOpen(false);
@@ -526,13 +550,13 @@ function HeaderContent({ title = 'Booking Service' }: HeaderProps) {
                 <input
                   type="email"
                   required
-                  disabled={Boolean(user?.email)} 
+                  disabled={Boolean(user?.email)}
                   placeholder="john@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={`w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-xl text-base sm:text-sm font-medium transition ${
-                    user?.email 
-                      ? 'bg-slate-100 text-slate-500 cursor-not-allowed' 
+                    user?.email
+                      ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                       : 'bg-slate-50 focus:bg-white focus:border-[#0082CD]'
                   }`}
                 />

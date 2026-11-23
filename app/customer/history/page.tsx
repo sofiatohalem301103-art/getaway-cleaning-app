@@ -551,7 +551,7 @@ function HistoryContent() {
             onClick={() => router.push('/customer/booking')}
             className="py-2 px-4 min-h-[44px] text-xs sm:text-sm font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-xl hover:bg-[#F8FAFC] active:scale-[0.98] touch-manipulation"
           >
-            ← Back to Booking
+            New Booking
           </button>
 
           <p className="text-[10px] sm:text-xs text-[#94A3B8] font-normal">

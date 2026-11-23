@@ -507,7 +507,7 @@ function ConfirmationContent() {
         {/* Back To Home Button */}
         <button
           type="button"
-          onClick={() => router.push('/customer/booking')}
+          onClick={() => router.push('/')}
           className="w-full max-w-md py-3 sm:py-4 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] text-white font-bold rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base transition shadow-xs cursor-pointer touch-manipulation text-center"
         >
           Back To Home
