@@ -291,6 +291,14 @@ function ConfirmationContent() {
     }
   }, [isMounted, customerInfo, bookingRef, isSaved, address, isHoliday, bedrooms, bathrooms, balconies, propertyType, mapsLink, building, aptNo, fullAddress, fullProgramName, rawDate, time, numericPrice]);
 
+  const handleBackToHome = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('bookingData');
+      sessionStorage.removeItem('privateBookingData');
+    }
+    router.push('/');
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     try {
@@ -507,7 +515,7 @@ function ConfirmationContent() {
         {/* Back To Home Button */}
         <button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={handleBackToHome}
           className="w-full max-w-md py-3 sm:py-4 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] text-white font-bold rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base transition shadow-xs cursor-pointer touch-manipulation text-center"
         >
           Back To Home

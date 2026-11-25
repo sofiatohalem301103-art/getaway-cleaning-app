@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-// 📌 Table สำหรับแปลง Key สั้นให้เป็นชื่อโปรแกรมแบบเต็ม[cite: 10]
+// 📌 Table สำหรับแปลง Key สั้นให้เป็นชื่อโปรแกรมแบบเต็ม
 const PROGRAM_FULL_NAMES: Record<string, string> = {
   general: 'General Cleaning',
   deep: 'Deep Cleaning',
@@ -71,7 +71,7 @@ function PrivateConfirmationContent() {
   useEffect(() => {
     setIsMounted(true);
 
-    // 📌 สุ่ม Reference Number แบบ PRV-XXXXXX ถ้าไม่มีในระบบ[cite: 10]
+    // 📌 สุ่ม Reference Number แบบ PRV-XXXXXX ถ้าไม่มีในระบบ
     const generated = `PRV-${Math.floor(100000 + Math.random() * 900000)}`;
     setRandomRef(generated);
 
@@ -173,7 +173,7 @@ function PrivateConfirmationContent() {
     loadCustomerProfile();
   }, [searchParams]);
 
-  // 1. ดึงข้อมูลที่อยู่ + Google Maps Link[cite: 10]
+  // 1. ดึงข้อมูลที่อยู่ + Google Maps Link
   const address = getParam('address') || sessionData?.address || '';
   const building = getParam('building') || sessionData?.buildingComplex || sessionData?.building || '';
   const aptNo = getParam('aptNo') || sessionData?.apartmentHouseNo || sessionData?.aptNo || '';
@@ -187,32 +187,40 @@ function PrivateConfirmationContent() {
 
   const fullAddress = [address, building, aptNo ? `Apt/House: ${aptNo}` : ''].filter(Boolean).join(', ') || 'Address not specified';
 
-  // 2. ดึงข้อมูลโปรแกรม และ แปลงเป็นชื่อเต็ม[cite: 10]
+  // 2. ดึงข้อมูลโปรแกรม และ แปลงเป็นชื่อเต็ม
   const rawProgram = getParam('program') || sessionData?.program || sessionData?.selectedPrivateProgram || 'general';
   const fullProgramName = PROGRAM_FULL_NAMES[rawProgram.toLowerCase()] || rawProgram;
 
   const rawDate = getParam('date') || sessionData?.date || '';
   const time = getParam('time') || getParam('timeSlot') || sessionData?.timeSlot || sessionData?.time || '-';
   
-  // 📌 ใช้ Ref แบบสุ่มที่สร้างไว้[cite: 10]
+  // 📌 ใช้ Ref แบบสุ่มที่สร้างไว้
   const bookingRef = getParam('bookingRef') || getParam('ref') || sessionData?.bookingRef || randomRef;
 
-  // 3. ดึงสเปกเฉพาะของแต่ละโปรแกรม[cite: 10]
+  // 3. ดึงสเปกเฉพาะของแต่ละโปรแกรม
   const propertyType = getParam('propertyType') || sessionData?.propertyType || '';
   const bedrooms = getParam('bedrooms') || sessionData?.bedrooms || '';
   const bathrooms = getParam('bathrooms') || sessionData?.bathrooms || '';
   const balconies = getParam('balconies') || sessionData?.balconies || sessionData?.officeBalconies || '';
 
-  // Office Specs[cite: 10]
+  // Office Specs
   const sqm = getParam('sqm') || sessionData?.officeSquareMeters || sessionData?.gardenSquareMeters || sessionData?.sqm || '';
   const toilets = getParam('toilets') || sessionData?.officeToilets || sessionData?.toilets || '';
   const cleanWindows = getParam('cleanWindows') || sessionData?.officeCleanWindows || '';
   const windowsCount = sessionData?.officeWindowsCount ? `${sessionData.officeWindowsCount} windows` : '';
 
-  // Garden Specs[cite: 10]
+  // Garden Specs
   const gardenType = getParam('gardenType') || sessionData?.gardenType || '';
   const gardenOtherDetails = sessionData?.gardenOtherDetails || '';
   const notes = getParam('notes') || sessionData?.notes || '';
+
+  const handleBackToHome = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('bookingData');
+      sessionStorage.removeItem('privateBookingData');
+    }
+    router.push('/');
+  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -245,14 +253,14 @@ function PrivateConfirmationContent() {
     <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-6 md:px-8 py-4 sm:py-8 md:py-10">
       <div className="bg-white p-4 sm:p-8 md:p-12 rounded-2xl sm:rounded-[32px] shadow-xs border border-slate-200/80 w-full flex flex-col items-center">
         
-        {/* Neutral Tickmark Icon[cite: 10] */}
+        {/* Neutral Tickmark Icon */}
         <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mb-3 sm:mb-5 shrink-0">
           <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
 
-        {/* Title[cite: 10] */}
+        {/* Title */}
         <h2 className="text-xl sm:text-2xl md:text-4xl font-extrabold text-[#1E2B37] mb-1.5 sm:mb-2 text-center tracking-tight">
           Request Submitted!
         </h2>
@@ -260,17 +268,17 @@ function PrivateConfirmationContent() {
           Thank you. Your private service request has been sent directly to our admin team.
         </p>
 
-        {/* Soft Neutral Status Alert Box[cite: 10] */}
+        {/* Soft Neutral Status Alert Box */}
         <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl px-3.5 py-3 sm:px-5 sm:py-4 mb-5 sm:mb-8 text-center">
           <span className="text-xs sm:text-sm md:text-base font-medium text-slate-700 leading-relaxed block">
             Dear client, please bear with us. We will get back to you with confirmation of the date and specific time within 24 hours. Thank you for your understanding.
           </span>
         </div>
 
-        {/* Details Container[cite: 10] */}
+        {/* Details Container */}
         <div className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-3xl p-4 sm:p-7 md:p-10 mb-5 sm:mb-8 space-y-3.5 sm:space-y-5 text-[#1E2B37]">
           
-          {/* Booking Ref[cite: 10] */}
+          {/* Booking Ref */}
           <div className="flex justify-between items-center border-b border-[#CBD5E1] pb-3 sm:pb-4 gap-2">
             <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
               <span className="text-[11px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Request Ref</span>
@@ -278,11 +286,11 @@ function PrivateConfirmationContent() {
                 Private / Office
               </span>
             </div>
-            {/* 📌 แสดงเลขสุ่มแบบ PRV-XXXXXX[cite: 10] */}
+            {/* 📌 แสดงเลขสุ่มแบบ PRV-XXXXXX */}
             <span className="text-xs sm:text-base md:text-lg font-bold font-mono text-[#0F172A] shrink-0">{bookingRef}</span>
           </div>
 
-          {/* Customer Information[cite: 10] */}
+          {/* Customer Information */}
           <div className="space-y-2.5 sm:space-y-4 pt-1 text-xs sm:text-sm md:text-base">
             <div className="flex justify-between items-center gap-2">
               <span className="font-medium text-slate-500 shrink-0">Customer Name</span>
@@ -307,7 +315,7 @@ function PrivateConfirmationContent() {
 
             <div className="border-t border-[#E2E8F0] my-2 sm:my-4" />
 
-            {/* Address & Google Maps[cite: 10] */}
+            {/* Address & Google Maps */}
             <div className="flex justify-between items-start gap-2">
               <span className="font-medium text-slate-500 shrink-0">Full Address</span>
               <span className="font-bold text-right text-[#0F172A] leading-relaxed max-w-[65%] break-words">{fullAddress}</span>
@@ -329,10 +337,10 @@ function PrivateConfirmationContent() {
 
             <div className="border-t border-[#E2E8F0] my-2 sm:my-4" />
 
-            {/* Selected Program Specifications[cite: 10] */}
+            {/* Selected Program Specifications */}
             <div className="flex justify-between items-start gap-2">
               <span className="font-medium text-slate-500 shrink-0">Selected Program</span>
-              {/* 📌 แสดงชื่อเต็มของโปรแกรม[cite: 10] */}
+              {/* 📌 แสดงชื่อเต็มของโปรแกรม */}
               <span className="font-bold text-right text-[#0F172A] leading-relaxed max-w-[65%] break-words">{fullProgramName}</span>
             </div>
 
@@ -391,7 +399,7 @@ function PrivateConfirmationContent() {
 
             <div className="border-t border-[#E2E8F0] my-2 sm:my-4" />
 
-            {/* Service Date & Time Slot[cite: 10] */}
+            {/* Service Date & Time Slot */}
             <div className="flex justify-between items-center gap-2">
               <span className="font-medium text-slate-500 shrink-0">Preferred Date</span>
               <span className="font-bold text-right text-[#0F172A]">{formatDate(rawDate)}</span>
@@ -412,10 +420,10 @@ function PrivateConfirmationContent() {
 
         </div>
 
-        {/* Back To Home Button[cite: 10] */}
+        {/* Back To Home Button */}
         <button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={handleBackToHome}
           className="w-full max-w-md py-3 sm:py-4 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] text-white font-bold rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base transition shadow-xs cursor-pointer touch-manipulation text-center"
         >
           Back To Home

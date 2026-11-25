@@ -343,7 +343,7 @@ export default function StaffDashboardPage() {
 
     setLoadingId(taskId);
     try {
-      let dbStatus = nextStatus.toLowerCase().replace(/\s+/g, '_');
+      const dbStatus = nextStatus.toLowerCase().replace(/\s+/g, '_');
 
       const { error } = await supabase.from('bookings').update({ status: dbStatus }).eq('id', taskId);
       if (error) throw error;
@@ -358,7 +358,6 @@ export default function StaffDashboardPage() {
     }
   };
 
-  // ✅ เพิ่มฟังก์ชันสำหรับพนักงานกดยืนยันว่าได้รับเงินสดหน้างานแล้ว
   const handleCashCollected = async (task: any) => {
     const amount = Number(task.total_amount || 0);
     if (!window.confirm(`Confirm that you have collected €${amount} cash from the customer?`)) {
@@ -466,7 +465,6 @@ export default function StaffDashboardPage() {
       }
     }
 
-    // ตรวจสอบว่าเป็นงานจ่ายเงินสดหรือไม่ และเก็บเงินแล้วหรือยัง
     const paymentMethodStr = String(task.payment_method || details.payment_method || details.payment_status || '').toLowerCase();
     const isCashTask = paymentMethodStr.includes('cash');
     const amountDue = Number(task.total_amount || 0);
@@ -508,19 +506,21 @@ export default function StaffDashboardPage() {
     const bathrooms = details.bathrooms ?? task.bathrooms;
     const balconies = details.balconies ?? details.office_balconies ?? details.verandahs ?? task.balconies;
 
-    const officeSqm = details.office_sqm || task.office_sqm;
-    const officeToilets = details.office_toilets || task.office_toilets;
-    const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
+    const officeSqm = details.office_sqm || details.officeSquareMeters || task.office_sqm;
+    const officeToilets = details.office_toilets || details.officeToilets || task.office_toilets;
+    const officeCleanWindows = details.office_clean_windows || details.officeCleanWindows || task.office_clean_windows;
+    const officeWindowsCount = details.office_windows_count || details.officeWindowsCount;
 
-    const gardenSqm = details.garden_sqm || details.area_size || task.garden_sqm || task.area_size;
-    const gardenOtherDetails = task.notes || details.garden_other_details || details.garden_notes || task.garden_other_details;
+    const gardenType = details.garden_type || details.gardenType || task.garden_type;
+    const gardenSqm = details.garden_sqm || details.gardenSquareMeters || details.area_size || task.garden_sqm || task.area_size;
+    const gardenOtherDetails = task.notes || details.garden_other_details || details.gardenOtherDetails || details.garden_notes || task.garden_other_details;
 
     const hasSpecs = Boolean(
       propertyType || (bedrooms !== undefined && bedrooms !== null && bedrooms !== '') ||
       (bathrooms !== undefined && bathrooms !== null && bathrooms !== '') ||
       (balconies !== undefined && balconies !== null && balconies !== '') ||
-      officeSqm || officeToilets || officeCleanWindows ||
-      gardenSqm || gardenOtherDetails
+      officeSqm || officeToilets || officeCleanWindows || officeWindowsCount ||
+      gardenType || gardenSqm || gardenOtherDetails
     );
 
     const taskRefCode = formatRefCode(task.booking_code || task.booking_ref, task.id);
@@ -542,7 +542,6 @@ export default function StaffDashboardPage() {
                 </span>
               )}
 
-              {/* ป้ายแจ้งเตือนให้เก็บเงินสดหน้างาน */}
               {isCashTask && amountDue > 0 && (
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
                   isCashCollected
@@ -648,12 +647,27 @@ export default function StaffDashboardPage() {
               )}
               {officeSqm && (
                 <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
-                  Area: <strong className="text-slate-900 font-semibold">{officeSqm} m²</strong>
+                  Area: <strong className="text-slate-900 font-semibold">{officeSqm}</strong>
+                </div>
+              )}
+              {officeToilets && (
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
+                  Toilets: <strong className="text-slate-900 font-semibold">{officeToilets}</strong>
+                </div>
+              )}
+              {officeCleanWindows && (
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
+                  Windows: <strong className="text-slate-900 font-semibold capitalize">{officeCleanWindows}{officeWindowsCount ? ` (${officeWindowsCount} windows)` : ''}</strong>
+                </div>
+              )}
+              {gardenType && (
+                <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
+                  Garden Type: <strong className="text-slate-900 font-semibold capitalize">{gardenType}</strong>
                 </div>
               )}
               {gardenSqm && (
                 <div className="bg-slate-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-200 text-slate-600 font-normal text-[10px] sm:text-[11px]">
-                  Garden: <strong className="text-slate-900 font-semibold">{gardenSqm} m²</strong>
+                  Garden: <strong className="text-slate-900 font-semibold">{gardenSqm}</strong>
                 </div>
               )}
             </div>
@@ -666,7 +680,7 @@ export default function StaffDashboardPage() {
           </div>
         )}
 
-        {/* Action Buttons: ปุ่มเก็บเงินสด + ปุ่มเริ่ม/จบงาน */}
+        {/* Action Buttons */}
         <div className="pt-1.5 sm:pt-2 flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 border-t border-slate-100">
           {isCashTask && amountDue > 0 && !isCashCollected && (
             <button
@@ -803,7 +817,6 @@ export default function StaffDashboardPage() {
 
           {showOverview && (
             <>
-              {/* แถบสรุปบนมือถือ */}
               <div className="grid grid-cols-4 gap-1 sm:hidden pt-1 text-center">
                 <div className="bg-slate-50 border border-slate-200 rounded-lg py-1 px-0.5">
                   <span className="text-[9px] text-slate-400 block font-normal">Staff</span>
@@ -823,7 +836,6 @@ export default function StaffDashboardPage() {
                 </div>
               </div>
 
-              {/* การ์ดเต็มบน Desktop */}
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1.5">
                 <div className="border border-slate-200 rounded-lg p-2.5 space-y-1 bg-slate-50">
                   <div className="flex justify-between items-center">

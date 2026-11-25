@@ -357,9 +357,9 @@ function HistoryContent() {
               <button
                 type="button"
                 onClick={() => router.push('/customer/booking')}
-                className="px-5 py-2.5 min-h-[44px] bg-[#006AFF] hover:bg-[#0057D9] text-white text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation active:scale-[0.98] shadow-xs"
+                className="px-5 py-2.5 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation active:scale-[0.98] shadow-xs"
               >
-                Book Service Now
+                + New Booking
               </button>
             </div>
           ) : (
@@ -545,13 +545,13 @@ function HistoryContent() {
         </div>
 
         {/* Footer */}
-        <div className="w-full shrink-0 pt-3 sm:pt-4 space-y-1.5 sm:space-y-2 text-center flex flex-col items-center justify-center">
+        <div className="w-full shrink-0 pt-3 sm:pt-4 space-y-2 text-center flex flex-col items-center justify-center">
           <button
             type="button"
             onClick={() => router.push('/customer/booking')}
-            className="py-2 px-4 min-h-[44px] text-xs sm:text-sm font-semibold text-[#8E9B9E] hover:text-[#1E2B37] transition cursor-pointer rounded-xl hover:bg-[#F8FAFC] active:scale-[0.98] touch-manipulation"
+            className="w-full max-w-xs py-2.5 px-5 min-h-[44px] text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition cursor-pointer rounded-xl shadow-xs active:scale-[0.98] touch-manipulation flex items-center justify-center gap-1.5"
           >
-            New Booking
+            <span>+ New Booking</span>
           </button>
 
           <p className="text-[10px] sm:text-xs text-[#94A3B8] font-normal">

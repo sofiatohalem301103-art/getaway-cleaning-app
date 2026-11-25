@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import LocationPickerMap from '@/app/components/LocationPickerMap';
 
 // ==========================================
 // 1. TYPES & DATA STRUCTURES
@@ -362,13 +363,33 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
 
   return (
     <div className="pt-4 sm:pt-5 border-t border-[#E2E8F0] space-y-4 sm:space-y-5">
+      <div className="space-y-1.5">
+        <div>
+          <label className="text-base font-bold text-[#1E2B37] block">
+            Pin Location on Map
+          </label>
+          <p className="text-xs text-[#8E9B9E] font-normal">
+            Search, use your current location, or drag the pin — Address & Google Maps link will be filled automatically
+          </p>
+        </div>
+        <LocationPickerMap
+          value={mapLink}
+          onChange={(url, detectedAddress) => {
+            onMapLinkChange(url);
+            if (detectedAddress) {
+              onAddressChange(detectedAddress);
+            }
+          }}
+        />
+      </div>
+
       <div className="space-y-1">
         <div>
           <label htmlFor="address-input" className="text-base font-bold text-[#1E2B37] block">
             Address
           </label>
           <p className="text-xs text-[#8E9B9E] font-normal">
-            Please enter street name, area, or full address
+            Auto-filled from map pin, or enter/edit street name, area, or full address
           </p>
         </div>
         <textarea
@@ -409,20 +430,6 @@ const PrivateHomeForm: React.FC<PrivateHomeFormProps> = ({
             className={INPUT_BASE_CLASSES}
           />
         </div>
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor="map-input" className="text-sm sm:text-base font-bold text-[#1E2B37] block">
-          Google Maps Link
-        </label>
-        <input
-          id="map-input"
-          type="url"
-          placeholder="https://maps.google.com/..."
-          value={mapLink}
-          onChange={(e) => onMapLinkChange(e.target.value)}
-          className={INPUT_BASE_CLASSES}
-        />
       </div>
 
       <div className="space-y-2 pt-3 sm:pt-4 border-t border-[#E2E8F0]">

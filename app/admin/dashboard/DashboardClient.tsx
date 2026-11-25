@@ -19,6 +19,14 @@ const STAFF_LIST = [
 
 const ADMIN_LIST = ['Sam', 'Sylvia', 'Zaza'];
 
+const PROGRAM_FULL_NAMES: Record<string, string> = {
+  general: 'General Cleaning',
+  deep: 'Deep Cleaning',
+  office: 'Office Cleaning',
+  garden: 'Garden Cleaning (Upon Request)',
+  turnover: 'Turnover Cleaning (Cleaning & change all sheets and towels)',
+};
+
 const HOLIDAY_PROPERTIES = [
   'Beautiful Apartment in Harbour Paphos | Central',
   'Breathtaking Seaview Apartment | Lighthouse Beach',
@@ -225,22 +233,50 @@ const formatPhoneNumberDisplay = (phoneStr: string): string => {
 };
 
 const extractProgramName = (task: any): string => {
-  if (!task) return 'General cleaning';
+  if (!task) return 'General Cleaning';
+
+  let detailsObj: any = {};
+  if (task.details) {
+    if (typeof task.details === 'string') {
+      try { detailsObj = JSON.parse(task.details); } catch (e) {}
+    } else if (typeof task.details === 'object' && task.details !== null) {
+      detailsObj = task.details;
+    }
+  }
+
+  const explicitName =
+    task.program_name ||
+    detailsObj.program_name ||
+    detailsObj.selected_program ||
+    detailsObj.program;
+
+  if (explicitName) {
+    const key = String(explicitName).toLowerCase().trim();
+    return PROGRAM_FULL_NAMES[key] || String(explicitName);
+  }
 
   const price = Number(task.total_amount || task.price || task.amount || 0);
-
   if (price === 120) return 'Turnover Cleaning';
-  if (price === 70) return 'General cleaning';
+  if (price === 70) return 'General Cleaning';
 
   const fullText = JSON.stringify(task).toLowerCase();
   if (fullText.includes('turn over') || fullText.includes('turnover')) {
     return 'Turnover Cleaning';
   }
+  if (fullText.includes('office')) {
+    return 'Office Cleaning';
+  }
+  if (fullText.includes('garden')) {
+    return 'Garden Cleaning (Upon Request)';
+  }
+  if (fullText.includes('deep')) {
+    return 'Deep Cleaning';
+  }
   if (fullText.includes('general')) {
-    return 'General cleaning';
+    return 'General Cleaning';
   }
 
-  return price > 100 ? 'Turnover Cleaning' : 'General cleaning';
+  return price > 100 ? 'Turnover Cleaning' : 'General Cleaning';
 };
 
 const getCleanDate = (dateVal: any): string => {
@@ -394,7 +430,6 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-xs space-y-2 mb-3">
-      {/* Header with Toggle */}
       <div className="flex justify-between items-center pb-1 border-b border-slate-100">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -415,7 +450,6 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
 
       {showStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 pt-1">
-          {/* Left: Overall Score */}
           <div className="flex sm:flex-col justify-between sm:justify-center items-center sm:items-start p-2.5 sm:p-3.5 bg-slate-50 rounded-xl border border-slate-100">
             <div>
               <div className="flex items-baseline gap-1.5">
@@ -434,7 +468,6 @@ function AdminReviewAnalytics({ feedbacks }: { feedbacks: any[] }) {
             </div>
           </div>
 
-          {/* Right: Star Distribution Bar */}
           <div className="space-y-1 p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-100 justify-center flex flex-col">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = distribution[star as 1|2|3|4|5];
@@ -628,21 +661,33 @@ function TaskCard({
   const isAdminTask = Boolean(details.is_admin_booking || details.assigned_by_admin);
   const slipUrl = getValidSlipUrl(task);
 
-  const isHolidayHome = task.service_type === 'holiday' || String(task.booking_ref || '').startsWith('BK') || String(task.booking_ref || '').startsWith('HOL') || Boolean(details.property);
-  const isPrivateService = !isHolidayHome && (task.service_type === 'private' || String(task.booking_ref || '').startsWith('PRV') || Boolean(details.property_type || details.bedrooms));
+  const isHolidayHome =
+    task.service_type === 'holiday' ||
+    details.service_type === 'holiday' ||
+    String(task.booking_ref || '').startsWith('BK') ||
+    String(task.booking_ref || '').startsWith('HOL') ||
+    Boolean(details.property);
 
-  const propertyType = details.property_type || details.propertyType || details.property_category || details.service_type || task.property_type;
+  const isPrivateService =
+    !isHolidayHome &&
+    (task.service_type === 'private' ||
+      details.service_type === 'private' ||
+      String(task.booking_ref || '').startsWith('PRV') ||
+      Boolean(details.property_type || details.bedrooms || details.office_sqm || details.garden_type));
+
+  const propertyType = details.property_type || details.propertyType || details.property_category || task.property_type;
   const rawBedrooms = details.room ?? details.bedrooms ?? details.bedrooms_unit ?? details.unit ?? details.bedroom ?? details.bedrooms_count ?? task.room_count ?? task.bedrooms;
   const rawBathrooms = details.bathrooms ?? details.bathroom ?? task.bathrooms;
-  const rawBalconies = details.balconies ?? details.balcony ?? details.office_balconies ?? details.verandahs ?? task.balconies;
+  const rawBalconies = details.balconies ?? details.balcony ?? details.office_balconies ?? details.officeBalconies ?? details.verandahs ?? task.balconies;
 
-  const officeSqm = details.office_sqm || details.sqm || task.office_sqm;
-  const officeToilets = details.office_toilets || task.office_toilets;
-  const officeCleanWindows = details.office_clean_windows || task.office_clean_windows;
+  const officeSqm = details.office_sqm || details.officeSquareMeters || details.sqm || task.office_sqm;
+  const officeToilets = details.office_toilets || details.officeToilets || task.office_toilets;
+  const officeCleanWindows = details.office_clean_windows || details.officeCleanWindows || task.office_clean_windows;
+  const officeWindowsCount = details.office_windows_count || details.officeWindowsCount;
 
-  const gardenSqm = details.garden_sqm || details.area_size || details.garden_size || task.garden_sqm || task.area_size;
-  const gardenType = details.garden_type || task.garden_type;
-  const gardenOtherDetails = details.garden_other_details || details.garden_notes || details.notes || details.special_request || details.comment || task.notes || task.special_request || task.garden_other_details;
+  const gardenSqm = details.garden_sqm || details.gardenSquareMeters || details.area_size || details.garden_size || task.garden_sqm || task.area_size;
+  const gardenType = details.garden_type || details.gardenType || task.garden_type;
+  const gardenOtherDetails = details.garden_other_details || details.gardenOtherDetails || details.garden_notes || details.notes || details.special_request || details.comment || task.notes || task.special_request || task.garden_other_details;
 
   const houseApt = details.house_apt || details.apartment_house_no || details.apartmentHouseNo || details.unit || task.house_apt;
   const building = details.building_complex || details.building || details.buildingComplex || task.building_complex;
@@ -653,11 +698,11 @@ function TaskCard({
     (rawBedrooms !== undefined && rawBedrooms !== null && String(rawBedrooms) !== '') ||
     (rawBathrooms !== undefined && rawBathrooms !== null && String(rawBathrooms) !== '') ||
     (rawBalconies !== undefined && rawBalconies !== null && String(rawBalconies) !== '') ||
-    officeSqm || officeToilets || officeCleanWindows ||
+    officeSqm || officeToilets || officeCleanWindows || officeWindowsCount ||
     gardenSqm || gardenType || gardenOtherDetails
   );
 
-  const displayProgram = task.program_name || details.program_name || details.selected_program || extractProgramName(task);
+  const displayProgram = extractProgramName(task);
   const isCard = details.payment_method === 'card' || isCardPayment(task);
   const displayAddress = task.address || task.address_line || details.address || details.address_line || details.full_address || details.property || '-';
   const mapsLink = details.google_maps_link || details.mapLink || details.google_maps;
@@ -786,7 +831,7 @@ function TaskCard({
                 )}
                 {officeSqm && (
                   <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
-                    Area: <strong className="text-slate-900 font-bold">{officeSqm} m²</strong>
+                    Area: <strong className="text-slate-900 font-bold">{officeSqm}</strong>
                   </span>
                 )}
                 {officeToilets && (
@@ -794,9 +839,19 @@ function TaskCard({
                     Toilets: <strong className="text-slate-900 font-bold">{officeToilets}</strong>
                   </span>
                 )}
+                {officeCleanWindows && (
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
+                    Windows: <strong className="text-slate-900 font-bold capitalize">{officeCleanWindows}{officeWindowsCount ? ` (${officeWindowsCount})` : ''}</strong>
+                  </span>
+                )}
+                {gardenType && (
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
+                    Garden Type: <strong className="text-slate-900 font-bold capitalize">{gardenType}</strong>
+                  </span>
+                )}
                 {gardenSqm && (
                   <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-normal">
-                    Garden: <strong className="text-slate-900 font-bold">{gardenSqm} m²</strong>
+                    Garden Size: <strong className="text-slate-900 font-bold">{gardenSqm}</strong>
                   </span>
                 )}
               </div>
@@ -1300,7 +1355,7 @@ function AdminDashboardContent() {
               phone: extractPhoneNumber(task),
               bookingRef: formatRefCode(task),
               room: task.address || task.address_line || currentDetails.property || currentDetails.address || '-',
-              program: task.program_name || currentDetails.program_name || extractProgramName(task),
+              program: extractProgramName(task),
               date: task.scheduled_date || currentDetails.scheduled_date,
               time: task.scheduled_time || currentDetails.scheduled_time,
             }),
@@ -1376,7 +1431,7 @@ function AdminDashboardContent() {
               phone: extractPhoneNumber(task),
               bookingRef: formatRefCode(task),
               room: task.address || task.address_line || currentDetails.property || currentDetails.address || '-',
-              program: task.program_name || currentDetails.program_name || extractProgramName(task),
+              program: extractProgramName(task),
               date: task.scheduled_date || currentDetails.scheduled_date,
               time: task.scheduled_time || currentDetails.scheduled_time,
               amount: numericPrice,
@@ -1457,7 +1512,7 @@ function AdminDashboardContent() {
               phone: extractPhoneNumber(task),
               bookingRef: formatRefCode(task),
               room: task.address || task.address_line || currentDetails.property || currentDetails.address || '-',
-              program: task.program_name || currentDetails.program_name || extractProgramName(task),
+              program: extractProgramName(task),
               date: task.scheduled_date || currentDetails.scheduled_date,
               time: task.scheduled_time || currentDetails.scheduled_time,
               amount: task.total_amount || task.price || 0,
@@ -1513,7 +1568,6 @@ function AdminDashboardContent() {
 
       let isSuccess = false;
 
-      // 1. Update bookings table
       if (task.id) {
         const { error } = await supabase
           .from('bookings')
@@ -1532,7 +1586,6 @@ function AdminDashboardContent() {
 
       if (!isSuccess) throw new Error('Could not update payment status in Supabase.');
 
-      // 2. Sync payments table (update status to completed and set paid_at timestamp)
       let paymentUpdated = false;
       const nowIso = new Date().toISOString();
 
@@ -1580,7 +1633,7 @@ function AdminDashboardContent() {
               phone: extractPhoneNumber(task),
               bookingRef: formatRefCode(task),
               room: task.address || task.address_line || currentDetails.property || currentDetails.address || '-',
-              program: task.program_name || currentDetails.program_name || extractProgramName(task),
+              program: extractProgramName(task),
               date: task.scheduled_date || currentDetails.scheduled_date,
               time: task.scheduled_time || currentDetails.scheduled_time,
               amount: task.total_amount || task.price || 0,
@@ -1657,7 +1710,7 @@ function AdminDashboardContent() {
       address_line: task.address_line || task.address || currentDetails.address || currentDetails.address_line || null,
       service_type: task.service_type || currentDetails.service_type || 'holiday',
       notes: currentDetails.notes || currentDetails.garden_other_details || currentDetails.special_request || task.notes || null,
-      program_name: task.program_name || currentDetails.program_name || 'General cleaning',
+      program_name: task.program_name || currentDetails.program_name || 'General Cleaning',
     };
 
     const rawDate = task.scheduled_date || currentDetails.scheduled_date || currentDetails.booking_date;
@@ -1931,7 +1984,6 @@ function AdminDashboardContent() {
 
           {showOverview && (
             <>
-              {/* Mobile Compact Grid */}
               <div className="grid grid-cols-5 gap-1 sm:hidden pt-1 text-center">
                 {STAFF_LIST.map((staff) => {
                   const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
@@ -1952,7 +2004,6 @@ function AdminDashboardContent() {
                 })}
               </div>
 
-              {/* Desktop Full Cards */}
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2 pt-1.5">
                 {STAFF_LIST.map((staff) => {
                   const staffData = staffStatusMap[staff.name] || { count: 0, isBusy: false };
